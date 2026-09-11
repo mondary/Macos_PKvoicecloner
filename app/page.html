@@ -49,6 +49,11 @@
   .presence.ready i { background: #83bf8d; box-shadow: 0 0 10px rgba(131,191,141,.7); }
   .presence.wait i { background: var(--brass); animation: breathe 1.5s ease-in-out infinite; }
   @keyframes breathe { 50% { opacity: .3; transform: scale(.7); } }
+  .top-actions { display: flex; align-items: center; gap: 14px; }
+  .power { display: inline-flex; align-items: center; min-height: 32px; padding: 0 11px; border: 1px solid rgba(255,250,244,.28); border-radius: 999px; background: rgba(24,19,17,.35); color: rgba(255,250,244,.86); font: .64rem var(--mono); letter-spacing: .07em; text-transform: uppercase; transition: background .16s ease, border-color .16s ease, transform .16s ease; }
+  .power:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--coral); background: rgba(223,93,69,.18); }
+  .power:disabled { cursor: wait; opacity: .62; }
+  .power svg { width: 13px; height: 13px; margin-right: 6px; }
 
   .intro { width: min(580px, 100%); color: var(--cream); padding: 8vh 0 8vh 4.4vw; pointer-events: none; }
   .eyebrow { display: flex; align-items: center; gap: 9px; color: var(--paper-muted); font: .68rem var(--mono); letter-spacing: .16em; text-transform: uppercase; }
@@ -163,11 +168,15 @@
 <main class="studio">
   <header class="topbar">
     <div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>PK Voice Studio</span></div>
-    <div class="top-meta">
-      <span class="presence" id="serverPresence"><i></i><span>Studio local</span></span>
-      <span class="presence" id="modelPresence"><i></i><span>VoxCPM2</span></span>
+    <div class="top-actions">
+      <div class="top-meta">
+        <span class="presence" id="serverPresence"><i></i><span>Studio local</span></span>
+        <span class="presence" id="modelPresence"><i></i><span>VoxCPM2</span></span>
+      </div>
+      <button class="power" id="stopStudio" type="button" aria-label="Éteindre le studio et libérer le modèle" title="Éteindre le studio et libérer le modèle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M12 3v9m5.66-5.66a8 8 0 1 1-11.32 0"/></svg><span id="stopLabel">Éteindre</span>
+      </button>
     </div>
-  </header>
 
   <section class="intro" aria-labelledby="titre-studio">
     <div class="eyebrow">Direction de voix · Local</div>
@@ -233,7 +242,7 @@
     </article>
   </section>
 
-  <footer class="footer"><span><b>100 % local</b> · la voix ne quitte pas ce Mac</span><span>PK Voice Studio · v<span id="version">0.3.0</span></span></footer>
+  <footer class="footer"><span><b>100 % local</b> · la voix ne quitte pas ce Mac</span><span>PK Voice Studio · v<span id="version">0.3.1</span></span></footer>
 </main>
 </body>
 </html>

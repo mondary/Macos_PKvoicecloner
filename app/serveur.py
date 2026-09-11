@@ -4,6 +4,7 @@ Endpoints :
   GET  /                page HTML
   POST /api/voix        upload audio (m4a/mp3/wav/webm) -> conversion + transcription
   POST /api/generer     {texte, vitesse, transcript} -> job id
+  POST /api/arreter     arrêt gracieux du serveur et libération du modèle
   GET  /api/job/{id}    état du job
   GET  /api/audio/{f}   fichier wav généré
   GET  /api/etat        modèle chargé ? voix définie ?
@@ -29,7 +30,8 @@ APP = Path(__file__).resolve().parent
 PROJET = APP.parent
 SORTIES = PROJET / "data" / "sorties"
 VOIX = PROJET / "data" / "voix"
-for _d in (SORTIES, VOIX):
+PID_FILE = PROJET / "data" / "run" / "serveur.pid"
+for _d in (SORTIES, VOIX, PID_FILE.parent):
     _d.mkdir(parents=True, exist_ok=True)
 
 VITESSE_MIN, VITESSE_MAX = 0.75, 1.5
@@ -41,6 +43,7 @@ verrou_gen = threading.Lock()    # une génération à la fois
 transcripts = {}                 # hash audio -> transcript ASR
 voix_courante = {}               # {"wav": Path, "transcript": str, "source": str}
 jobs = {}                        # id -> {etat, fichier?, erreur?, debut}
+serveur_http: uvicorn.Server | None = None
 
 
 def charger_modele():
@@ -91,6 +94,20 @@ def index():
 @app.get("/api/etat")
 def etat():
     return {"modele": modele is not None, "voix": bool(voix_courante)}
+
+def programmer_arret():
+    """Laisse la réponse HTTP partir avant d'arrêter Uvicorn."""
+    time.sleep(0.25)
+    if serveur_http is not None:
+        serveur_http.should_exit = True
+
+
+@app.post("/api/arreter", status_code=202)
+def arreter_studio():
+    if serveur_http is None:
+        raise HTTPException(503, "serveur en cours d'initialisation")
+    threading.Thread(target=programmer_arret, daemon=True).start()
+    return {"etat": "arret_en_cours"}
 
 
 @app.post("/api/voix")
@@ -190,5 +207,16 @@ def audio(fichier: str):
     return FileResponse(f, media_type="audio/wav", filename=f.name)
 
 
+def lancer_serveur():
+    global serveur_http
+    PID_FILE.write_text(f"{os.getpid()}\n", encoding="utf-8")
+    serveur_http = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=8809))
+    try:
+        serveur_http.run()
+    finally:
+        if PID_FILE.exists() and PID_FILE.read_text(encoding="utf-8").strip() == str(os.getpid()):
+            PID_FILE.unlink()
+
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8809)
+    lancer_serveur()

@@ -20,6 +20,10 @@
   let currentSourceFile = null;
   let currentResultUrl = null;
   let studioScene = null;
+  let systemTimer = null;
+  let clockTimer = null;
+  let shuttingDown = false;
+  let meterRunning = true;
 
   /* ---------------------- Audio : énergie, aperçu, niveaux ---------------------- */
   const audio = {
@@ -91,6 +95,7 @@
     constructor(host) {
       this.host = host;
       this.state = "idle";
+      this.running = true;
       this.energy = 0;
       this.pointer = { x: 0, y: 0 };
       this.palette = {
@@ -121,11 +126,13 @@
       this.createLights();
       this.resize();
 
-      window.addEventListener("resize", () => this.resize());
-      window.addEventListener("pointermove", (event) => {
+      this.onResize = () => this.resize();
+      this.onPointerMove = (event) => {
         this.pointer.x = (event.clientX / window.innerWidth - 0.5) * 2;
         this.pointer.y = (event.clientY / window.innerHeight - 0.5) * 2;
-      }, { passive: true });
+      };
+      window.addEventListener("resize", this.onResize);
+      window.addEventListener("pointermove", this.onPointerMove, { passive: true });
 
       window.__voiceStudioScene = this;
       if (prefersReducedMotion) this.render(0);
@@ -299,8 +306,18 @@
     }
 
     animate(time) {
+      if (!this.running) return;
       this.render(time);
-      requestAnimationFrame((next) => this.animate(next));
+      if (this.running) requestAnimationFrame((next) => this.animate(next));
+    }
+
+    dispose() {
+      this.running = false;
+      window.removeEventListener("resize", this.onResize);
+      window.removeEventListener("pointermove", this.onPointerMove);
+      this.renderer.dispose();
+      this.renderer.forceContextLoss();
+      this.renderer.domElement.remove();
     }
 
     render(time) {
@@ -473,6 +490,7 @@
   }
 
   function renderMeter() {
+    if (!meterRunning) return;
     const bars = $("meter").children;
     const energy = audio.energy();
     const live = Math.round(energy * bars.length);
@@ -481,10 +499,11 @@
       bars[index].style.height = active ? `${22 + ((index + 1) / bars.length) * 78}%` : "12%";
       bars[index].classList.toggle("hot", active && index > bars.length * 0.72);
     }
-    if (!prefersReducedMotion) requestAnimationFrame(renderMeter);
+    if (!prefersReducedMotion && meterRunning) requestAnimationFrame(renderMeter);
   }
 
   async function refreshSystem() {
+    if (shuttingDown) return;
     try {
       const response = await fetch("/api/etat");
       const system = await response.json();
@@ -493,6 +512,48 @@
     } catch (error) {
       setPresence($("serverPresence"), "");
       setPresence($("modelPresence"), "");
+    }
+  }
+
+  async function stopStudio() {
+    if (shuttingDown || !window.confirm("Éteindre le studio ? Le modèle VoxCPM et toute prise en cours seront arrêtés pour libérer la mémoire.")) return;
+
+    shuttingDown = true;
+    $("stopStudio").disabled = true;
+    $("stopLabel").textContent = "Libération…";
+    $("generer").disabled = true;
+    $("choisir").disabled = true;
+    $("micro").disabled = true;
+    setTakeStatus("Arrêt du studio et libération du modèle…");
+    setStudioState("idle");
+
+    try {
+      const response = await fetch("/api/arreter", { method: "POST" });
+      if (!response.ok) throw new Error("le serveur a refusé l'arrêt");
+      window.clearInterval(systemTimer);
+      window.clearInterval(clockTimer);
+      recordingStream?.getTracks().forEach((track) => track.stop());
+      audio.stopMicrophone();
+      await audio.context?.close();
+      meterRunning = false;
+      studioScene?.dispose();
+      studioScene = null;
+      window.__voiceStudioScene = null;
+      setPresence($("serverPresence"), "");
+      setPresence($("modelPresence"), "");
+      $("sceneMode").textContent = "éteinte";
+      $("threeCaption").textContent = "Modèle libéré";
+      setTakeStatus("Studio éteint — le modèle est libéré.", "good");
+      $("stopLabel").textContent = "Studio éteint";
+    } catch (error) {
+      shuttingDown = false;
+      $("stopStudio").disabled = false;
+      $("stopLabel").textContent = "Éteindre";
+      $("generer").disabled = !(voiceReady && $("texte").value.trim());
+      $("choisir").disabled = false;
+      $("micro").disabled = false;
+      setTakeStatus(`Arrêt impossible : ${error.message}`, "error");
+      setStudioState(voiceReady ? "ready" : "idle");
     }
   }
 
@@ -505,6 +566,7 @@
   }
 
   async function loadVoice(file) {
+    if (shuttingDown) return;
     currentSourceFile = file;
     voiceReady = false;
     $("generer").disabled = true;
@@ -530,6 +592,7 @@
       $("generer").disabled = !$("texte").value.trim();
       setStudioState("ready");
     } catch (error) {
+      if (shuttingDown) return;
       setVoiceStatus(`Import impossible : ${error.message}`, "error");
       $("sourceDuration").textContent = "—";
       setStudioState("idle");
@@ -537,6 +600,7 @@
   }
 
   async function beginRecording() {
+    if (shuttingDown) return;
     if (recorder?.state === "recording") {
       recorder.stop();
       return;
@@ -591,6 +655,7 @@
   }
 
   async function createTake() {
+    if (shuttingDown) return;
     const text = $("texte").value.trim();
     if (!voiceReady || !text || generating) return;
     generating = true;
@@ -610,6 +675,7 @@
       if (!response.ok) throw new Error(payload.detail || "Génération impossible");
       await watchTake(payload.job, text);
     } catch (error) {
+      if (shuttingDown) return;
       generating = false;
       $("generer").disabled = false;
       setTakeStatus(`Erreur : ${error.message}`, "error");
@@ -620,6 +686,10 @@
   async function watchTake(jobId, text) {
     const predicted = Math.max(45, text.length / 15 * 15 / speed);
     const timer = setInterval(async () => {
+      if (shuttingDown) {
+        clearInterval(timer);
+        return;
+      }
       try {
         const response = await fetch(`/api/job/${jobId}`);
         const job = await response.json();
@@ -643,6 +713,10 @@
         setStudioState("ready");
         try { await $("resultat").play(); } catch (_) { /* le lecteur reste disponible si l'autoplay est bloqué */ }
       } catch (error) {
+        if (shuttingDown) {
+          clearInterval(timer);
+          return;
+        }
         clearInterval(timer);
         generating = false;
         $("generer").disabled = false;
@@ -666,6 +740,7 @@
       if (voiceReady && !generating) $("generer").disabled = !$("texte").value.trim();
     });
     $("generer").addEventListener("click", createTake);
+    $("stopStudio").addEventListener("click", stopStudio);
     bindPlayer($("voicePreview"), "preview");
     bindPlayer($("resultat"), "result");
     window.addEventListener("resize", () => {
@@ -683,8 +758,8 @@
     initScene();
     if (!prefersReducedMotion) requestAnimationFrame(renderMeter);
     refreshSystem();
-    window.setInterval(refreshSystem, 5000);
-    window.setInterval(() => { $("clock").textContent = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }); }, 1000);
+    systemTimer = window.setInterval(refreshSystem, 5000);
+    clockTimer = window.setInterval(() => { $("clock").textContent = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }); }, 1000);
   }
 
   init();

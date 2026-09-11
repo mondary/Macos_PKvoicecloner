@@ -1,6 +1,17 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [0.3.1] - 2026-09-11
+
+### Added
+
+- Bouton **Éteindre** dans le studio : confirmation, arrêt du serveur local, libération de VoxCPM/MPS et du contexte WebGL
+- `POST /api/arreter`, PID suivi dans `data/run/serveur.pid` et `arreter-studio.sh` pour arrêter la session sans navigateur
+
+### Changed
+
+- Le launcher macOS cible exclusivement son serveur vérifié ; arrêt gracieux puis escalade `TERM`/`KILL` seulement si nécessaire
+
 ## [0.3.0] - 2026-09-11
 
 ### Added

@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **0.3.0** · macOS Apple Silicon · Apache-2.0
+version **0.3.1** · macOS Apple Silicon · Apache-2.0
 
 🎙️ 100 % local voice cloning on macOS — your clip + its transcript, and your voice says any text. Powered by [VoxCPM2](https://github.com/OpenBMB/VoxCPM) (OpenBMB) and [faster-whisper](https://github.com/SYSTRAN/faster-whisper) on Apple Silicon via MPS. **No data ever leaves the machine.**
 
@@ -12,7 +12,7 @@ version **0.3.0** · macOS Apple Silicon · Apache-2.0
 - **Upload or mic** — QuickTime `.m4a`, `.mp3`, `.wav`, `.webm`, or record straight in the page
 - **Auto transcription** — Whisper large-v3 (multilingual), editable before generating
 - **Speed** 0.75×–1.5× — pure time-stretch, pitch stays untouched
-- **Resident model** — loaded once, ~90 s per generation afterwards
+- **On-demand resident model** — loaded once for a session; **Power off** releases its memory when you are done
 - **Offline** — models cached locally, no network calls
 - **`mavox`** — one-command cloning from the terminal, quoted or not
 - **Three.js studio** — a real audio-reactive 3D scene: booth microphone, acoustic panels, particles, sound rings, lighting and VU meter
@@ -22,14 +22,18 @@ version **0.3.0** · macOS Apple Silicon · Apache-2.0
 
 1. Open **PK Voice Cloner.app** (or `http://127.0.0.1:8809` after launch)
 2. **📁 Choose a file** or **🎤 Record** → the transcript shows up
-3. Type your text, set the speed, **⚡ Generate**
+3. Type your text, set the speed, **Create take**
 4. Listen, download, repeat
+5. At the end of a session, click **Power off** at the top right: the Python server, VoxCPM and Three.js renderer stop and release their memory.
 
 ### Terminal
 
 ```sh
 ./ma-voix.sh The text your voice should say
 ./ma-voix.sh -a ~/Desktop/new_recording.m4a The text
+
+# If the browser is already closed: safely stop the studio and its model
+./arreter-studio.sh
 ```
 
 ## ⚙️ Requirements
@@ -60,6 +64,7 @@ uv pip install --python .venv-whisper/bin/python faster-whisper
 |---|---|
 | `app/` | FastAPI server + web page |
 | `ma-voix.sh` | Command-line cloning |
+| `arreter-studio.sh` | Safely stops the local server and releases the model |
 | `data/voix`, `data/sorties` | Source clips and generated audio (private, not versioned) |
 | `third_party/VoxCPM` | Model and library (Apache-2.0) |
 | `.venv`, `.venv-whisper` | Python environments (not versioned) |

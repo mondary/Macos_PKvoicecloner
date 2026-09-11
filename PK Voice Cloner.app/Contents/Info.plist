@@ -4,11 +4,12 @@
 <dict>
 	<key>CFBundlePackageType</key><string>APPL</string>
 	<key>CFBundleName</key><string>PK Voice Cloner</string>
+	<key>CFBundleDisplayName</key><string>PK Voice Cloner</string>
 	<key>CFBundleExecutable</key><string>PKVoiceCloner</string>
 	<key>CFBundleIdentifier</key><string>com.clm.pkvoicecloner</string>
 	<key>CFBundleIconFile</key><string>PKVoiceCloner</string>
-	<key>CFBundleShortVersionString</key><string>0.3.1</string>
-	<key>CFBundleVersion</key><string>4</string>
+	<key>CFBundleShortVersionString</key><string>0.3.2</string>
+	<key>CFBundleVersion</key><string>5</string>
 	<key>LSMinimumSystemVersion</key><string>14.0</string>
 	<key>LSUIElement</key><true/>
 </dict>

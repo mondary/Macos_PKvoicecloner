@@ -1,6 +1,12 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [0.3.2] - 2026-09-11
+
+### Fixed
+
+- Bundle macOS installé dans `/Applications` avec le nom Finder, Spotlight et Launchpad explicite **PK Voice Cloner**
+
 ## [0.3.1] - 2026-09-11
 
 ### Added

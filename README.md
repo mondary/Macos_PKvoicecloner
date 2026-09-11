@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **0.3.1** · macOS Apple Silicon · Apache-2.0
+version **0.3.2** · macOS Apple Silicon · Apache-2.0
 
 🎙️ Clonage de voix 100 % local sur macOS — ton clip + ta transcription, et ta voix dit n'importe quel texte. Basé sur [VoxCPM2](https://github.com/OpenBMB/VoxCPM) (OpenBMB) et [faster-whisper](https://github.com/SYSTRAN/faster-whisper), sur la puce Apple via MPS. **Aucune donnée ne quitte la machine.**
 
@@ -20,7 +20,7 @@ version **0.3.1** · macOS Apple Silicon · Apache-2.0
 
 ## 🧠 Utilisation
 
-1. Ouvre **PK Voice Cloner.app** (ou `http://127.0.0.1:8809` après lancement)
+1. Ouvre **PK Voice Cloner.app** depuis le dossier macOS **Applications** (chemin : `/Applications/PK Voice Cloner.app`)
 2. **📁 Choisir un fichier** ou **🎤 Enregistrer** → la transcription apparaît
 3. Écris ton texte, règle la vitesse si besoin, **Créer la prise**
 4. Écoute, télécharge, recommence

@@ -1,0 +1,17 @@
+#!/bin/bash
+# PK Voice Cloner — lance le serveur local si nécessaire puis ouvre l'interface
+PROJET="$HOME/Documents/GitHub/PROJECTS/Macos_PKvoicecloner"
+URL="http://127.0.0.1:8809"
+LOG="$PROJET/data/logs/serveur.log"
+mkdir -p "$(dirname "$LOG")"
+
+if ! curl -s --max-time 2 "$URL/api/etat" >/dev/null 2>&1; then
+  export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
+  nohup "$PROJET/.venv/bin/python" "$PROJET/app/serveur.py" >> "$LOG" 2>&1 &
+  for i in $(seq 1 90); do
+    curl -s --max-time 2 "$URL/api/etat" >/dev/null 2>&1 && break
+    sleep 1
+  done
+  osascript -e 'display notification "Le serveur local est démarré sur http://127.0.0.1:8809" with title "PK Voice Cloner"' >/dev/null 2>&1
+fi
+open "$URL"

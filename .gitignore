@@ -1,0 +1,16 @@
+# Environnements et vendu
+.venv/
+.venv-whisper/
+third_party/
+
+# Données voix privées (jamais versionnées)
+data/
+clones/
+clement_voice.wav
+*.wav
+
+# Système / logs
+.DS_Store
+*.log
+__pycache__/
+.ipynb_checkpoints/

@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PK Voice Cloner — clonage de voix local</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "SF Pro Text", sans-serif; max-width: 640px; margin: 0 auto; padding: 24px 16px 60px; line-height: 1.5; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  .sous { color: gray; font-size: .85rem; margin-bottom: 24px; }
+  section { border: 1px solid color-mix(in srgb, gray 30%, transparent); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  h2 { font-size: .95rem; margin: 0 0 12px; text-transform: uppercase; letter-spacing: .04em; color: gray; }
+  button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid color-mix(in srgb, gray 40%, transparent); background: transparent; cursor: pointer; }
+  button.primaire { background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 600; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.rec { background: #dc2626; border-color: #dc2626; color: #fff; }
+  textarea { width: 100%; font: inherit; padding: 8px; border-radius: 8px; border: 1px solid color-mix(in srgb, gray 40%, transparent); background: transparent; color: inherit; resize: vertical; }
+  input[type=file] { display: none; }
+  .rangee { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .etat { font-size: .85rem; min-height: 1.2em; }
+  audio { width: 100%; margin-top: 8px; }
+  .vitesse { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+  .vitesse input { flex: 1; }
+  #vitesseVal { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 58px; text-align: right; }
+  .note { font-size: .78rem; color: gray; }
+  #telecharger { display: none; }
+  a { color: #2563eb; }
+</style>
+</head>
+<body>
+<h1>🎙️ PK Voice Cloner</h1>
+<p class="sous">Clonage local — VoxCPM2 tourne sur ta machine, rien ne sort de ton Mac.</p>
+
+<section>
+  <h2>1 · Ta voix</h2>
+  <div class="rangee">
+    <label class="primaire" style="cursor:pointer"><button type="button" onclick="document.getElementById('fichier').click()">📁 Choisir un fichier</button></label>
+    <input type="file" id="fichier" accept="audio/*,.m4a,.mp3,.wav,.webm">
+    <button id="micro">🎤 Enregistrer</button>
+    <span id="microEtat" class="note"></span>
+  </div>
+  <audio id="apercuVoix" controls style="display:none"></audio>
+  <p class="etat" id="etatVoix"></p>
+  <label class="note">Transcript du clip (modifiable — doit correspondre à ce qui est dit)</label>
+  <textarea id="transcript" rows="3" placeholder="Transcription automatique du clip…"></textarea>
+</section>
+
+<section>
+  <h2>2 · Ton texte</h2>
+  <textarea id="texte" rows="4" placeholder="Ce que ta voix doit dire…"></textarea>
+  <div class="vitesse">
+    <span class="note">Vitesse</span>
+    <input type="range" id="vitesse" min="0.75" max="1.5" step="0.05" value="1">
+    <span id="vitesseVal">1.00 ×</span>
+  </div>
+  <p class="note">Le pitch reste exactement celui de ta voix — seule la durée change.</p>
+</section>
+
+<section>
+  <h2>3 · Génération</h2>
+  <div class="rangee">
+    <button id="generer" class="primaire" disabled>⚡ Générer</button>
+    <a id="telecharger" download="ma-voix.wav">⬇️ Télécharger</a>
+  </div>
+  <p class="etat" id="etatGen"></p>
+  <span class="note" id="dureeRes"></span>
+  <audio id="resultat" controls style="display:none"></audio>
+</section>
+
+<script>
+const $ = id => document.getElementById(id);
+let mediaRecorder = null, morceaux = [], minuterie = null;
+
+$('fichier').addEventListener('change', e => { if (e.target.files[0]) envoyerVoix(e.target.files[0]); });
+
+$('micro').addEventListener('click', async () => {
+  if (mediaRecorder && mediaRecorder.state === 'recording') { mediaRecorder.stop(); return; }
+  try {
+    const flux = await navigator.mediaDevices.getUserMedia({ audio: true });
+    morceaux = [];
+    const type = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'].find(t => MediaRecorder.isTypeSupported(t));
+    mediaRecorder = new MediaRecorder(flux, type ? { mimeType: type } : undefined);
+    mediaRecorder.ondataavailable = e => morceaux.push(e.data);
+    mediaRecorder.onstop = () => {
+      flux.getTracks().forEach(t => t.stop());
+      clearInterval(minuterie);
+      $('microEtat').textContent = '';
+      const ext = (mediaRecorder.mimeType || '').includes('mp4') ? 'm4a' : 'webm';
+      const fichier = new File(morceaux, `enregistrement.${ext}`, { type: mediaRecorder.mimeType });
+      envoyerVoix(fichier);
+      $('micro').textContent = '🎤 Enregistrer';
+      $('micro').classList.remove('rec');
+    };
+    mediaRecorder.start();
+    $('micro').textContent = '⏹ Arrêter';
+    $('micro').classList.add('rec');
+    let t = 0;
+    $('microEtat').textContent = '● 0 s';
+    minuterie = setInterval(() => $('microEtat').textContent = `● ${++t} s`, 1000);
+  } catch (err) {
+    $('microEtat').textContent = 'micro indisponible : ' + err.message;
+  }
+});
+
+async function envoyerVoix(fichier) {
+  $('apercuVoix').src = URL.createObjectURL(fichier);
+  $('apercuVoix').style.display = 'block';
+  $('etatVoix').textContent = '⏳ Conversion + transcription (~1 min au premier envoi)…';
+  $('generer').disabled = true;
+  const fd = new FormData();
+  fd.append('audio', fichier);
+  const r = await fetch('/api/voix', { method: 'POST', body: fd });
+  const j = await r.json();
+  if (!r.ok) { $('etatVoix').textContent = '❌ ' + (j.detail || 'erreur'); return; }
+  $('transcript').value = j.transcript;
+  $('etatVoix').textContent = `✅ Voix prête — ${j.duree} s, source : ${j.source}`;
+  $('generer').disabled = false;
+}
+
+$('vitesse').addEventListener('input', e => $('vitesseVal').textContent = parseFloat(e.target.value).toFixed(2) + ' ×');
+
+$('generer').addEventListener('click', async () => {
+  $('etatGen').textContent = '⏳ envoi…';
+  $('resultat').style.display = 'none';
+  $('telecharger').style.display = 'none';
+  const r = await fetch('/api/generer', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ texte: $('texte').value, vitesse: parseFloat($('vitesse').value), transcript: $('transcript').value }),
+  });
+  const j = await r.json();
+  if (!r.ok) { $('etatGen').textContent = '❌ ' + (j.detail || 'erreur'); return; }
+  $('generer').disabled = true;
+  surveiller(j.job);
+});
+
+function surveiller(job) {
+  const iv = setInterval(async () => {
+    const j = await (await fetch('/api/job/' + job)).json();
+    $('etatGen').textContent =
+      j.etat === 'chargement' ? `⏳ préparation du modèle (${j.ecoule} s)…`
+      : j.etat === 'generation' ? `🎙️ génération (${j.ecoule} s — compte ~2 min par 10 s d'audio)…`
+      : j.etat === 'erreur' ? '❌ ' + j.erreur
+      : j.etat;
+    if (j.etat === 'pret' || j.etat === 'erreur') {
+      clearInterval(iv);
+      $('generer').disabled = false;
+      if (j.etat === 'pret') {
+        $('resultat').src = '/api/audio/' + j.fichier;
+        $('resultat').style.display = 'block';
+        $('telecharger').href = '/api/audio/' + j.fichier;
+        $('telecharger').style.display = 'inline-block';
+        $('dureeRes').textContent = 'durée finale : ' + j.duree + ' s';
+        $('etatGen').textContent = '✅ terminé';
+      }
+    }
+  }, 2000);
+}
+</script>
+</body>
+</html>

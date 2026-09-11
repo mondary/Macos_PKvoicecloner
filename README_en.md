@@ -2,6 +2,8 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
+version **0.2.0** · macOS Apple Silicon · Apache-2.0
+
 🎙️ 100 % local voice cloning on macOS — your clip + its transcript, and your voice says any text. Powered by [VoxCPM2](https://github.com/OpenBMB/VoxCPM) (OpenBMB) and [faster-whisper](https://github.com/SYSTRAN/faster-whisper) on Apple Silicon via MPS. **No data ever leaves the machine.**
 
 ## ✅ Features

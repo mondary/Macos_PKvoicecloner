@@ -3,161 +3,514 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PK Voice Cloner — clonage de voix local</title>
+<title>PK Voice Cloner — Cockpit</title>
 <style>
-  :root { color-scheme: light dark; }
+  :root {
+    --fond: #0a0b0d;
+    --panneau: rgba(255, 255, 255, .035);
+    --bord: rgba(255, 255, 255, .09);
+    --texte: #f7f8f8;
+    --souris: #8a8f98;
+    --accent: #22d3ee;   /* idle : cyan */
+    --ok: #34d399;
+    --warn: #fbbf24;
+    --danger: #f87171;
+    --mono: "SF Mono", ui-monospace, Menlo, monospace;
+  }
   * { box-sizing: border-box; }
-  body { font-family: -apple-system, "SF Pro Text", sans-serif; max-width: 640px; margin: 0 auto; padding: 24px 16px 60px; line-height: 1.5; }
-  h1 { font-size: 1.4rem; margin: 0 0 4px; }
-  .sous { color: gray; font-size: .85rem; margin-bottom: 24px; }
-  section { border: 1px solid color-mix(in srgb, gray 30%, transparent); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-  h2 { font-size: .95rem; margin: 0 0 12px; text-transform: uppercase; letter-spacing: .04em; color: gray; }
-  button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid color-mix(in srgb, gray 40%, transparent); background: transparent; cursor: pointer; }
-  button.primaire { background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 600; }
-  button:disabled { opacity: .45; cursor: not-allowed; }
-  button.rec { background: #dc2626; border-color: #dc2626; color: #fff; }
-  textarea { width: 100%; font: inherit; padding: 8px; border-radius: 8px; border: 1px solid color-mix(in srgb, gray 40%, transparent); background: transparent; color: inherit; resize: vertical; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; font-family: -apple-system, "SF Pro Text", sans-serif;
+    background: var(--fond); color: var(--texte);
+    overflow-x: hidden; line-height: 1.45;
+  }
+  #shader { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 0; }
+  .cockpit { position: relative; z-index: 1; max-width: 1180px; margin: 0 auto; padding: 20px 20px 48px; }
+
+  /* ---- barre supérieure ---- */
+  .haut {
+    display: flex; align-items: center; gap: 18px; justify-content: space-between;
+    padding: 10px 16px; margin-bottom: 14px;
+    background: var(--panneau); border: 1px solid var(--bord); border-radius: 10px;
+    backdrop-filter: blur(8px);
+  }
+  .marque { font-weight: 700; letter-spacing: .12em; font-size: .95rem; }
+  .marque span { color: var(--accent); }
+  .readout {
+    font-family: var(--mono); font-size: .8rem; letter-spacing: .08em;
+    color: var(--souris); text-transform: uppercase; text-align: center; flex: 1;
+  }
+  .readout b { color: var(--accent); font-weight: 600; }
+  .leds { display: flex; gap: 12px; font-family: var(--mono); font-size: .62rem; letter-spacing: .1em; color: var(--souris); }
+  .led { display: flex; align-items: center; gap: 5px; }
+  .led i { width: 8px; height: 8px; border-radius: 50%; background: #333; box-shadow: none; transition: all .4s; }
+  .led.on i { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .led.att i { background: var(--warn); box-shadow: 0 0 8px var(--warn); animation: pulse 1.2s infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .horloge { font-family: var(--mono); font-size: .78rem; color: var(--souris); letter-spacing: .08em; }
+
+  /* ---- grille consoles ---- */
+  .consoles { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .consoles .pleine { grid-column: 1 / -1; }
+  @media (max-width: 860px) { .consoles { grid-template-columns: 1fr; } }
+
+  .console {
+    position: relative; padding: 16px;
+    background: var(--panneau); border: 1px solid var(--bord); border-radius: 12px;
+    backdrop-filter: blur(8px);
+  }
+  /* coins de bracket façon instrument */
+  .console::before, .console::after, .console .c::before, .console .c::after {
+    content: ""; position: absolute; width: 14px; height: 14px; pointer-events: none;
+  }
+  .console::before { top: -1px; left: -1px; border-top: 2px solid var(--accent); border-left: 2px solid var(--accent); border-radius: 12px 0 0 0; opacity: .8; }
+  .console::after  { top: -1px; right: -1px; border-top: 2px solid var(--accent); border-right: 2px solid var(--accent); border-radius: 0 12px 0 0; opacity: .8; }
+  .console .c::before { bottom: -1px; left: -1px; border-bottom: 2px solid var(--accent); border-left: 2px solid var(--accent); border-radius: 0 0 0 12px; opacity: .8; }
+  .console .c::after  { bottom: -1px; right: -1px; border-bottom: 2px solid var(--accent); border-right: 2px solid var(--accent); border-radius: 0 0 12px 0; opacity: .8; }
+  .c { position: absolute; inset: 0; pointer-events: none; }
+
+  .titre {
+    display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;
+    font-family: var(--mono); font-size: .66rem; letter-spacing: .14em; color: var(--souris);
+    text-transform: uppercase;
+  }
+  .titre-valeur { color: var(--accent); }
+
+  /* ---- contrôles ---- */
+  button {
+    font: inherit; padding: 9px 16px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--bord); background: rgba(255, 255, 255, .05); color: var(--texte);
+    transition: box-shadow .25s, border-color .25s, background .25s;
+  }
+  button:hover { border-color: rgba(34, 211, 238, .5); }
+  button:disabled { opacity: .38; cursor: not-allowed; box-shadow: none !important; border-color: var(--bord) !important; }
+  .ilimine { background: rgba(34, 211, 238, .12); border-color: rgba(34, 211, 238, .55); box-shadow: 0 0 18px rgba(34, 211, 238, .25), inset 0 0 12px rgba(34, 211, 238, .08); font-weight: 600; }
+  #micro.rec { background: rgba(248, 113, 113, .15); border-color: rgba(248, 113, 113, .6); box-shadow: 0 0 18px rgba(248, 113, 113, .3); }
+  #generer {
+    width: 100%; padding: 15px; font-size: 1rem; letter-spacing: .06em; text-transform: uppercase;
+    border-radius: 10px;
+  }
+  #generer:not(:disabled) { background: rgba(52, 211, 153, .14); border-color: rgba(52, 211, 153, .6); color: #d1fae5; box-shadow: 0 0 22px rgba(52, 211, 153, .28), inset 0 0 14px rgba(52, 211, 153, .1); }
   input[type=file] { display: none; }
+
   .rangee { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  .etat { font-size: .85rem; min-height: 1.2em; }
-  audio { width: 100%; margin-top: 8px; }
-  .vitesse { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
-  .vitesse input { flex: 1; }
-  #vitesseVal { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 58px; text-align: right; }
-  .note { font-size: .78rem; color: gray; }
-  #telecharger { display: none; }
-  a { color: #2563eb; }
+  .etat { font-family: var(--mono); font-size: .74rem; min-height: 1.2em; color: var(--souris); }
+  .etat.ok { color: var(--ok); }
+  .etat.err { color: var(--danger); }
+
+  textarea {
+    width: 100%; font: inherit; padding: 9px; margin-top: 10px;
+    border-radius: 8px; border: 1px solid var(--bord); background: rgba(0, 0, 0, .35); color: var(--texte);
+    resize: vertical; font-family: var(--mono); font-size: .84rem; line-height: 1.5;
+  }
+  textarea:focus { outline: none; border-color: rgba(34, 211, 238, .55); box-shadow: 0 0 12px rgba(34, 211, 238, .15); }
+  label.note, .note { font-size: .72rem; color: var(--souris); }
+  .mono { font-family: var(--mono); }
+
+  canvas.oscillo { width: 100%; height: 84px; display: block; margin-top: 10px; border: 1px solid var(--bord); border-radius: 8px; background: rgba(0, 0, 0, .35); }
+  audio { width: 100%; margin-top: 10px; filter: saturate(.8); }
+
+  /* ---- cadran de vitesse ---- */
+  .cadre-dial { display: flex; align-items: center; gap: 18px; margin-top: 12px; }
+  #dial { cursor: grab; touch-action: none; }
+  #dial:active { cursor: grabbing; }
+  .dial-lectures { font-family: var(--mono); }
+  .dial-lectures .grande { font-size: 1.5rem; font-weight: 600; color: var(--accent); letter-spacing: .02em; }
+  .dial-lectures .petite { font-size: .62rem; color: var(--souris); letter-spacing: .12em; margin-top: 2px; }
+
+  /* ---- progression ---- */
+  .barre { height: 10px; border: 1px solid var(--bord); border-radius: 6px; overflow: hidden; background: rgba(0, 0, 0, .4); margin-top: 10px; }
+  .barre > i {
+    display: block; height: 100%; width: 0%;
+    background: repeating-linear-gradient(-45deg, rgba(251, 191, 36, .85) 0 8px, rgba(251, 191, 36, .45) 8px 16px);
+    box-shadow: 0 0 12px rgba(251, 191, 36, .5); transition: width 1s linear;
+  }
+  .tele { display: none; }
+  a { color: var(--accent); }
+  @media (prefers-reduced-motion: reduce) { .led.att i { animation: none; } }
 </style>
 </head>
 <body>
-<h1>🎙️ PK Voice Cloner</h1>
-<p class="sous">Clonage local — VoxCPM2 tourne sur ta machine, rien ne sort de ton Mac.</p>
+<canvas id="shader"></canvas>
+<div class="cockpit">
 
-<section>
-  <h2>1 · Ta voix</h2>
-  <div class="rangee">
-    <label class="primaire" style="cursor:pointer"><button type="button" onclick="document.getElementById('fichier').click()">📁 Choisir un fichier</button></label>
-    <input type="file" id="fichier" accept="audio/*,.m4a,.mp3,.wav,.webm">
-    <button id="micro">🎤 Enregistrer</button>
-    <span id="microEtat" class="note"></span>
+  <div class="haut">
+    <div class="marque">PK <span>VOICE CLONER</span></div>
+    <div class="readout">mode : <b id="modeAffiche">veille</b> · canal : <b>local</b> · sortie : <b>48 kHz</b></div>
+    <div class="leds">
+      <span class="led" id="ledServeur"><i></i>serveur</span>
+      <span class="led" id="ledModele"><i></i>modèle</span>
+      <span class="led" id="ledVoix"><i></i>voix</span>
+    </div>
+    <div class="horloge" id="horloge">--:--:--</div>
   </div>
-  <audio id="apercuVoix" controls style="display:none"></audio>
-  <p class="etat" id="etatVoix"></p>
-  <label class="note">Transcript du clip (modifiable — doit correspondre à ce qui est dit)</label>
-  <textarea id="transcript" rows="3" placeholder="Transcription automatique du clip…"></textarea>
-</section>
 
-<section>
-  <h2>2 · Ton texte</h2>
-  <textarea id="texte" rows="4" placeholder="Ce que ta voix doit dire…"></textarea>
-  <div class="vitesse">
-    <span class="note">Vitesse</span>
-    <input type="range" id="vitesse" min="0.75" max="1.5" step="0.05" value="1">
-    <span id="vitesseVal">1.00 ×</span>
-  </div>
-  <p class="note">Le pitch reste exactement celui de ta voix — seule la durée change.</p>
-</section>
+  <div class="consoles">
 
-<section>
-  <h2>3 · Génération</h2>
-  <div class="rangee">
-    <button id="generer" class="primaire" disabled>⚡ Générer</button>
-    <a id="telecharger" download="ma-voix.wav">⬇️ Télécharger</a>
+    <section class="console">
+      <div class="c"></div>
+      <div class="titre"><span>console source</span><span class="titre-valeur" id="sourceAffichee">—</span></div>
+      <div class="rangee">
+        <label style="cursor:pointer"><button type="button" onclick="document.getElementById('fichier').click()">📁 Fichier</button></label>
+        <input type="file" id="fichier" accept="audio/*,.m4a,.mp3,.wav,.webm">
+        <button id="micro">🎤 Enregistrer</button>
+        <span class="etat" id="microEtat"></span>
+      </div>
+      <canvas class="oscillo" id="ondeVoix"></canvas>
+      <p class="etat" id="etatVoix">aucune source chargée</p>
+      <label class="note">transcript du clip — éditable, doit correspondre à l'audio</label>
+      <textarea id="transcript" rows="3" placeholder="Transcription automatique…"></textarea>
+    </section>
+
+    <section class="console">
+      <div class="c"></div>
+      <div class="titre"><span>console de dictée</span><span class="titre-valeur" id="estimation">—</span></div>
+      <textarea id="texte" rows="5" placeholder="Ce que ta voix doit dire…" style="margin-top:0"></textarea>
+      <div class="cadre-dial">
+        <svg id="dial" width="128" height="128" viewBox="0 0 128 128" role="slider" aria-label="Vitesse de dictée" aria-valuemin="0.75" aria-valuemax="1.5" aria-valuenow="1" tabindex="0"></svg>
+        <div class="dial-lectures">
+          <div class="grande" id="vitesseVal">1.00 ×</div>
+          <div class="petite">vitesse de dictée<br>pitch préservé</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="console pleine">
+      <div class="c"></div>
+      <div class="titre"><span>console de transmission</span><span class="titre-valeur" id="dureeRes"></span></div>
+      <div class="rangee" style="margin-bottom:10px">
+        <button id="generer" class="ilimine" disabled>⚡ Générer</button>
+        <a id="telecharger" class="tele" download="pk-voice-cloner.wav">⬇️ Télécharger le master</a>
+      </div>
+      <div class="barre"><i id="barreProgres"></i></div>
+      <p class="etat" id="etatGen">système en attente</p>
+      <canvas class="oscillo" id="ondeResultat"></canvas>
+      <audio id="resultat" controls style="display:none"></audio>
+    </section>
+
   </div>
-  <p class="etat" id="etatGen"></p>
-  <span class="note" id="dureeRes"></span>
-  <audio id="resultat" controls style="display:none"></audio>
-</section>
+  <p class="note" style="text-align:center;margin-top:14px">PK Voice Cloner v<span id="version">0.2.0</span> — traitement 100 % local · VoxCPM2/MPS · rien ne quitte ce Mac</p>
+</div>
 
 <script>
+"use strict";
 const $ = id => document.getElementById(id);
+
+/* ================= shader de fond (WebGL, style CRT ThreeUI) ================= */
+(() => {
+  const canvas = $("shader");
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    canvas.style.background = "radial-gradient(1200px 600px at 50% 120%, rgba(34,211,238,.07), transparent 60%), #0a0b0d";
+    canvas.remove();
+    return;
+  }
+  const gl = canvas.getContext("webgl", { antialias: false, alpha: true });
+  if (!gl) { canvas.style.background = "#0a0b0d"; return; }
+  const vs = "attribute vec2 p; void main(){ gl_Position = vec4(p, 0., 1.); }";
+  const fs = `
+precision mediump float;
+uniform vec2 u_res; uniform float u_time, u_mode, u_niveau;
+const vec3 CYAN = vec3(.13,.83,.93), ROUGE = vec3(.97,.44,.44), AMBRE = vec3(.98,.75,.14), VERT = vec3(.20,.83,.60);
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+void main(){
+  vec2 uv = gl_FragCoord.xy / u_res;
+  vec3 col = vec3(.039, .043, .051);                       /* fond rgb(10,11,13) */
+  vec3 teinte = u_mode < .5 ? CYAN : u_mode < 1.5 ? ROUGE : u_mode < 2.5 ? AMBRE : VERT;
+  float halo = pow(max(0., 1. - length((uv - vec2(.5, -.15)) * vec2(1.15, 1.6))), 2.4);
+  col += teinte * halo * (.06 + u_niveau * .25) * (1. + .12 * sin(u_time * (u_mode < 1.5 ? 5. : 1.4)));
+  vec2 g = fract(uv * vec2(36., 18.));
+  col += teinte * .022 * (smoothstep(.49, .5, g.x) * smoothstep(.5, .49, g.x) + smoothstep(.49, .5, g.y) * smoothstep(.5, .49, g.y));
+  float balayage = smoothstep(.0, .5, fract(uv.y * .5 - u_time * .018));
+  col += teinte * balayage * .015;
+  float lignes = .9 + .1 * sin(gl_FragCoord.y * 3.14159);
+  col *= lignes;
+  col += (hash(uv * u_res + u_time) - .5) * .028;
+  float v = smoothstep(1.25, .35, length(uv - .5) * 1.4);
+  col *= mix(.55, 1., v);
+  gl_FragColor = vec4(col, 1.);
+}`;
+  const sh = (t, s) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); return o; };
+  const prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(prog); gl.useProgram(prog);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, "p");
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  const uRes = gl.getUniformLocation(prog, "u_res"),
+        uTime = gl.getUniformLocation(prog, "u_time"),
+        uMode = gl.getUniformLocation(prog, "u_mode"),
+        uNiveau = gl.getUniformLocation(prog, "u_niveau");
+  const redim = () => { canvas.width = innerWidth * devicePixelRatio; canvas.height = innerHeight * devicePixelRatio; gl.viewport(0, 0, canvas.width, canvas.height); };
+  addEventListener("resize", redim); redim();
+  window.__shader = { mode: 0, niveau: 0 };
+  (function boucle() {
+    gl.uniform2f(uRes, canvas.width, canvas.height);
+    gl.uniform1f(uTime, performance.now() / 1000);
+    gl.uniform1f(uMode, window.__shader.mode);
+    gl.uniform1f(uNiveau, window.__shader.niveau);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    requestAnimationFrame(boucle);
+  })();
+})();
+
+/* ================= état global ================= */
 let mediaRecorder = null, morceaux = [], minuterie = null;
+let contexteAudio = null, analyseurVoix = null, ondeVoixBuf = null;
+let sourceNoeud = null, analyseurResultat = null;
 
-$('fichier').addEventListener('change', e => { if (e.target.files[0]) envoyerVoix(e.target.files[0]); });
+/* ================= mode du cockpit (shader + LEDs + readout) ================= */
+function mode(m) { // 0 veille, 1 enregistrement, 2 génération, 3 prêt
+  if (window.__shader) window.__shader.mode = m;
+  const libelles = ["veille", "enregistrement", "génération", "prêt"];
+  const couleurs = ["var(--accent)", "var(--danger)", "var(--warn)", "var(--ok)"];
+  $("modeAffiche").textContent = libelles[m];
+  $("modeAffiche").style.color = couleurs[m];
+  $("ledServeur").className = "led on";
+}
+setInterval(() => {
+  const t = new Date();
+  $("horloge").textContent = t.toTimeString().slice(0, 8) + " UTC" + (-t.getTimezoneOffset() / 60 >= 0 ? "+" : "-") + String(Math.abs(t.getTimezoneOffset() / 60)).padStart(2, "0");
+}, 1000);
+const majLeds = () => fetch("/api/etat").then(r => r.json()).then(j => {
+  $("ledServeur").className = "led on";
+  $("ledModele").className = "led " + (j.modele ? "on" : "att");
+}).catch(() => { $("ledServeur").className = "led"; $("ledModele").className = "led"; });
+majLeds();
+setInterval(majLeds, 5000);
 
-$('micro').addEventListener('click', async () => {
-  if (mediaRecorder && mediaRecorder.state === 'recording') { mediaRecorder.stop(); return; }
+/* ================= oscilloscopes ================= */
+function prepaAnalyseur(audioEl) {
+  contexteAudio = contexteAudio || new (window.AudioContext || window.webkitAudioContext)();
+  if (!sourceNoeud) {
+    sourceNoeud = contexteAudio.createMediaElementSource(audioEl);
+    analyseurResultat = contexteAudio.createAnalyser();
+    analyseurResultat.fftSize = 1024;
+    sourceNoeud.connect(analyseurResultat);
+    analyseurResultat.connect(contexteAudio.destination);
+  }
+  return analyseurResultat;
+}
+function dessineStatique(canvas, blobOuFile) {
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#0a0b0d"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  contexteAudio = contexteAudio || new (window.AudioContext || window.webkitAudioContext)();
+  blobOuFile.arrayBuffer()
+    .then(ab => contexteAudio.decodeAudioData(ab))
+    .then(buf => {
+      const d = buf.getChannelData(0), pas = Math.max(1, Math.floor(d.length / (canvas.width * devicePixelRatio / 2)));
+      ctx.strokeStyle = "rgba(34,211,238,.75)"; ctx.lineWidth = 1.2; ctx.beginPath();
+      for (let x = 0; x < canvas.width; x += 2) {
+        let min = 1, max = -1;
+        for (let i = 0; i < pas; i++) { const v = d[(x / canvas.width * d.length | 0) + i] || 0; min = Math.min(min, v); max = Math.max(max, v); }
+        const y1 = (1 - (max + 1) / 2) * canvas.height, y2 = (1 - (min + 1) / 2) * canvas.height;
+        ctx.moveTo(x, y1); ctx.lineTo(x, y2);
+      }
+      ctx.stroke();
+      ondeVoixBuf = buf;
+    })
+    .catch(() => { ctx.fillStyle = "#333"; ctx.fillRect(0, canvas.height / 2 - 1, canvas.width, 2); });
+}
+function bougeOscillo(canvas, getAnalyseur) {
+  const ctx = canvas.getContext("2d");
+  (function cadre() {
+    const a = getAnalyseur();
+    ctx.fillStyle = "rgba(10,11,13,.4)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.lineWidth = 1.4;
+    if (a) {
+      const d = new Uint8Array(a.fftSize);
+      a.getByteTimeDomainData(d);
+      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#22d3ee";
+      ctx.beginPath();
+      for (let x = 0; x < canvas.width; x++) {
+        const v = d[(x / canvas.width * d.length) | 0] / 128 - 1;
+        const y = (1 - v) / 2 * canvas.height;
+        x ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.stroke();
+      let pic = 0; for (const v of d) pic = Math.max(pic, Math.abs(v - 128) / 128);
+      if (window.__shader && window.__shader.mode === 1) window.__shader.niveau = pic;
+    } else {
+      ctx.strokeStyle = "#333"; ctx.beginPath(); ctx.moveTo(0, canvas.height / 2); ctx.lineTo(canvas.width, canvas.height / 2); ctx.stroke();
+    }
+    requestAnimationFrame(cadre);
+  })();
+}
+
+/* ================= source : fichier / micro ================= */
+$("fichier").addEventListener("change", e => { if (e.target.files[0]) envoyerVoix(e.target.files[0]); });
+
+$("micro").addEventListener("click", async () => {
+  if (mediaRecorder && mediaRecorder.state === "recording") { mediaRecorder.stop(); return; }
   try {
     const flux = await navigator.mediaDevices.getUserMedia({ audio: true });
     morceaux = [];
-    const type = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'].find(t => MediaRecorder.isTypeSupported(t));
+    const type = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm"].find(t => MediaRecorder.isTypeSupported(t));
     mediaRecorder = new MediaRecorder(flux, type ? { mimeType: type } : undefined);
     mediaRecorder.ondataavailable = e => morceaux.push(e.data);
     mediaRecorder.onstop = () => {
       flux.getTracks().forEach(t => t.stop());
       clearInterval(minuterie);
-      $('microEtat').textContent = '';
-      const ext = (mediaRecorder.mimeType || '').includes('mp4') ? 'm4a' : 'webm';
+      $("microEtat").textContent = "";
+      const ext = (mediaRecorder.mimeType || "").includes("mp4") ? "m4a" : "webm";
       const fichier = new File(morceaux, `enregistrement.${ext}`, { type: mediaRecorder.mimeType });
       envoyerVoix(fichier);
-      $('micro').textContent = '🎤 Enregistrer';
-      $('micro').classList.remove('rec');
+      $("micro").textContent = "🎤 Enregistrer";
+      $("micro").classList.remove("rec");
+      mode($("transcript").value ? 3 : 0);
     };
     mediaRecorder.start();
-    $('micro').textContent = '⏹ Arrêter';
-    $('micro').classList.add('rec');
+    mode(1);
+    $("micro").textContent = "⏹ Arrêter";
+    $("micro").classList.add("rec");
     let t = 0;
-    $('microEtat').textContent = '● 0 s';
-    minuterie = setInterval(() => $('microEtat').textContent = `● ${++t} s`, 1000);
+    $("microEtat").textContent = "● REC 0 s";
+    minuterie = setInterval(() => $("microEtat").textContent = `● REC ${++t} s`, 1000);
   } catch (err) {
-    $('microEtat').textContent = 'micro indisponible : ' + err.message;
+    $("microEtat").textContent = "micro indisponible : " + err.message;
   }
 });
 
 async function envoyerVoix(fichier) {
-  $('apercuVoix').src = URL.createObjectURL(fichier);
-  $('apercuVoix').style.display = 'block';
-  $('etatVoix').textContent = '⏳ Conversion + transcription (~1 min au premier envoi)…';
-  $('generer').disabled = true;
+  $("ondeVoix").width = $("ondeVoix").offsetWidth * devicePixelRatio;
+  $("ondeVoix").height = 84 * devicePixelRatio;
+  dessineStatique($("ondeVoix"), fichier);
+  $("etatVoix").className = "etat";
+  $("etatVoix").textContent = "⏳ conversion + transcription (~1 min au premier envoi)…";
+  $("generer").disabled = true;
+  $("sourceAffichee").textContent = (fichier.name || "micro").slice(0, 22);
   const fd = new FormData();
-  fd.append('audio', fichier);
-  const r = await fetch('/api/voix', { method: 'POST', body: fd });
+  fd.append("audio", fichier);
+  const r = await fetch("/api/voix", { method: "POST", body: fd });
   const j = await r.json();
-  if (!r.ok) { $('etatVoix').textContent = '❌ ' + (j.detail || 'erreur'); return; }
-  $('transcript').value = j.transcript;
-  $('etatVoix').textContent = `✅ Voix prête — ${j.duree} s, source : ${j.source}`;
-  $('generer').disabled = false;
+  if (!r.ok) { $("etatVoix").className = "etat err"; $("etatVoix").textContent = "❌ " + (j.detail || "erreur"); mode(0); return; }
+  $("transcript").value = j.transcript;
+  $("etatVoix").className = "etat ok";
+  $("etatVoix").textContent = `✅ source verrouillée — ${j.duree} s · ${j.source}`;
+  $("ledVoix").className = "led on";
+  $("generer").disabled = false;
+  mode(3);
 }
 
-$('vitesse').addEventListener('input', e => $('vitesseVal').textContent = parseFloat(e.target.value).toFixed(2) + ' ×');
+/* ================= cadran de vitesse ================= */
+(() => {
+  const MIN = 0.75, MAX = 1.5, PAS = 0.05;
+  const svg = $("dial");
+  const aPour = v => -135 + (v - MIN) / (MAX - MIN) * 270;
+  const rendu = v => {
+    const a = aPour(v) * Math.PI / 180, R = 46, cx = 64, cy = 64;
+    const nx = cx + Math.sin(a) * R * .78, ny = cy - Math.cos(a) * R * .78;
+    let ticks = "";
+    for (let t = MIN; t <= MAX + 1e-9; t += 0.125) {
+      const ta = aPour(t) * Math.PI / 180;
+      const r1 = R + 4, r2 = t === 1.0 ? R - 6 : R - 2;
+      ticks += `<line x1="${cx + Math.sin(ta) * r2}" y1="${cy - Math.cos(ta) * r2}" x2="${cx + Math.sin(ta) * r1}" y2="${cy - Math.cos(ta) * r1}" stroke="${Math.abs(t - 1) < 1e-9 ? "var(--accent)" : "rgba(255,255,255,.35)"}" stroke-width="${Math.abs(t - 1) < 1e-9 ? 2 : 1}"/>`;
+    }
+    svg.innerHTML = `
+      <circle cx="${cx}" cy="${cy}" r="${R + 8}" fill="rgba(0,0,0,.45)" stroke="rgba(255,255,255,.12)"/>
+      <circle cx="${cx}" cy="${cy}" r="${R * .58}" fill="none" stroke="rgba(34,211,238,.25)" stroke-width="1" stroke-dasharray="2 4"/>
+      ${ticks}
+      <line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="${cx}" cy="${cy}" r="4" fill="var(--accent)"/>`;
+    svg.setAttribute("aria-valuenow", v.toFixed(2));
+    $("vitesseVal").textContent = v.toFixed(2) + " ×";
+    estimation();
+  };
+  let vitesse = 1;
+  Object.defineProperty(window, "vitesse", { get: () => vitesse });
+  const change = d => { vitesse = Math.min(MAX, Math.max(MIN, Math.round((vitesse + d) / PAS) * PAS)); rendu(vitesse); };
+  rendu(1);
+  svg.addEventListener("pointerdown", e => { dragging = { x: e.clientX, y: e.clientY, v: vitesse }; svg.setPointerCapture(e.pointerId); });
+  svg.addEventListener("pointermove", e => {
+    if (!dragging) return;
+    const dx = e.clientX - dragging.x, dy = e.clientY - dragging.y;
+    const delta = (dx + -dy) / 6;
+    vitesse = Math.min(MAX, Math.max(MIN, Math.round((dragging.v + delta / 90) / PAS) * PAS));
+    rendu(vitesse);
+  });
+  svg.addEventListener("pointerup", () => dragging = null);
+  svg.addEventListener("keydown", e => {
+    if (e.key === "ArrowUp" || e.key === "ArrowRight") { change(+PAS); e.preventDefault(); }
+    if (e.key === "ArrowDown" || e.key === "ArrowLeft") { change(-PAS); e.preventDefault(); }
+  });
+  svg.addEventListener("dblclick", () => { vitesse = 1; rendu(1); });
+})();
 
-$('generer').addEventListener('click', async () => {
-  $('etatGen').textContent = '⏳ envoi…';
-  $('resultat').style.display = 'none';
-  $('telecharger').style.display = 'none';
-  const r = await fetch('/api/generer', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ texte: $('texte').value, vitesse: parseFloat($('vitesse').value), transcript: $('transcript').value }),
+/* ================= estimation du temps ================= */
+function estimation() {
+  const t = ($("texte").value || "").trim();
+  const n = $("estimation");
+  if (!t) { n.textContent = "—"; return; }
+  const secondes = t.length / 15;                       // ~15 car/s de parole
+  const calc = secondes * 15 / window.vitesse;          // RTF ≈ 15 sur MPS
+  n.textContent = "T- " + (calc >= 60 ? Math.floor(calc / 60) + "m" + String(Math.round(calc % 60)).padStart(2, "0") : Math.round(calc) + "s");
+}
+$("texte").addEventListener("input", estimation);
+estimation();
+
+/* ================= génération ================= */
+$("generer").addEventListener("click", async () => {
+  $("etatGen").className = "etat";
+  $("etatGen").textContent = "⏳ transmission…";
+  $("resultat").style.display = "none";
+  $("telecharger").style.display = "none";
+  $("dureeRes").textContent = "";
+  const r = await fetch("/api/generer", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ texte: $("texte").value, vitesse: window.vitesse, transcript: $("transcript").value }),
   });
   const j = await r.json();
-  if (!r.ok) { $('etatGen').textContent = '❌ ' + (j.detail || 'erreur'); return; }
-  $('generer').disabled = true;
-  surveiller(j.job);
-});
-
-function surveiller(job) {
+  if (!r.ok) { $("etatGen").className = "etat err"; $("etatGen").textContent = "❌ " + (j.detail || "erreur"); mode(3); return; }
+  $("generer").disabled = true;
+  mode(2);
+  const est = (Math.round((($("texte").value.length / 15) * 15 / window.vitesse))) || 60;
+  let ecoule = 0;
   const iv = setInterval(async () => {
-    const j = await (await fetch('/api/job/' + job)).json();
-    $('etatGen').textContent =
-      j.etat === 'chargement' ? `⏳ préparation du modèle (${j.ecoule} s)…`
-      : j.etat === 'generation' ? `🎙️ génération (${j.ecoule} s — compte ~2 min par 10 s d'audio)…`
-      : j.etat === 'erreur' ? '❌ ' + j.erreur
-      : j.etat;
-    if (j.etat === 'pret' || j.etat === 'erreur') {
+    const job = await (await fetch("/api/job/" + j.job)).json();
+    ecoule = job.ecoule || ecoule + 3;
+    const pct = Math.min(96, Math.round(ecoule / (est + 30) * 100));
+    $("barreProgres").style.width = pct + "%";
+    $("etatGen").textContent =
+      job.etat === "chargement" ? `⏳ préparation du modèle (${job.ecoule} s)…`
+      : job.etat === "generation" ? `🎙️ synthèse en cours — ${job.ecoule} s écoulées (est. ${est >= 60 ? Math.floor(est / 60) + "m" + String(est % 60).padStart(2, "0") : est + "s"})`
+      : job.etat === "erreur" ? "❌ " + job.erreur
+      : job.etat;
+    if (job.etat === "pret" || job.etat === "erreur") {
       clearInterval(iv);
-      $('generer').disabled = false;
-      if (j.etat === 'pret') {
-        $('resultat').src = '/api/audio/' + j.fichier;
-        $('resultat').style.display = 'block';
-        $('telecharger').href = '/api/audio/' + j.fichier;
-        $('telecharger').style.display = 'inline-block';
-        $('dureeRes').textContent = 'durée finale : ' + j.duree + ' s';
-        $('etatGen').textContent = '✅ terminé';
-      }
+      $("generer").disabled = false;
+      $("barreProgres").style.width = "100%";
+      setTimeout(() => $("barreProgres").style.width = "0%", 1200);
+      if (job.etat === "erreur") { $("etatGen").className = "etat err"; mode(3); return; }
+      $("etatGen").className = "etat ok";
+      $("etatGen").textContent = "✅ transmission reçue";
+      $("resultat").src = "/api/audio/" + job.fichier;
+      $("resultat").style.display = "block";
+      $("telecharger").href = "/api/audio/" + job.fichier;
+      $("telecharger").style.display = "inline-block";
+      $("dureeRes").textContent = "durée finale " + job.duree + " s";
+      mode(3);
+      const an = prepaAnalyseur($("resultat"));
+      $("ondeResultat").width = $("ondeResultat").offsetWidth * devicePixelRatio;
+      $("ondeResultat").height = 84 * devicePixelRatio;
+      $("resultat").play().catch(() => {});
     }
   }, 2000);
-}
+});
+
+/* ================= oscillo de la voix source ================= */
+$("ondeVoix").width = $("ondeVoix").offsetWidth * devicePixelRatio || 300;
+$("ondeVoix").height = 84 * devicePixelRatio;
+(() => { const c = $("ondeVoix").getContext("2d"); c.strokeStyle = "#333"; c.beginPath(); c.moveTo(0, c.canvas.height / 2); c.lineTo(c.canvas.width, c.canvas.height / 2); c.stroke(); })();
+$("resultat").addEventListener("play", () => {
+  $("ondeResultat").width = $("ondeResultat").offsetWidth * devicePixelRatio;
+  $("ondeResultat").height = 84 * devicePixelRatio;
+  prepaAnalyseur($("resultat"));
+  bougeOscillo($("resultat"), () => analyseurResultat);
+});
 </script>
 </body>
 </html>

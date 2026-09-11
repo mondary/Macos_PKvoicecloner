@@ -1,6 +1,14 @@
 # Changelog
-
 Keep a Changelog — https://keepachangelog.com
+
+## [0.2.0] - 2026-09-11
+
+### Added
+
+- Interface « cockpit » : fond shader WebGL (scanlines CRT, réactif à l'état — veille/enregistrement/génération), consoles à coins biseautés, LEDs d'état (serveur/modèle/voix), horloge
+- Cadran de vitesse rotatif (drag + clavier + double-clic = reset 1.00×), estimation du temps affichée avant génération
+- Oscilloscopes : forme d'onde de la voix source (décodage Web Audio) et oscilloscope temps réel de la lecture du résultat
+- Jauge de progression hachurée pendant la synthèse (RTF estimé ~15 sur MPS)
 
 ## [0.1.0] - 2026-09-11
 

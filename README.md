@@ -1,8 +1,8 @@
-# PK Voice Cloner
+# PK Voice Studio
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **0.2.0** · macOS Apple Silicon · Apache-2.0
+version **0.3.0** · macOS Apple Silicon · Apache-2.0
 
 🎙️ Clonage de voix 100 % local sur macOS — ton clip + ta transcription, et ta voix dit n'importe quel texte. Basé sur [VoxCPM2](https://github.com/OpenBMB/VoxCPM) (OpenBMB) et [faster-whisper](https://github.com/SYSTRAN/faster-whisper), sur la puce Apple via MPS. **Aucune donnée ne quitte la machine.**
 
@@ -15,6 +15,8 @@ version **0.2.0** · macOS Apple Silicon · Apache-2.0
 - **Modèle résident** — chargé une fois, ~90 s par génération ensuite
 - **Offline** — modèles en cache local, aucun appel réseau
 - **`mavox`** — clone en une commande depuis le terminal, texte quoté ou non
+- **Studio Three.js** — vraie scène 3D audio-réactive : micro de cabine, panneaux acoustiques, particules, anneaux sonores, éclairage et VU
+- **Direction de prise** — interface pensée pour chanteurs/doubleurs : source, transcript, script, rythme, rendu et master WAV dans un même espace
 
 ## 🧠 Utilisation
 
@@ -61,6 +63,7 @@ uv pip install --python .venv-whisper/bin/python faster-whisper
 | `data/voix`, `data/sorties` | Clips sources et audios générés (privé, non versionné) |
 | `third_party/VoxCPM` | Modèle et bibliothèque (Apache-2.0) |
 | `.venv`, `.venv-whisper` | Environnements Python (non versionnés) |
+| `app/assets/` | Runtime Three.js local, scène de studio et avis de licence MIT |
 
 ## ⚠️ Éthique
 
@@ -70,6 +73,8 @@ Le clonage de voix est interdit pour l'usurpation d'identité. Ce projet est con
 
 - [VoxCPM / VoxCPM2](https://github.com/OpenBMB/VoxCPM) — OpenBMB, Apache-2.0
 - [faster-whisper](https://github.com/SYSTRAN/faster-whisper) — SYSTRAN
+- [Three.js](https://threejs.org/) — runtime 3D MIT, distribué localement
+- [ThreeUI Community](https://github.com/MengTo/threeui) — source du runtime Three.js et inspiration des composants, MIT
 
 ---
 

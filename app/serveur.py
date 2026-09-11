@@ -23,6 +23,7 @@ import soundfile as sf
 import uvicorn
 from fastapi import Body, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 APP = Path(__file__).resolve().parent
 PROJET = APP.parent
@@ -34,6 +35,7 @@ for _d in (SORTIES, VOIX):
 VITESSE_MIN, VITESSE_MAX = 0.75, 1.5
 
 app = FastAPI(title="PK Voice Cloner")
+app.mount("/assets", StaticFiles(directory=APP / "assets"), name="assets")
 modele = None                    # VoxCPM chargé en arrière-plan
 verrou_gen = threading.Lock()    # une génération à la fois
 transcripts = {}                 # hash audio -> transcript ASR

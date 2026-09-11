@@ -1,6 +1,19 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [0.3.0] - 2026-09-11
+
+### Added
+
+- Studio de voix Three.js réel (r149, runtime local issu de ThreeUI/MIT) : micro de cabine géométrique, panneaux acoustiques, anneaux sonores, particules, éclairage et VU audio-réactifs
+- Feuilles de direction à la place du HUD : import/enregistrement, waveform, transcript, script, rythme et rendu WAV
+- Design de studio chaleureux (papier, bois, cuivre, lumière de cabine) ; fond et animations produits par `THREE.WebGLRenderer`, non par CSS ou un shader WebGL artisanal
+
+### Changed
+
+- Remplace l'interface « cockpit » v0.2.0 par PK Voice Studio
+- Le serveur sert les assets locaux sous `/assets`, dont le runtime Three.js et son avis de licence
+
 ## [0.2.0] - 2026-09-11
 
 ### Added

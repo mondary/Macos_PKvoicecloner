@@ -90,6 +90,14 @@
   .hero-tags { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 22px; color: var(--faint); font: .63rem var(--mono); letter-spacing: .1em; text-transform: uppercase; }
   .hero-tags span::before { content: "·"; margin-right: 8px; color: var(--line-2); }
   .hero-tags span:first-child::before { content: none; }
+  .model-downloads { margin-top: 24px; color: var(--muted); font-size: 12px; }
+  .model-downloads strong { display: block; margin-bottom: 8px; color: var(--ink); font-size: 12px; font-weight: 600; }
+  .model-downloads a { color: inherit; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
+  .model-downloads a:hover { color: var(--ink); }
+  .model-downloads .model-item { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
+  .model-downloads .model-item a { min-width: 190px; }
+  .model-downloads .model-delete { border: 0; padding: 0; background: none; color: var(--faint); font: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
+  .model-downloads .model-delete:hover { color: var(--coral-deep); }
   .titre-mobile { display: none; }
 
   @media (max-width: 647px) {
@@ -353,11 +361,17 @@
   <section class="hero" aria-labelledby="titre-studio">
     <div>
       <div class="eyebrow">Clonage vocal · 100 % local</div>
-      <h1 id="titre-studio"><span class="titre-desktop">Chaque texte,<br>dans ta voix<span class="dot">.</span></span><span class="titre-mobile">Fais parler ton texte avec ta voix.</span></h1>
+      <h1 id="titre-studio"><span class="titre-desktop">Clone ta voix.<br>Pas tes données<span class="dot">.</span></span><span class="titre-mobile">Clone ta voix. Pas tes données.</span></h1>
     </div>
     <div>
-      <p class="hero-copy">Un clip de référence, ton texte, une prise en WAV. Le modèle tourne sur la puce de ce Mac — <b>timbre, rythme et style préservés</b>, et ta voix ne quitte jamais la machine.</p>
-      <div class="hero-tags"><span>VoxCPM2</span><span>Whisper large-v3</span><span>MPS</span><span>Offline</span></div>
+      <p class="hero-copy">Quelques secondes de voix suffisent pour transformer n’importe quel texte en audio. Génération accélérée par Apple Silicon, entièrement locale. Ta voix entre, un WAV sort. Rien d’autre ne bouge.</p>
+      <div class="hero-tags"><span>VOXCPM2</span><span>WHISPER LARGE-V3</span><span>MPS</span><span>OFFLINE</span></div>
+      <div class="model-downloads" aria-label="Téléchargement des modèles à tester">
+        <strong>Modèles à tester</strong>
+        <div class="model-item"><a href="https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-Base" target="_blank" rel="noopener">Qwen3-TTS 0,6B · ~2–3 Go</a><button class="model-delete" type="button" data-modele="qwen3-tts">Supprimer</button></div>
+        <div class="model-item"><a href="https://huggingface.co/kyutai/pocket-tts" target="_blank" rel="noopener">Pocket TTS · ~0,4 Go</a><button class="model-delete" type="button" data-modele="pocket-tts">Supprimer</button></div>
+        <div class="model-item"><a href="https://huggingface.co/ResembleAI/chatterbox" target="_blank" rel="noopener">Chatterbox · ~2 Go</a><button class="model-delete" type="button" data-modele="chatterbox">Supprimer</button></div>
+      </div>
     </div>
   </section>
 
@@ -370,6 +384,7 @@
       <div class="engines" role="group" aria-label="Moteur de synthèse">
         <button class="engine active" type="button" data-moteur="voxcpm2" aria-pressed="true" title="Rapide, MPS, ~30 langues">VoxCPM2</button>
         <button class="engine" type="button" data-moteur="dots" aria-pressed="false" title="dots.tts — clonage haute fidélité, 48 kHz, 24 langues">dots.tts</button>
+        <button class="engine" type="button" data-moteur="qwen3" aria-pressed="false" title="Qwen3-TTS 0,6B — clonage vocal multilingue, ~2–3 Go">Qwen3 · 0,6B</button>
       </div>
     </div>
 

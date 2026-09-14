@@ -20,6 +20,7 @@ peut vivre n'importe où sur le disque.
 import gc
 import hashlib
 import os
+import shutil
 import subprocess
 import threading
 import time
@@ -48,6 +49,11 @@ modele = None                    # moteur TTS chargé en arrière-plan
 moteur_actif = "voxcpm2"         # "voxcpm2" | "dots" (demandé)
 moteur_pret = None               # moteur réellement présent dans `modele`
 MOTEUR_LABELS = {"voxcpm2": "VoxCPM2", "dots": "dots.tts"}
+MODELES_TELECHARGEABLES = {
+    "qwen3-tts": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+    "pocket-tts": "kyutai/pocket-tts",
+    "chatterbox": "ResembleAI/chatterbox",
+}
 verrou_gen = threading.Lock()    # une génération à la fois
 transcripts = {}                 # hash audio -> transcript ASR
 voix_courante = {}               # {"id", "wav", "transcript", "source"}
@@ -104,7 +110,19 @@ def charger_dots():
     return runtime
 
 
-CHARGEURS = {"voxcpm2": charger_voxcpm, "dots": charger_dots}
+def charger_qwen():
+    import torch
+    from qwen_tts import Qwen3TTSModel
+
+    return Qwen3TTSModel.from_pretrained(
+        "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        device_map="mps",
+        dtype=torch.float32,
+    )
+
+
+MOTEUR_LABELS["qwen3"] = "Qwen3-TTS 0,6B"
+CHARGEURS = {"voxcpm2": charger_voxcpm, "dots": charger_dots, "qwen3": charger_qwen}
 verrou_chargement = threading.Lock()
 
 
@@ -202,6 +220,18 @@ def etat():
         "moteur": moteur_actif,
         "moteurs": list(CHARGEURS),
     }
+
+
+@app.delete("/api/modeles/{modele_id}")
+def supprimer_modele(modele_id: str):
+    """Supprime uniquement le dépôt Hugging Face correspondant au modèle choisi."""
+    repo = MODELES_TELECHARGEABLES.get(modele_id)
+    if not repo:
+        raise HTTPException(404, "modèle inconnu")
+    cache = Path.home() / ".cache" / "huggingface" / "hub" / f"models--{repo.replace('/', '--')}"
+    if cache.exists():
+        shutil.rmtree(cache)
+    return {"ok": True, "supprime": repo}
 
 
 @app.post("/api/moteur", status_code=202)
@@ -342,6 +372,14 @@ def executer_generation(job, texte, vitesse, transcript):
                 )
                 wav = resultat["audio"].float().cpu().squeeze().numpy()
                 sample_rate = resultat["sample_rate"]
+            elif moteur_pret == "qwen3":
+                wavs, sample_rate = modele.generate_voice_clone(
+                    text=texte,
+                    language="French",
+                    ref_audio=ref,
+                    ref_text=(transcript or ""),
+                )
+                wav = wavs[0]
             else:
                 kwargs = dict(
                     text=texte,

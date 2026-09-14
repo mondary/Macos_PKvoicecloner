@@ -187,6 +187,14 @@
     del.addEventListener("click", (event) => { event.stopPropagation(); deleteVoice(voice.id); });
     row.appendChild(del);
 
+    const rename = document.createElement("button");
+    rename.className = "vrename";
+    rename.type = "button";
+    rename.setAttribute("aria-label", `Renommer ${prettyName(voice.nom)}`);
+    rename.textContent = "Renommer";
+    rename.addEventListener("click", (event) => { event.stopPropagation(); startRename(voice, row); });
+    row.appendChild(rename);
+
     const activate = () => selectVoice(voice.id);
     row.addEventListener("click", activate);
     row.addEventListener("keydown", (event) => {
@@ -501,7 +509,8 @@
   let engineLoading = false;
 
   function setEngineUI(system) {
-    const label = system.moteur === "dots" ? "dots.tts" : "VoxCPM2";
+    const labels = { dots: "dots.tts", qwen3: "Qwen3 · 0,6B", voxcpm2: "VoxCPM2" };
+    const label = labels[system.moteur] || system.moteur;
     $("modelPresence").innerHTML = `<i></i>${label}`;
     document.querySelectorAll(".engine").forEach((button) => {
       const active = button.dataset.moteur === system.moteur;
@@ -521,7 +530,8 @@
       if (!generating) {
         if (!system.modele) {
           engineLoading = true;
-          setPanelStatus(`Chargement de ${system.moteur === "dots" ? "dots.tts" : "VoxCPM2"}…`, true);
+          const labels = { dots: "dots.tts", qwen3: "Qwen3-TTS 0,6B", voxcpm2: "VoxCPM2" };
+          setPanelStatus(`Chargement de ${labels[system.moteur] || system.moteur}…`, true);
         } else if (engineLoading) {
           engineLoading = false;
           setPanelStatus(PANNEAU_AIDE);
@@ -545,7 +555,8 @@
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.detail || "changement impossible");
       engineLoading = true;
-      setPanelStatus(moteur === "dots" ? "Chargement de dots.tts…" : "Chargement de VoxCPM2…", true);
+      const labels = { dots: "dots.tts", qwen3: "Qwen3-TTS 0,6B", voxcpm2: "VoxCPM2" };
+      setPanelStatus(`Chargement de ${labels[moteur] || moteur}…`, true);
       setTakeStatus("Changement de moteur en cours (~1-2 min)…");
       notify("Changement de moteur — le chargement prend une à deux minutes.");
       refreshSystem();
@@ -605,6 +616,14 @@
     $("stopStudio").addEventListener("click", stopStudio);
     document.querySelectorAll(".engine").forEach((button) => {
       button.addEventListener("click", () => switchEngine(button.dataset.moteur));
+    });
+    document.querySelectorAll(".model-delete").forEach((button) => {
+      button.addEventListener("click", async () => {
+        if (!window.confirm("Supprimer ce modèle téléchargé du cache local ?")) return;
+        const response = await fetch(`/api/modeles/${button.dataset.modele}`, { method: "DELETE" });
+        const payload = await response.json();
+        notify(response.ok ? "Modèle supprimé du cache local." : `Suppression impossible : ${payload.detail || "erreur"}`, response.ok ? "good" : "error");
+      });
     });
     bindPreviewEvents();
   }

@@ -2,29 +2,34 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **0.3.2** · macOS Apple Silicon · Apache-2.0
+version **0.5.0** · macOS Apple Silicon · Apache-2.0
 
-🎙️ Clonage de voix 100 % local sur macOS — ton clip + ta transcription, et ta voix dit n'importe quel texte. Basé sur [VoxCPM2](https://github.com/OpenBMB/VoxCPM) (OpenBMB) et [faster-whisper](https://github.com/SYSTRAN/faster-whisper), sur la puce Apple via MPS. **Aucune donnée ne quitte la machine.**
+🎙️ **Studio vocal IA open source — 100 % local.** Ta voix dit n'importe quel texte. Basé sur [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts) et [faster-whisper](https://github.com/SYSTRAN/faster-whisper), sur la puce Apple via MPS. **Aucune donnée ne quitte la machine.**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/mondary/Macos_PKvoicecloner/main/install.sh | sh
+```
 
 ## ✅ Fonctionnalités
 
+- **Deux moteurs commutables** — **VoxCPM2** (MPS, rapide, ~30 langues) et **dots.tts** (2B, clonage haute fidélité 48 kHz, 24 langues) : un clic dans l'en-tête du studio
 - **Clonage ultimate** — clip + transcript → timbre, rythme et style préservés
-- **Upload ou micro** — QuickTime `.m4a`, `.mp3`, `.wav`, `.webm`, ou enregistrement direct dans la page
+- **Bibliothèque de voix** — chaque clip importé ou enregistré devient un clone persistant, réutilisable d'une session à l'autre : liste, écoute, sélection, suppression
+- **Upload ou micro** — QuickTime `.m4a`, `.mp3`, `.wav`, `.webm`, ou enregistrement direct dans la page (état vide guidé : importer ou s'enregistrer)
 - **Transcription auto** — Whisper large-v3 (multilingue), éditable avant génération
 - **Vitesse** 0,75×–1,5× — étirement temporel pur, le pitch reste intact
 - **Modèle résident, à la demande** — chargé une fois pendant la session ; **Éteindre** libère sa mémoire dès que tu as fini
 - **Offline** — modèles en cache local, aucun appel réseau
 - **`mavox`** — clone en une commande depuis le terminal, texte quoté ou non
-- **Studio Three.js** — vraie scène 3D audio-réactive : micro de cabine, panneaux acoustiques, particules, anneaux sonores, éclairage et VU
-- **Direction de prise** — interface pensée pour chanteurs/doubleurs : source, transcript, script, rythme, rendu et master WAV dans un même espace
+- **Studio épuré** — interface claire façon ElevenLabs : voix à gauche, texte et **Générer** à droite, accent corail PK
 
 ## 🧠 Utilisation
 
 1. Ouvre **PK Voice Cloner.app** depuis le dossier macOS **Applications** (chemin : `/Applications/PK Voice Cloner.app`)
-2. **📁 Choisir un fichier** ou **🎤 Enregistrer** → la transcription apparaît
-3. Écris ton texte, règle la vitesse si besoin, **Créer la prise**
-4. Écoute, télécharge, recommence
-5. Quand la session est terminée, clique **Éteindre** en haut à droite : le serveur Python, VoxCPM et le rendu Three.js sont arrêtés et leur mémoire est libérée.
+2. À gauche : **Importer** un clip ou **Enregistrer** ta voix → la transcription part toute seule et le clone rejoint la bibliothèque
+3. Sélectionne une voix, écris ton texte à droite, règle la vitesse si besoin, **Générer**
+4. Écoute, télécharge, recommence — les clones restent disponibles au prochain lancement
+5. Quand la session est terminée, clique **Éteindre** en haut à droite : le serveur Python et VoxCPM sont arrêtés et leur mémoire est libérée.
 
 ### Terminal
 
@@ -45,12 +50,17 @@ version **0.3.2** · macOS Apple Silicon · Apache-2.0
 ## 📦 Build & Run
 
 ```sh
-# Prérequis
+# En une commande
+curl -fsSL https://raw.githubusercontent.com/mondary/Macos_PKvoicecloner/main/install.sh | sh
+
+# À la main
 brew install ffmpeg
-# Les venvs sont créés à la première installe :
 uv venv .venv && uv venv .venv-whisper
 uv pip install --python .venv/bin/python -e third_party/VoxCPM
 uv pip install --python .venv-whisper/bin/python faster-whisper
+# moteur dots.tts (optionnel) — pynini ne compile pas sur macOS, on l'installe sans
+uv pip install --python .venv/bin/python --no-deps dots-tts
+uv pip install --python .venv/bin/python huggingface-hub loguru "langcodes[data]" einops "librosa>=0.11.0" "torchaudio>=2.8" torchdiffeq tqdm lingua-language-detector
 
 # Lancer le serveur seul
 ./.venv/bin/python app/serveur.py
@@ -65,10 +75,10 @@ uv pip install --python .venv-whisper/bin/python faster-whisper
 | `app/` | Serveur FastAPI + page web |
 | `ma-voix.sh` | Clonage en ligne de commande |
 | `arreter-studio.sh` | Arrêt sûr du serveur local et libération du modèle |
-| `data/voix`, `data/sorties` | Clips sources et audios générés (privé, non versionné) |
+| `data/voix`, `data/sorties` | Bibliothèque de clones (références + transcripts) et audios générés (privé, non versionné) |
 | `third_party/VoxCPM` | Modèle et bibliothèque (Apache-2.0) |
 | `.venv`, `.venv-whisper` | Environnements Python (non versionnés) |
-| `app/assets/` | Runtime Three.js local, scène de studio et avis de licence MIT |
+| `app/assets/` | Logique d'interface (`studio.js`) et licence MIT du runtime Three.js historique |
 
 ## ⚠️ Éthique
 
@@ -77,8 +87,9 @@ Le clonage de voix est interdit pour l'usurpation d'identité. Ce projet est con
 ## 🔗 Crédits
 
 - [VoxCPM / VoxCPM2](https://github.com/OpenBMB/VoxCPM) — OpenBMB, Apache-2.0
+- [dots.tts](https://github.com/studio-dots-ai/dots.tts) — dots studio, Apache-2.0
 - [faster-whisper](https://github.com/SYSTRAN/faster-whisper) — SYSTRAN
-- [Three.js](https://threejs.org/) — runtime 3D MIT, distribué localement
+- [Three.js](https://threejs.org/) — runtime 3D MIT historique (v0.3), distribué localement
 - [ThreeUI Community](https://github.com/MengTo/threeui) — source du runtime Three.js et inspiration des composants, MIT
 
 ---

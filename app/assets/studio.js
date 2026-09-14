@@ -1,669 +1,441 @@
-/* PK Voice Studio
- * Scène de cabine de doublage Three.js + contrôles de clonage VoxCPM.
- * Three.js est servi localement depuis app/assets/three.min.js (source ThreeUI/MIT).
+/* PK Voice Studio v2 — bibliothèque de voix + éditeur texte → voix.
+ * Tout tourne contre le serveur local FastAPI (voir app/serveur.py).
  */
 (() => {
   "use strict";
 
   const $ = (id) => document.getElementById(id);
-  const THREE = window.THREE;
-  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const ICON_PLAY = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.1v9.8c0 .7.8 1.1 1.4.7l6.2-4.9c.5-.4.5-1.1 0-1.5L6.4 2.4C5.8 2 5 2.4 5 3.1Z"/></svg>';
+  const ICON_PAUSE = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 3.2h2.4v9.6H4.5zM9.1 3.2h2.4v9.6H9.1z"/></svg>';
+  const ICON_TRASH = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M2.5 4h11M6.5 4V2.8h3V4M4 4l.7 9h6.6L12 4M6.6 6.6v4M9.4 6.6v4"/></svg>';
+  const ICON_MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
 
   let speed = 1;
-  let voiceReady = false;
   let generating = false;
+  let voiceReady = false;
+  let shuttingDown = false;
+  let voices = [];
+  let selectedId = null;
+
   let recorder = null;
   let recordingStream = null;
   let recordingSeconds = 0;
   let recordingClock = null;
-  let currentSourceUrl = null;
-  let currentSourceFile = null;
-  let currentResultUrl = null;
-  let studioScene = null;
+  let micAnalyser = null;
+  let micRaf = null;
+  let renaming = false;
+
+  const previewAudio = new Audio();
+  let previewId = null;
   let systemTimer = null;
-  let clockTimer = null;
-  let shuttingDown = false;
-  let meterRunning = true;
+  let toastTimer = null;
 
-  /* ---------------------- Audio : énergie, aperçu, niveaux ---------------------- */
-  const audio = {
-    context: null,
-    micAnalyser: null,
-    micSource: null,
-    previewAnalyser: null,
-    previewSource: null,
-    resultAnalyser: null,
-    resultSource: null,
-    frequency: new Uint8Array(128),
+  const PANNEAU_AIDE = "Choisis un clone à gauche, écris à droite, génère la prise";
 
-    ensureContext() {
-      if (!this.context) {
-        const Context = window.AudioContext || window.webkitAudioContext;
-        this.context = new Context();
-      }
-      return this.context;
-    },
-
-    bindMediaElement(element, kind) {
-      const keySource = `${kind}Source`;
-      const keyAnalyser = `${kind}Analyser`;
-      if (this[keyAnalyser]) return this[keyAnalyser];
-      const context = this.ensureContext();
-      const source = context.createMediaElementSource(element);
-      const analyser = context.createAnalyser();
-      analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.78;
-      source.connect(analyser);
-      analyser.connect(context.destination);
-      this[keySource] = source;
-      this[keyAnalyser] = analyser;
-      return analyser;
-    },
-
-    bindMicrophone(stream) {
-      const context = this.ensureContext();
-      this.micSource = context.createMediaStreamSource(stream);
-      this.micAnalyser = context.createAnalyser();
-      this.micAnalyser.fftSize = 256;
-      this.micAnalyser.smoothingTimeConstant = 0.58;
-      this.micSource.connect(this.micAnalyser);
-    },
-
-    energy() {
-      let analyser = this.micAnalyser;
-      if (!analyser && !$("resultat").paused) analyser = this.resultAnalyser;
-      if (!analyser && !$("voicePreview").paused) analyser = this.previewAnalyser;
-      if (!analyser) return 0;
-      if (this.frequency.length !== analyser.frequencyBinCount) this.frequency = new Uint8Array(analyser.frequencyBinCount);
-      analyser.getByteFrequencyData(this.frequency);
-      const count = Math.min(32, this.frequency.length);
-      let sum = 0;
-      for (let i = 0; i < count; i += 1) sum += this.frequency[i] / 255;
-      return Math.min(1, sum / count * 1.85);
-    },
-
-    stopMicrophone() {
-      if (this.micSource) this.micSource.disconnect();
-      if (this.micAnalyser) this.micAnalyser.disconnect();
-      this.micSource = null;
-      this.micAnalyser = null;
-    },
-  };
-
-  /* ---------------------- Three.js : cabine, micro, lumière, audio ---------------------- */
-  class VoiceBooth {
-    constructor(host) {
-      this.host = host;
-      this.state = "idle";
-      this.running = true;
-      this.energy = 0;
-      this.pointer = { x: 0, y: 0 };
-      this.palette = {
-        idle: new THREE.Color(0xbf8b4a),
-        loading: new THREE.Color(0x9c7b68),
-        recording: new THREE.Color(0xdf5d45),
-        generating: new THREE.Color(0xe6ad59),
-        ready: new THREE.Color(0x78ad86),
-        playback: new THREE.Color(0xb783d3),
-      };
-
-      this.scene = new THREE.Scene();
-      this.camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
-      this.camera.position.set(0.8, 0.25, 8.6);
-
-      this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-      this.renderer.setClearColor(0x000000, 0);
-      if ("outputColorSpace" in this.renderer && THREE.SRGBColorSpace) this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-      else if ("outputEncoding" in this.renderer && THREE.sRGBEncoding) this.renderer.outputEncoding = THREE.sRGBEncoding;
-      host.appendChild(this.renderer.domElement);
-
-      this.world = new THREE.Group();
-      this.scene.add(this.world);
-      this.createRoom();
-      this.createMicrophone();
-      this.createSoundField();
-      this.createLights();
-      this.resize();
-
-      this.onResize = () => this.resize();
-      this.onPointerMove = (event) => {
-        this.pointer.x = (event.clientX / window.innerWidth - 0.5) * 2;
-        this.pointer.y = (event.clientY / window.innerHeight - 0.5) * 2;
-      };
-      window.addEventListener("resize", this.onResize);
-      window.addEventListener("pointermove", this.onPointerMove, { passive: true });
-
-      window.__voiceStudioScene = this;
-      if (prefersReducedMotion) this.render(0);
-      else requestAnimationFrame((time) => this.animate(time));
-    }
-
-    createRoom() {
-      const panelMaterial = new THREE.MeshStandardMaterial({ color: 0x251b18, roughness: 0.9, metalness: 0.03 });
-      const trimMaterial = new THREE.MeshStandardMaterial({ color: 0x9b6945, roughness: 0.52, metalness: 0.55 });
-      const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x130f0e, roughness: 0.7, metalness: 0.12 });
-
-      const floor = new THREE.Mesh(new THREE.PlaneGeometry(22, 13), floorMaterial);
-      floor.rotation.x = -Math.PI / 2;
-      floor.position.set(0, -2.5, -0.7);
-      this.world.add(floor);
-
-      const wall = new THREE.Mesh(new THREE.PlaneGeometry(14, 8), new THREE.MeshStandardMaterial({ color: 0x191311, roughness: 1, metalness: 0 }));
-      wall.position.set(0, 0.7, -2.5);
-      this.world.add(wall);
-
-      this.panels = new THREE.Group();
-      const panelGeometry = new THREE.BoxGeometry(1.48, 2.55, 0.12);
-      for (let i = -3; i <= 3; i += 1) {
-        const panel = new THREE.Mesh(panelGeometry, panelMaterial.clone());
-        panel.position.set(i * 1.67, 0.65 + (Math.abs(i) % 2) * 0.1, -2.32);
-        panel.rotation.y = i * -0.055;
-        this.panels.add(panel);
-
-        const trim = new THREE.Mesh(new THREE.BoxGeometry(1.54, 0.055, 0.15), trimMaterial);
-        trim.position.set(panel.position.x, panel.position.y + 1.31, -2.2);
-        trim.rotation.y = panel.rotation.y;
-        this.panels.add(trim);
-      }
-      this.world.add(this.panels);
-
-      const carpet = new THREE.Mesh(
-        new THREE.CylinderGeometry(2.65, 2.85, 0.045, 80),
-        new THREE.MeshStandardMaterial({ color: 0x3d2320, roughness: 0.95, metalness: 0 }),
-      );
-      carpet.position.set(0.5, -2.47, 0.1);
-      this.world.add(carpet);
-    }
-
-    createMicrophone() {
-      this.microphone = new THREE.Group();
-      this.microphone.position.set(0.5, -0.4, 0.1);
-
-      const chrome = new THREE.MeshStandardMaterial({ color: 0xe9d6c3, metalness: 0.9, roughness: 0.24 });
-      const darkChrome = new THREE.MeshStandardMaterial({ color: 0x4c3730, metalness: 0.78, roughness: 0.3 });
-      const grille = new THREE.MeshStandardMaterial({ color: 0xd0b49d, metalness: 0.86, roughness: 0.34 });
-
-      const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 2.2, 20), darkChrome);
-      stand.position.y = -1.1;
-      this.microphone.add(stand);
-      const base = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.18, 0.16, 52), darkChrome);
-      base.position.y = -2.16;
-      this.microphone.add(base);
-      const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.73, 0.8, 0.09, 52), chrome);
-      foot.position.y = -2.04;
-      this.microphone.add(foot);
-
-      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.47, 0.6, 2.15, 42), chrome);
-      body.position.y = -0.3;
-      this.microphone.add(body);
-      const collar = new THREE.Mesh(new THREE.TorusGeometry(0.49, 0.042, 10, 42), darkChrome);
-      collar.rotation.x = Math.PI / 2;
-      collar.position.y = 0.7;
-      this.microphone.add(collar);
-
-      const head = new THREE.Mesh(new THREE.SphereGeometry(0.82, 44, 30), grille);
-      head.scale.y = 1.18;
-      head.position.y = 1.18;
-      this.microphone.add(head);
-
-      for (let y = 0.61; y < 1.8; y += 0.19) {
-        const normalized = (y - 1.18) / 0.76;
-        const radius = Math.max(0.35, 0.82 * Math.sqrt(Math.max(0.08, 1 - normalized * normalized)));
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.018, 8, 54), darkChrome);
-        ring.rotation.x = Math.PI / 2;
-        ring.position.y = y;
-        this.microphone.add(ring);
-      }
-
-      const shock = new THREE.Group();
-      for (let i = 0; i < 6; i += 1) {
-        const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.82, 8), darkChrome);
-        arm.position.y = 0.2;
-        arm.rotation.z = Math.PI / 3;
-        arm.rotation.y = i * Math.PI / 3;
-        shock.add(arm);
-      }
-      shock.position.y = -0.7;
-      this.microphone.add(shock);
-
-      this.world.add(this.microphone);
-    }
-
-    createSoundField() {
-      this.rings = [];
-      this.ringMaterials = [];
-      for (let i = 0; i < 4; i += 1) {
-        const material = new THREE.MeshBasicMaterial({
-          color: this.palette.idle,
-          transparent: true,
-          opacity: 0.23 - i * 0.035,
-          depthWrite: false,
-        });
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(1.22 + i * 0.47, 0.012, 8, 90), material);
-        ring.rotation.x = Math.PI / 2;
-        ring.position.set(0.5, -0.28, -0.2 - i * 0.12);
-        this.rings.push(ring);
-        this.ringMaterials.push(material);
-        this.world.add(ring);
-      }
-
-      const count = 460;
-      const positions = new Float32Array(count * 3);
-      for (let i = 0; i < count; i += 1) {
-        positions[i * 3] = (Math.random() - 0.5) * 12;
-        positions[i * 3 + 1] = (Math.random() - 0.3) * 7;
-        positions[i * 3 + 2] = -1.9 - Math.random() * 2.5;
-      }
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-      this.particleMaterial = new THREE.PointsMaterial({ color: this.palette.idle, size: 0.028, transparent: true, opacity: 0.58, depthWrite: false });
-      this.particles = new THREE.Points(geometry, this.particleMaterial);
-      this.world.add(this.particles);
-
-      this.bars = [];
-      const barMaterial = new THREE.MeshStandardMaterial({ color: 0x72503b, metalness: 0.45, roughness: 0.4 });
-      for (let i = 0; i < 17; i += 1) {
-        const bar = new THREE.Mesh(new THREE.BoxGeometry(0.075, 1, 0.075), barMaterial.clone());
-        bar.position.set(-1.85 + i * 0.16, -2.16, -1.4);
-        bar.scale.y = 0.12;
-        this.bars.push(bar);
-        this.world.add(bar);
-      }
-    }
-
-    createLights() {
-      this.ambient = new THREE.AmbientLight(0xffdfc4, 0.5);
-      this.keyLight = new THREE.PointLight(0xffc17a, 10, 16, 2);
-      this.keyLight.position.set(3.7, 4.2, 4);
-      this.fillLight = new THREE.PointLight(0xc58275, 6, 14, 2);
-      this.fillLight.position.set(-3.5, 1.4, 2.5);
-      this.rimLight = new THREE.PointLight(0xb9844f, 8, 12, 2);
-      this.rimLight.position.set(0.4, 1.5, -0.6);
-      this.world.add(this.ambient, this.keyLight, this.fillLight, this.rimLight);
-    }
-
-    setState(next) {
-      this.state = next;
-      const captions = {
-        idle: "Micro prêt",
-        loading: "Préparation de la voix",
-        recording: "Enregistrement en cours",
-        generating: "La prise se construit",
-        ready: "Prise prête à écouter",
-        playback: "Écoute de la prise",
-      };
-      $("threeCaption").textContent = captions[next] || captions.idle;
-      $("sceneMode").textContent = (next === "generating" ? "en rendu" : next === "recording" ? "enregistrement" : next === "ready" ? "prête" : "au repos");
-    }
-
-    resize() {
-      const width = this.host.clientWidth || window.innerWidth;
-      const height = this.host.clientHeight || window.innerHeight;
-      this.camera.aspect = width / height;
-      this.camera.updateProjectionMatrix();
-      this.renderer.setSize(width, height, false);
-    }
-
-    animate(time) {
-      if (!this.running) return;
-      this.render(time);
-      if (this.running) requestAnimationFrame((next) => this.animate(next));
-    }
-
-    dispose() {
-      this.running = false;
-      window.removeEventListener("resize", this.onResize);
-      window.removeEventListener("pointermove", this.onPointerMove);
-      this.renderer.dispose();
-      this.renderer.forceContextLoss();
-      this.renderer.domElement.remove();
-    }
-
-    render(time) {
-      const seconds = time * 0.001;
-      const actualEnergy = audio.energy();
-      const generatedPulse = this.state === "generating" ? 0.18 + Math.sin(seconds * 6.4) * 0.08 : 0;
-      const targetEnergy = Math.max(actualEnergy, generatedPulse);
-      this.energy = THREE.MathUtils.lerp(this.energy, targetEnergy, 0.11);
-      const colour = this.palette[this.state] || this.palette.idle;
-
-      this.microphone.rotation.y = Math.sin(seconds * 0.34) * 0.1 + this.pointer.x * 0.08;
-      this.microphone.rotation.z = Math.sin(seconds * 0.56) * 0.012;
-      this.microphone.position.y = -0.4 + Math.sin(seconds * 0.9) * (0.025 + this.energy * 0.05);
-      this.panels.rotation.y = Math.sin(seconds * 0.12) * 0.018;
-      this.particles.rotation.y = seconds * 0.018;
-      this.particles.rotation.z = Math.sin(seconds * 0.1) * 0.012;
-
-      this.rings.forEach((ring, index) => {
-        const phase = seconds * (this.state === "generating" ? 2.0 : 0.56) + index * 0.8;
-        const breath = 1 + Math.sin(phase) * 0.025 + this.energy * (0.17 + index * 0.04);
-        ring.scale.setScalar(breath);
-        ring.rotation.z = phase * 0.04;
-        this.ringMaterials[index].color.lerp(colour, 0.06);
-        this.ringMaterials[index].opacity = 0.08 + this.energy * 0.22 + (this.state === "generating" ? 0.08 : 0);
-      });
-
-      this.particleMaterial.color.lerp(colour, 0.045);
-      this.particleMaterial.opacity = 0.34 + this.energy * 0.35;
-      this.keyLight.color.lerp(colour, 0.035);
-      this.keyLight.intensity = 8 + this.energy * 10 + (this.state === "generating" ? 3 : 0);
-      this.fillLight.intensity = 4.5 + this.energy * 3;
-      this.rimLight.color.lerp(colour, 0.04);
-
-      this.bars.forEach((bar, index) => {
-        const oscillation = Math.sin(seconds * 2.6 + index * 0.72) * 0.09;
-        const height = 0.1 + this.energy * (0.2 + (index % 4) * 0.12) + oscillation + (this.state === "generating" ? 0.12 : 0);
-        bar.scale.y = Math.max(0.08, height);
-        bar.position.y = -2.2 + bar.scale.y * 0.5;
-        bar.material.color.lerp(colour, 0.035);
-      });
-
-      this.camera.position.x = THREE.MathUtils.lerp(this.camera.position.x, 0.8 + this.pointer.x * 0.26, 0.025);
-      this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, 0.25 - this.pointer.y * 0.16, 0.025);
-      this.camera.lookAt(0.5, -0.25, -0.2);
-      this.renderer.render(this.scene, this.camera);
-    }
+  /* ---------------------- Toast & états ---------------------- */
+  function notify(message, tone = "") {
+    const toast = $("toast");
+    toast.textContent = message;
+    toast.className = `toast show ${tone}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toast.className = "toast"; }, 2600);
   }
 
-  function initScene() {
-    if (!THREE) {
-      $("threeCaption").textContent = "Prévisualisation indisponible";
-      return;
-    }
-    try {
-      studioScene = new VoiceBooth($("three-stage"));
-    } catch (error) {
-      console.error("Three.js scene failed", error);
-      $("threeCaption").textContent = "Prévisualisation indisponible";
-    }
-  }
-
-  function setStudioState(state) {
-    studioScene?.setState(state);
-  }
-
-  /* ---------------------- Interface studio ---------------------- */
   function setPresence(element, state) {
-    element.className = `presence ${state}`;
+    element.className = `chip presence ${state}`;
   }
 
   function setVoiceStatus(message, tone = "") {
-    const target = $("etatVoix");
-    target.textContent = message;
-    target.className = `take-state ${tone}`;
+    $("etatVoix").textContent = message;
+    $("etatVoix").className = `voice-status ${tone}`;
   }
 
   function setTakeStatus(message, tone = "") {
-    const target = $("etatGen");
-    target.textContent = message;
-    target.className = `take-state ${tone}`;
+    $("etatGen").textContent = message;
+    $("etatGen").className = `take-status ${tone}`;
   }
 
-  function formatTime(seconds) {
-    const value = Math.max(0, Math.round(seconds));
-    return value >= 60 ? `${Math.floor(value / 60)} min ${String(value % 60).padStart(2, "0")} s` : `${value} s`;
+  function setPanelStatus(message, busy = false) {
+    $("demoSub").textContent = message;
+    $("demoSub").classList.toggle("busy", busy);
   }
 
+  function setGenerating(state) {
+    generating = state;
+    $("generer").classList.toggle("busy", state);
+    if (state) {
+      $("genererLabel").textContent = "Rendu… 0 s";
+      setPanelStatus("Rendu lancé…", true);
+    } else {
+      $("genererLabel").textContent = "Générer";
+      setPanelStatus(PANNEAU_AIDE);
+    }
+    updateGenerateState();
+  }
+
+  /* ---------------------- Vitesse & estimation ---------------------- */
   function updatePace() {
     speed = Number($("vitesse").value);
-    const fill = ((speed - 0.75) / (1.5 - 0.75)) * 100;
-    $("vitesse").style.setProperty("--pace-fill", `${fill}%`);
-    $("vitesseVal").textContent = `${speed.toFixed(2)} ×`;
+    $("vitesse").style.setProperty("--pace-fill", `${((speed - 0.75) / 0.75) * 100}%`);
+    $("vitesseVal").textContent = `${speed.toFixed(2)}×`;
     updateEstimate();
   }
 
   function updateEstimate() {
     const text = $("texte").value.trim();
-    if (!text) {
-      $("estimation").textContent = "—";
+    $("estimation").textContent = text ? `· ≈ ${Math.max(1, Math.round(text.length / 15 / speed))} s` : "";
+  }
+
+  function updateGenerateState() {
+    $("generer").disabled = shuttingDown || generating || !voiceReady || !$("texte").value.trim();
+  }
+
+  /* ---------------------- Bibliothèque de voix ---------------------- */
+  function prettyName(nom) {
+    const base = (nom || "").replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
+    return base || "voix sans nom";
+  }
+
+  function orbClass(id) {
+    return `c${parseInt(id[0], 16) % 4}`;
+  }
+
+  async function refreshVoices(selectId = null) {
+    try {
+      const response = await fetch("/api/voix");
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "bibliothèque indisponible");
+      voices = payload.voix || [];
+    } catch (error) {
+      setVoiceStatus(`Bibliothèque indisponible : ${error.message}`, "error");
       return;
     }
-    const audibleSeconds = text.length / 15;
-    const renderSeconds = audibleSeconds * 15 / speed;
-    $("estimation").textContent = `≈ ${formatTime(renderSeconds)}`;
+    renderVoices();
+    const count = voices.length;
+    $("voiceCount").textContent = count ? `${count} voix` : "0 voix";
+    $("voiceFooterCount").textContent = count ? `${count} clone${count > 1 ? "s" : ""}` : "";
+    if (selectId && voices.some((v) => v.id === selectId)) {
+      selectVoice(selectId, { silent: true });
+    } else if (!count) {
+      voiceReady = false;
+      selectedId = null;
+      $("transcript").value = "";
+      $("transcript").disabled = true;
+      setVoiceStatus("Aucune voix : importe un clip ou enregistre-toi.");
+      updateGenerateState();
+    } else if (!selectedId && voices.length) {
+      selectVoice(voices[0].id, { silent: true });
+    } else if (!selectedId) {
+      setVoiceStatus("Sélectionne une voix pour l'activer.");
+    }
   }
 
-  function prepareCanvas(canvas) {
-    const ratio = Math.min(window.devicePixelRatio || 1, 2);
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = Math.max(1, Math.round(rect.width * ratio));
-    canvas.height = Math.max(1, Math.round(rect.height * ratio));
-    return canvas.getContext("2d");
+  function renderVoices() {
+    const list = $("voiceList");
+    list.textContent = "";
+    if (!voices.length) {
+      const empty = document.createElement("div");
+      empty.className = "voice-empty";
+      empty.innerHTML = `${ICON_MIC}<strong>Aucune voix en cabine.</strong><p>Importe un clip (m4a, mp3, wav…) ou enregistre-toi :<br>la transcription part toute seule.</p>`;
+      const actions = document.createElement("div");
+      actions.className = "empty-actions";
+      const importer = document.createElement("button");
+      importer.className = "pill-light";
+      importer.type = "button";
+      importer.textContent = "Importer un clip";
+      importer.addEventListener("click", () => $("fichier").click());
+      const micro = document.createElement("button");
+      micro.className = "pill-light";
+      micro.type = "button";
+      micro.innerHTML = '<span class="rec-dot" aria-hidden="true"></span>Enregistrer';
+      micro.addEventListener("click", toggleRecording);
+      actions.append(importer, micro);
+      empty.appendChild(actions);
+      list.appendChild(empty);
+      return;
+    }
+    voices.forEach((voice) => list.appendChild(voiceRow(voice)));
   }
 
-  function drawIdleWave() {
-    const canvas = $("ondeVoix");
-    const context = prepareCanvas(canvas);
-    context.fillStyle = "#e9ddd0";
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.strokeStyle = "rgba(93, 72, 60, .24)";
-    context.lineWidth = 1;
-    context.beginPath();
-    context.moveTo(0, canvas.height / 2);
-    context.lineTo(canvas.width, canvas.height / 2);
-    context.stroke();
+  function voiceRow(voice) {
+    const row = document.createElement("div");
+    row.className = `voice-row${voice.id === selectedId ? " selected" : ""}`;
+    row.tabIndex = 0;
+    row.dataset.vid = voice.id;
+    row.setAttribute("role", "button");
+    row.setAttribute("aria-label", `Voix ${prettyName(voice.nom)}, ${voice.duree} secondes`);
+    row.innerHTML =
+      `<span class="orb ${orbClass(voice.id)}" aria-hidden="true"></span>` +
+      `<span class="check" aria-hidden="true">✓</span>` +
+      `<span class="vname">${prettyName(voice.nom).replace(/</g, "&lt;")}</span>` +
+      `<span class="vmeta">${voice.duree} s</span>`;
+
+    const play = document.createElement("button");
+    play.className = "play";
+    play.type = "button";
+    play.setAttribute("aria-label", `Écouter ${prettyName(voice.nom)}`);
+    play.innerHTML = ICON_PLAY;
+    play.addEventListener("click", (event) => { event.stopPropagation(); togglePreview(voice.id, play); });
+    row.appendChild(play);
+
+    const del = document.createElement("button");
+    del.className = "vdel";
+    del.type = "button";
+    del.setAttribute("aria-label", `Supprimer ${prettyName(voice.nom)}`);
+    del.innerHTML = ICON_TRASH;
+    del.addEventListener("click", (event) => { event.stopPropagation(); deleteVoice(voice.id); });
+    row.appendChild(del);
+
+    const activate = () => selectVoice(voice.id);
+    row.addEventListener("click", activate);
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); activate(); }
+    });
+    row.title = "Clic : sélectionner · double-clic : renommer";
+    row.addEventListener("dblclick", (event) => {
+      if (event.target.closest(".play, .vdel, .rename-input")) return;
+      startRename(voice, row);
+    });
+    return row;
   }
 
-  async function drawWaveform(file) {
-    const canvas = $("ondeVoix");
-    const context = prepareCanvas(canvas);
-    context.fillStyle = "#e9ddd0";
-    context.fillRect(0, 0, canvas.width, canvas.height);
+  function startRename(voice, row) {
+    if (renaming) return;
+    renaming = true;
+    const nameEl = row.querySelector(".vname");
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "rename-input";
+    input.value = prettyName(voice.nom);
+    input.setAttribute("aria-label", "Nouveau nom de la voix");
+    nameEl.replaceWith(input);
+    input.focus();
+    input.select();
+    let closed = false;
+    const done = (save) => {
+      if (closed) return;
+      closed = true;
+      const value = input.value.trim();
+      input.replaceWith(nameEl);
+      renaming = false;
+      if (!save || !value || value === prettyName(voice.nom)) return;
+      fetch(`/api/voix/${voice.id}/renommer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nom: value.slice(0, 60) }),
+      })
+        .then(async (response) => {
+          if (!response.ok) throw new Error((await response.json()).detail || "renommage impossible");
+          notify("Voix renommée");
+          refreshVoices(selectedId);
+        })
+        .catch((error) => notify(`Renommage impossible : ${error.message}`, "error"));
+    };
+    input.addEventListener("keydown", (event) => {
+      event.stopPropagation();
+      if (event.key === "Enter") done(true);
+      else if (event.key === "Escape") done(false);
+    });
+    input.addEventListener("click", (event) => event.stopPropagation());
+    input.addEventListener("blur", () => done(true));
+  }
+
+  async function selectVoice(id, { silent = false } = {}) {
+    setVoiceStatus("Chargement de la voix…");
     try {
-      const audioContext = audio.ensureContext();
-      const data = await file.arrayBuffer();
-      const buffer = await audioContext.decodeAudioData(data.slice(0));
-      const channel = buffer.getChannelData(0);
-      const columns = Math.max(2, Math.floor(canvas.width / 2));
-      const step = Math.max(1, Math.floor(channel.length / columns));
-      context.strokeStyle = "#b94b38";
-      context.lineWidth = Math.max(1, window.devicePixelRatio || 1);
-      context.beginPath();
-      for (let x = 0; x < columns; x += 1) {
-        const start = x * step;
-        let min = 1;
-        let max = -1;
-        for (let i = 0; i < step && start + i < channel.length; i += 1) {
-          const sample = channel[start + i];
-          min = Math.min(min, sample);
-          max = Math.max(max, sample);
-        }
-        const y1 = (1 - (max + 1) / 2) * canvas.height;
-        const y2 = (1 - (min + 1) / 2) * canvas.height;
-        context.moveTo(x * 2, y1);
-        context.lineTo(x * 2, y2);
+      const response = await fetch(`/api/voix/${id}/choisir`, { method: "POST" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "voix inconnue");
+      selectedId = id;
+      voiceReady = true;
+      $("transcript").value = payload.transcript || "";
+      $("transcript").disabled = false;
+      setVoiceStatus(`Voix prête · ${payload.duree} s de référence`, "good");
+      if (!silent) notify(`Voix « ${prettyName(payload.nom)} » sélectionnée`);
+      setTakeStatus("La cabine est prête — écris ton texte.");
+    } catch (error) {
+      setVoiceStatus(`Sélection impossible : ${error.message}`, "error");
+      return;
+    }
+    renderVoices();
+    updateGenerateState();
+  }
+
+  function togglePreview(id, button) {
+    if (previewId === id && !previewAudio.paused) {
+      previewAudio.pause();
+      return;
+    }
+    if (!previewAudio.paused) previewAudio.pause();
+    previewId = id;
+    previewAudio.src = `/api/voix/${id}/wav`;
+    previewAudio.play().catch(() => notify("Lecture impossible", "error"));
+  }
+
+  function paintPlayButtons() {
+    document.querySelectorAll(".voice-row").forEach((row) => {
+      const play = row.querySelector(".play");
+      if (!play) return;
+      const id = row.dataset.vid;
+      play.innerHTML = id && id === previewId && !previewAudio.paused ? ICON_PAUSE : ICON_PLAY;
+    });
+  }
+
+  function bindPreviewEvents() {
+    previewAudio.addEventListener("play", () => { $("resultat").pause(); paintPlayButtons(); });
+    previewAudio.addEventListener("pause", paintPlayButtons);
+    previewAudio.addEventListener("ended", paintPlayButtons);
+    $("resultat").addEventListener("play", () => previewAudio.pause());
+  }
+
+  async function deleteVoice(id) {
+    const voice = voices.find((v) => v.id === id);
+    if (!window.confirm(`Supprimer la voix « ${prettyName(voice?.nom)} » et son clip de référence ?`)) return;
+    try {
+      const response = await fetch(`/api/voix/${id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error((await response.json()).detail || "suppression impossible");
+      if (id === selectedId) {
+        selectedId = null;
+        voiceReady = false;
+        $("transcript").value = "";
+        $("transcript").disabled = true;
+        updateGenerateState();
       }
-      context.stroke();
+      notify("Voix supprimée");
+      refreshVoices();
     } catch (error) {
-      // Certains codecs navigateur ne se décodent pas en Web Audio. Le backend les accepte quand même.
-      drawIdleWave();
+      notify(`Suppression impossible : ${error.message}`, "error");
     }
   }
 
-  function makeMeter() {
-    const meter = $("meter");
-    for (let i = 0; i < 22; i += 1) {
-      const bar = document.createElement("i");
-      meter.appendChild(bar);
-    }
-  }
-
-  function renderMeter() {
-    if (!meterRunning) return;
-    const bars = $("meter").children;
-    const energy = audio.energy();
-    const live = Math.round(energy * bars.length);
-    for (let index = 0; index < bars.length; index += 1) {
-      const active = index < live;
-      bars[index].style.height = active ? `${22 + ((index + 1) / bars.length) * 78}%` : "12%";
-      bars[index].classList.toggle("hot", active && index > bars.length * 0.72);
-    }
-    if (!prefersReducedMotion && meterRunning) requestAnimationFrame(renderMeter);
-  }
-
-  async function refreshSystem() {
-    if (shuttingDown) return;
-    try {
-      const response = await fetch("/api/etat");
-      const system = await response.json();
-      setPresence($("serverPresence"), "ready");
-      setPresence($("modelPresence"), system.modele ? "ready" : "wait");
-    } catch (error) {
-      setPresence($("serverPresence"), "");
-      setPresence($("modelPresence"), "");
-    }
-  }
-
-  async function stopStudio() {
-    if (shuttingDown || !window.confirm("Éteindre le studio ? Le modèle VoxCPM et toute prise en cours seront arrêtés pour libérer la mémoire.")) return;
-
-    shuttingDown = true;
-    $("stopStudio").disabled = true;
-    $("stopLabel").textContent = "Libération…";
-    $("generer").disabled = true;
-    $("choisir").disabled = true;
-    $("micro").disabled = true;
-    setTakeStatus("Arrêt du studio et libération du modèle…");
-    setStudioState("idle");
-
-    try {
-      const response = await fetch("/api/arreter", { method: "POST" });
-      if (!response.ok) throw new Error("le serveur a refusé l'arrêt");
-      window.clearInterval(systemTimer);
-      window.clearInterval(clockTimer);
-      recordingStream?.getTracks().forEach((track) => track.stop());
-      audio.stopMicrophone();
-      await audio.context?.close();
-      meterRunning = false;
-      studioScene?.dispose();
-      studioScene = null;
-      window.__voiceStudioScene = null;
-      setPresence($("serverPresence"), "");
-      setPresence($("modelPresence"), "");
-      $("sceneMode").textContent = "éteinte";
-      $("threeCaption").textContent = "Modèle libéré";
-      setTakeStatus("Studio éteint — le modèle est libéré.", "good");
-      $("stopLabel").textContent = "Studio éteint";
-    } catch (error) {
-      shuttingDown = false;
-      $("stopStudio").disabled = false;
-      $("stopLabel").textContent = "Éteindre";
-      $("generer").disabled = !(voiceReady && $("texte").value.trim());
-      $("choisir").disabled = false;
-      $("micro").disabled = false;
-      setTakeStatus(`Arrêt impossible : ${error.message}`, "error");
-      setStudioState(voiceReady ? "ready" : "idle");
-    }
-  }
-
-  function setSourcePreview(file) {
-    if (currentSourceUrl) URL.revokeObjectURL(currentSourceUrl);
-    currentSourceUrl = URL.createObjectURL(file);
-    const preview = $("voicePreview");
-    preview.src = currentSourceUrl;
-    preview.hidden = false;
+  /* ---------------------- Ajouter une voix ---------------------- */
+  function setAddBusy(busy) {
+    $("ajouterFichier").disabled = busy;
+    $("ajouterMicro").disabled = busy;
   }
 
   async function loadVoice(file) {
     if (shuttingDown) return;
-    currentSourceFile = file;
-    voiceReady = false;
-    $("generer").disabled = true;
-    $("sourceName").textContent = file.name || "Enregistrement direct";
-    $("takeName").textContent = file.name || "Nouvelle voix";
-    $("sourceDuration").textContent = "analyse…";
-    setVoiceStatus("Préparation du clip et de son transcript…");
-    setStudioState("loading");
-    setSourcePreview(file);
-    drawWaveform(file);
-
+    setAddBusy(true);
+    const label = prettyName(file.name || "enregistrement");
+    setVoiceStatus(`Préparation de « ${label} » : conversion + transcription…`);
+    notify(`Analyse de « ${label} » — la transcription peut prendre un moment.`);
     try {
       const form = new FormData();
       form.append("audio", file);
       const response = await fetch("/api/voix", { method: "POST", body: form });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.detail || "Import impossible");
-      $("transcript").value = payload.transcript;
-      $("sourceDuration").textContent = `${payload.duree} s`;
-      $("takeName").textContent = payload.source;
-      setVoiceStatus(`Voix prête · ${payload.duree} s de référence`, "good");
-      voiceReady = true;
-      $("generer").disabled = !$("texte").value.trim();
-      setStudioState("ready");
+      if (!response.ok) throw new Error(payload.detail || "import impossible");
+      await refreshVoices(payload.id);
+      notify(`Voix « ${label} » ajoutée à la bibliothèque`);
     } catch (error) {
-      if (shuttingDown) return;
-      setVoiceStatus(`Import impossible : ${error.message}`, "error");
-      $("sourceDuration").textContent = "—";
-      setStudioState("idle");
+      if (!shuttingDown) {
+        setVoiceStatus(`Import impossible : ${error.message}`, "error");
+        notify(`Import impossible : ${error.message}`, "error");
+      }
+    } finally {
+      setAddBusy(false);
     }
   }
 
-  async function beginRecording() {
+  /* ---------------------- Enregistrement micro ---------------------- */
+  function micLevelLoop(bars) {
+    if (!micAnalyser) return;
+    const data = new Uint8Array(micAnalyser.frequencyBinCount);
+    const tick = () => {
+      if (!micAnalyser) return;
+      micAnalyser.getByteFrequencyData(data);
+      let sum = 0;
+      for (let i = 0; i < 24; i += 1) sum += data[i] / 255;
+      const energy = Math.min(1, (sum / 24) * 1.9);
+      bars.forEach((bar, index) => {
+        bar.style.height = `${Math.max(3, energy * (10 + index * 2.4))}px`;
+      });
+      micRaf = requestAnimationFrame(tick);
+    };
+    micRaf = requestAnimationFrame(tick);
+  }
+
+  function insertRecordingRow() {
+    const row = document.createElement("div");
+    row.className = "voice-row recording-row";
+    row.id = "recordingRow";
+    row.innerHTML =
+      '<span class="rec-dot" aria-hidden="true"></span>' +
+      '<span>Enregistrement…</span>' +
+      '<span class="rec-time" id="recTime">0 s</span>' +
+      '<div class="rec-level" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>';
+    const stop = document.createElement("button");
+    stop.className = "pill-light";
+    stop.type = "button";
+    stop.style.marginLeft = "auto";
+    stop.textContent = "Arrêter";
+    stop.addEventListener("click", () => recorder?.state === "recording" && recorder.stop());
+    row.appendChild(stop);
+    $("voiceList").prepend(row);
+    return [...row.querySelectorAll(".rec-level i")];
+  }
+
+  async function toggleRecording() {
     if (shuttingDown) return;
-    if (recorder?.state === "recording") {
-      recorder.stop();
-      return;
-    }
+    if (recorder?.state === "recording") { recorder.stop(); return; }
     try {
       recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audio.ensureContext().resume();
-      audio.bindMicrophone(recordingStream);
+      const Context = window.AudioContext || window.webkitAudioContext;
+      const context = audioContext();
+      context.resume();
+      const source = context.createMediaStreamSource(recordingStream);
+      micAnalyser = context.createAnalyser();
+      micAnalyser.fftSize = 256;
+      micAnalyser.smoothingTimeConstant = 0.6;
+      source.connect(micAnalyser);
+
       const mimeType = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm"].find((type) => MediaRecorder.isTypeSupported(type));
       const chunks = [];
       recorder = new MediaRecorder(recordingStream, mimeType ? { mimeType } : undefined);
       recorder.addEventListener("dataavailable", (event) => chunks.push(event.data));
       recorder.addEventListener("stop", () => {
         clearInterval(recordingClock);
+        cancelAnimationFrame(micRaf);
+        micAnalyser = null;
         recordingStream?.getTracks().forEach((track) => track.stop());
         recordingStream = null;
-        audio.stopMicrophone();
-        $("micro").classList.remove("recording");
-        $("micro").innerHTML = '<span class="record-dot"></span>Enregistrer';
+        $("recordingRow")?.remove();
+        setAddBusy(false);
         const ext = (recorder.mimeType || "").includes("mp4") ? "m4a" : "webm";
         const file = new File(chunks, `prise-${new Date().toISOString().slice(11, 19).replaceAll(":", "")}.${ext}`, { type: recorder.mimeType });
         loadVoice(file);
       }, { once: true });
       recorder.start();
+      setAddBusy(true);
+      const bars = insertRecordingRow();
+      micLevelLoop(bars);
       recordingSeconds = 0;
       recordingClock = setInterval(() => {
         recordingSeconds += 1;
-        setVoiceStatus(`Enregistrement en cours · ${recordingSeconds} s`, "error");
+        $("recTime").textContent = `${recordingSeconds} s`;
       }, 1000);
-      $("micro").classList.add("recording");
-      $("micro").textContent = "Arrêter la prise";
-      setVoiceStatus("Enregistrement en cours · 0 s", "error");
-      setStudioState("recording");
     } catch (error) {
-      setVoiceStatus(`Micro indisponible : ${error.message}`, "error");
-      setStudioState("idle");
+      setAddBusy(false);
+      notify(`Micro indisponible : ${error.message}`, "error");
     }
   }
 
-  function bindPlayer(element, kind) {
-    element.addEventListener("play", () => {
-      audio.ensureContext().resume();
-      audio.bindMediaElement(element, kind);
-      if (!generating) setStudioState("playback");
-    });
-    element.addEventListener("pause", () => {
-      if (!generating && voiceReady) setStudioState("ready");
-    });
-    element.addEventListener("ended", () => {
-      if (!generating && voiceReady) setStudioState("ready");
-    });
+  function audioContext() {
+    toggleRecording.context ??= new (window.AudioContext || window.webkitAudioContext)();
+    return toggleRecording.context;
   }
 
+  /* ---------------------- Génération ---------------------- */
   async function createTake() {
     if (shuttingDown) return;
     const text = $("texte").value.trim();
     if (!voiceReady || !text || generating) return;
-    generating = true;
-    $("generer").disabled = true;
+    setGenerating(true);
     $("resultPanel").classList.remove("show");
     $("progress").style.width = "0%";
     setTakeStatus("La prise entre en cabine…");
-    setStudioState("generating");
 
     try {
       const response = await fetch("/api/generer", {
@@ -672,94 +444,178 @@
         body: JSON.stringify({ texte: text, vitesse: speed, transcript: $("transcript").value }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.detail || "Génération impossible");
+      if (!response.ok) throw new Error(payload.detail || "génération impossible");
       await watchTake(payload.job, text);
     } catch (error) {
       if (shuttingDown) return;
-      generating = false;
-      $("generer").disabled = false;
+      setGenerating(false);
       setTakeStatus(`Erreur : ${error.message}`, "error");
-      setStudioState(voiceReady ? "ready" : "idle");
+      notify(`Génération impossible : ${error.message}`, "error");
     }
   }
 
   async function watchTake(jobId, text) {
-    const predicted = Math.max(45, text.length / 15 * 15 / speed);
+    const predicted = Math.max(45, (text.length / 15 / speed) * 15);
     const timer = setInterval(async () => {
-      if (shuttingDown) {
-        clearInterval(timer);
-        return;
-      }
+      if (shuttingDown) { clearInterval(timer); return; }
       try {
         const response = await fetch(`/api/job/${jobId}`);
         const job = await response.json();
         const elapsed = job.ecoule || 0;
-        $("progress").style.width = `${Math.min(96, Math.round(elapsed / (predicted + 24) * 100))}%`;
-        if (job.etat === "chargement") setTakeStatus(`Le modèle chauffe la cabine · ${elapsed} s`);
-        else if (job.etat === "generation") setTakeStatus(`La prise se construit · ${elapsed} s écoulées`);
-        if (job.etat === "erreur") throw new Error(job.erreur || "Rendu interrompu");
+        $("genererLabel").textContent = `Rendu… ${elapsed} s`;
+        $("progress").style.width = `${Math.min(96, Math.round((elapsed / (predicted + 24)) * 100))}%`;
+        if (job.etat === "chargement") {
+          setTakeStatus(`Le modèle chauffe la cabine · ${elapsed} s`);
+          setPanelStatus(`Modèle en chargement · ${elapsed} s`, true);
+        } else if (job.etat === "generation") {
+          setTakeStatus(`La prise se construit · ${elapsed} s écoulées`);
+          setPanelStatus(`Rendu en cours · ${elapsed} s`, true);
+        }
+        if (job.etat === "erreur") throw new Error(job.erreur || "rendu interrompu");
         if (job.etat !== "pret") return;
 
         clearInterval(timer);
-        generating = false;
         $("progress").style.width = "100%";
-        window.setTimeout(() => { $("progress").style.width = "0%"; }, 1000);
-        $("generer").disabled = false;
-        currentResultUrl = `/api/audio/${job.fichier}`;
-        $("resultat").src = currentResultUrl;
-        $("telecharger").href = currentResultUrl;
+        setTimeout(() => { $("progress").style.width = "0%"; }, 1000);
+        setGenerating(false);
+        const url = `/api/audio/${job.fichier}`;
+        $("resultat").src = url;
+        $("telecharger").href = url;
         $("resultPanel").classList.add("show");
         setTakeStatus(`Prise finalisée · ${job.duree} s`, "good");
-        setStudioState("ready");
-        try { await $("resultat").play(); } catch (_) { /* le lecteur reste disponible si l'autoplay est bloqué */ }
+        setPanelStatus(`Prise prête · ${job.duree} s d'audio`);
+        notify("Prise finalisée, à l'écoute.");
+        try { await $("resultat").play(); } catch (_) { /* autoplay bloqué : le lecteur reste là */ }
       } catch (error) {
-        if (shuttingDown) {
-          clearInterval(timer);
-          return;
-        }
+        if (shuttingDown) { clearInterval(timer); return; }
         clearInterval(timer);
-        generating = false;
-        $("generer").disabled = false;
+        setGenerating(false);
         $("progress").style.width = "0%";
         setTakeStatus(`Erreur : ${error.message}`, "error");
-        setStudioState(voiceReady ? "ready" : "idle");
+        notify(`Rendu interrompu : ${error.message}`, "error");
       }
-    }, 1800);
+    }, 1000);
   }
 
+  /* ---------------------- État système & extinction ---------------------- */
+  let engineLoading = false;
+
+  function setEngineUI(system) {
+    const label = system.moteur === "dots" ? "dots.tts" : "VoxCPM2";
+    $("modelPresence").innerHTML = `<i></i>${label}`;
+    document.querySelectorAll(".engine").forEach((button) => {
+      const active = button.dataset.moteur === system.moteur;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+      button.disabled = !system.modele;
+    });
+  }
+
+  async function refreshSystem() {
+    if (shuttingDown) return;
+    try {
+      const system = await (await fetch("/api/etat")).json();
+      setPresence($("serverPresence"), "ready");
+      setPresence($("modelPresence"), system.modele ? "ready" : "wait");
+      setEngineUI(system);
+      if (!generating) {
+        if (!system.modele) {
+          engineLoading = true;
+          setPanelStatus(`Chargement de ${system.moteur === "dots" ? "dots.tts" : "VoxCPM2"}…`, true);
+        } else if (engineLoading) {
+          engineLoading = false;
+          setPanelStatus(PANNEAU_AIDE);
+          setTakeStatus("La cabine est prête — écris ton texte.");
+        }
+      }
+    } catch (_) {
+      setPresence($("serverPresence"), "");
+      setPresence($("modelPresence"), "");
+    }
+  }
+
+  async function switchEngine(moteur) {
+    if (shuttingDown || generating) return;
+    try {
+      const response = await fetch("/api/moteur", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ moteur }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "changement impossible");
+      engineLoading = true;
+      setPanelStatus(moteur === "dots" ? "Chargement de dots.tts…" : "Chargement de VoxCPM2…", true);
+      setTakeStatus("Changement de moteur en cours (~1-2 min)…");
+      notify("Changement de moteur — le chargement prend une à deux minutes.");
+      refreshSystem();
+    } catch (error) {
+      notify(`Changement impossible : ${error.message}`, "error");
+    }
+  }
+
+  async function stopStudio() {
+    if (shuttingDown || !window.confirm("Éteindre le studio ? Le modèle VoxCPM et toute prise en cours seront arrêtés pour libérer la mémoire.")) return;
+    shuttingDown = true;
+    $("stopStudio").disabled = true;
+    $("stopLabel").textContent = "Libération…";
+    updateGenerateState();
+    setAddBusy(true);
+    setTakeStatus("Arrêt du studio et libération du modèle…");
+    try {
+      const response = await fetch("/api/arreter", { method: "POST" });
+      if (!response.ok) throw new Error("le serveur a refusé l'arrêt");
+      clearInterval(systemTimer);
+      clearInterval(recordingClock);
+      recorder?.state === "recording" && recorder.stop();
+      recordingStream?.getTracks().forEach((track) => track.stop());
+      previewAudio.pause();
+      $("resultat").pause();
+      setPresence($("serverPresence"), "");
+      setPresence($("modelPresence"), "");
+      setTakeStatus("Studio éteint — le modèle est libéré.", "good");
+      setVoiceStatus("Studio éteint.");
+      $("stopLabel").textContent = "Studio éteint";
+      notify("Studio éteint, modèle libéré.");
+    } catch (error) {
+      shuttingDown = false;
+      $("stopStudio").disabled = false;
+      $("stopLabel").textContent = "Éteindre";
+      setAddBusy(false);
+      updateGenerateState();
+      setTakeStatus(`Arrêt impossible : ${error.message}`, "error");
+    }
+  }
+
+  /* ---------------------- Init ---------------------- */
   function bindEvents() {
-    $("choisir").addEventListener("click", () => $("fichier").click());
+    $("ajouterFichier").addEventListener("click", () => $("fichier").click());
+    $("ajouterMicro").addEventListener("click", toggleRecording);
     $("fichier").addEventListener("change", (event) => {
       if (event.target.files?.[0]) loadVoice(event.target.files[0]);
+      event.target.value = "";
     });
-    $("micro").addEventListener("click", beginRecording);
     $("vitesse").addEventListener("input", updatePace);
     $("texte").addEventListener("input", () => {
       window.localStorage.setItem("pk-voice-studio-script", $("texte").value);
       updateEstimate();
-      if (voiceReady && !generating) $("generer").disabled = !$("texte").value.trim();
+      updateGenerateState();
     });
     $("generer").addEventListener("click", createTake);
     $("stopStudio").addEventListener("click", stopStudio);
-    bindPlayer($("voicePreview"), "preview");
-    bindPlayer($("resultat"), "result");
-    window.addEventListener("resize", () => {
-      if (currentSourceFile) drawWaveform(currentSourceFile);
-      else drawIdleWave();
-    }, { passive: true });
+    document.querySelectorAll(".engine").forEach((button) => {
+      button.addEventListener("click", () => switchEngine(button.dataset.moteur));
+    });
+    bindPreviewEvents();
   }
 
   function init() {
     $("texte").value = window.localStorage.getItem("pk-voice-studio-script") || "";
-    makeMeter();
-    drawIdleWave();
     updatePace();
     bindEvents();
-    initScene();
-    if (!prefersReducedMotion) requestAnimationFrame(renderMeter);
+    refreshVoices();
     refreshSystem();
-    systemTimer = window.setInterval(refreshSystem, 5000);
-    clockTimer = window.setInterval(() => { $("clock").textContent = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }); }, 1000);
+    systemTimer = setInterval(refreshSystem, 5000);
   }
 
   init();

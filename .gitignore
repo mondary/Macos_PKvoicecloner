@@ -18,3 +18,6 @@ clement_voice.wav
 *.log
 __pycache__/
 .ipynb_checkpoints/
+
+# Prototype html local non lié au projet
+/index.html

@@ -505,11 +505,78 @@
     }, 1000);
   }
 
+  /* ---------------------- Modèles téléchargeables ---------------------- */
+  async function refreshModeles() {
+    if (shuttingDown) return;
+    let payload;
+    try {
+      payload = await (await fetch("/api/modeles")).json();
+    } catch (_) {
+      return;
+    }
+    const list = $("modelesList");
+    list.textContent = "";
+    let enCours = false;
+    (payload.modeles || []).forEach((m) => {
+      const row = document.createElement("div");
+      row.className = "model-item";
+      const link = document.createElement("a");
+      link.href = `https://huggingface.co/${m.repo}`;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.textContent = `${m.label} · ${m.taille}`;
+      const btn = document.createElement("button");
+      btn.className = "model-delete";
+      btn.type = "button";
+      if (m.etat === "en_cours") {
+        btn.textContent = "Installation…";
+        btn.disabled = true;
+        enCours = true;
+      } else if (m.installe) {
+        btn.textContent = "Supprimer";
+        btn.addEventListener("click", () => supprimerModele(m.id));
+      } else {
+        btn.textContent = m.etat === "erreur" ? "Réessayer" : "Installer";
+        if (m.etat === "erreur") btn.title = `Échec : ${m.erreur || "erreur"} — clique pour réessayer`;
+        btn.addEventListener("click", () => installerModele(m.id));
+      }
+      row.append(link, btn);
+      list.appendChild(row);
+      const engine = document.querySelector(`.engine[data-moteur="${m.moteur}"]`);
+      if (engine) engine.classList.toggle("hidden", !m.installe);
+    });
+    if (enCours) setTimeout(refreshModeles, 2000);
+  }
+
+  async function installerModele(id) {
+    try {
+      const response = await fetch(`/api/modeles/${id}/installer`, { method: "POST" });
+      if (!response.ok) throw new Error((await response.json()).detail || "installation impossible");
+      notify("Téléchargement du modèle lancé — compte quelques minutes.");
+      refreshModeles();
+    } catch (error) {
+      notify(`Installation impossible : ${error.message}`, "error");
+    }
+  }
+
+  async function supprimerModele(id) {
+    if (!window.confirm("Supprimer ce modèle du cache local ?")) return;
+    try {
+      const response = await fetch(`/api/modeles/${id}`, { method: "DELETE" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "suppression impossible");
+      notify("Modèle supprimé du cache local.");
+      refreshModeles();
+    } catch (error) {
+      notify(`Suppression impossible : ${error.message}`, "error");
+    }
+  }
+
   /* ---------------------- État système & extinction ---------------------- */
   let engineLoading = false;
 
   function setEngineUI(system) {
-    const labels = { dots: "dots.tts", qwen3: "Qwen3 · 0,6B", voxcpm2: "VoxCPM2" };
+    const labels = { dots: "dots.tts", qwen3: "Qwen3 · 0,6B", pocket: "Pocket TTS", voxcpm2: "VoxCPM2" };
     const label = labels[system.moteur] || system.moteur;
     $("modelPresence").innerHTML = `<i></i>${label}`;
     document.querySelectorAll(".engine").forEach((button) => {
@@ -530,7 +597,7 @@
       if (!generating) {
         if (!system.modele) {
           engineLoading = true;
-          const labels = { dots: "dots.tts", qwen3: "Qwen3-TTS 0,6B", voxcpm2: "VoxCPM2" };
+          const labels = { dots: "dots.tts", qwen3: "Qwen3-TTS 0,6B", pocket: "Pocket TTS", voxcpm2: "VoxCPM2" };
           setPanelStatus(`Chargement de ${labels[system.moteur] || system.moteur}…`, true);
         } else if (engineLoading) {
           engineLoading = false;
@@ -555,7 +622,7 @@
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.detail || "changement impossible");
       engineLoading = true;
-      const labels = { dots: "dots.tts", qwen3: "Qwen3-TTS 0,6B", voxcpm2: "VoxCPM2" };
+      const labels = { dots: "dots.tts", qwen3: "Qwen3-TTS 0,6B", pocket: "Pocket TTS", voxcpm2: "VoxCPM2" };
       setPanelStatus(`Chargement de ${labels[moteur] || moteur}…`, true);
       setTakeStatus("Changement de moteur en cours (~1-2 min)…");
       notify("Changement de moteur — le chargement prend une à deux minutes.");
@@ -617,14 +684,6 @@
     document.querySelectorAll(".engine").forEach((button) => {
       button.addEventListener("click", () => switchEngine(button.dataset.moteur));
     });
-    document.querySelectorAll(".model-delete").forEach((button) => {
-      button.addEventListener("click", async () => {
-        if (!window.confirm("Supprimer ce modèle téléchargé du cache local ?")) return;
-        const response = await fetch(`/api/modeles/${button.dataset.modele}`, { method: "DELETE" });
-        const payload = await response.json();
-        notify(response.ok ? "Modèle supprimé du cache local." : `Suppression impossible : ${payload.detail || "erreur"}`, response.ok ? "good" : "error");
-      });
-    });
     bindPreviewEvents();
   }
 
@@ -634,6 +693,7 @@
     bindEvents();
     refreshVoices();
     refreshSystem();
+    refreshModeles();
     systemTimer = setInterval(refreshSystem, 5000);
   }
 

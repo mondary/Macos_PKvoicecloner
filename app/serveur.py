@@ -8,7 +8,10 @@ Endpoints :
   GET  /api/voix/{id}/wav      écoute du clip de référence
   DELETE /api/voix/{id} supprime une voix de la bibliothèque
   POST /api/generer     {texte, vitesse, transcript} -> job id
-  POST /api/moteur      {moteur: voxcpm2|dots} changement de moteur TTS
+  POST /api/moteur      {moteur: voxcpm2|dots|qwen3|pocket} changement de moteur TTS
+  GET  /api/modeles     modèles téléchargeables + état installé
+  POST /api/modeles/{id}/installer  télécharge les poids (et le paquet pip manquant)
+  DELETE /api/modeles/{id}          supprime les poids du cache Hugging Face
   POST /api/arreter     arrêt gracieux du serveur et libération du modèle
   GET  /api/job/{id}    état du job
   GET  /api/audio/{f}   fichier wav généré
@@ -19,9 +22,11 @@ peut vivre n'importe où sur le disque.
 """
 import gc
 import hashlib
+import importlib.util
 import os
 import shutil
 import subprocess
+import sys
 import threading
 import time
 import uuid
@@ -49,10 +54,23 @@ modele = None                    # moteur TTS chargé en arrière-plan
 moteur_actif = "voxcpm2"         # "voxcpm2" | "dots" (demandé)
 moteur_pret = None               # moteur réellement présent dans `modele`
 MOTEUR_LABELS = {"voxcpm2": "VoxCPM2", "dots": "dots.tts"}
+# Modèles optionnels : paquets pip (nom pip, nom d'import) + dépôt de poids HF.
+# chatterbox retiré : il impose torchaudio==2.6, incompatible avec la .venv partagée.
 MODELES_TELECHARGEABLES = {
-    "qwen3-tts": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
-    "pocket-tts": "kyutai/pocket-tts",
-    "chatterbox": "ResembleAI/chatterbox",
+    "qwen3-tts": {
+        "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        "moteur": "qwen3",
+        "label": "Qwen3-TTS 0,6B",
+        "taille": "~2–3 Go",
+        "paquets": (("qwen-tts", "qwen_tts"),),
+    },
+    "pocket-tts": {
+        "repo": "kyutai/pocket-tts",
+        "moteur": "pocket",
+        "label": "Pocket TTS",
+        "taille": "~0,4 Go",
+        "paquets": (("pocket-tts", "pocket_tts"),),
+    },
 }
 verrou_gen = threading.Lock()    # une génération à la fois
 transcripts = {}                 # hash audio -> transcript ASR
@@ -121,8 +139,18 @@ def charger_qwen():
     )
 
 
+def charger_pocket():
+    import torch
+    from pocket_tts import TTSModel
+
+    model = TTSModel.load_model(language="french_24l")
+    # chargé sur CPU par défaut ; MPS est ~2× plus rapide sur Apple Silicon
+    return model.to(torch.device("mps"))
+
+
 MOTEUR_LABELS["qwen3"] = "Qwen3-TTS 0,6B"
-CHARGEURS = {"voxcpm2": charger_voxcpm, "dots": charger_dots, "qwen3": charger_qwen}
+MOTEUR_LABELS["pocket"] = "Pocket TTS"
+CHARGEURS = {"voxcpm2": charger_voxcpm, "dots": charger_dots, "qwen3": charger_qwen, "pocket": charger_pocket}
 verrou_chargement = threading.Lock()
 
 
@@ -219,19 +247,99 @@ def etat():
         "voix": bool(voix_courante),
         "moteur": moteur_actif,
         "moteurs": list(CHARGEURS),
+        "installes": [m["moteur"] for m in MODELES_TELECHARGEABLES.values() if _est_installe(m["repo"])],
     }
+
+
+def _cache_modele(repo: str) -> Path:
+    return Path.home() / ".cache" / "huggingface" / "hub" / f"models--{repo.replace('/', '--')}"
+
+
+def _est_installe(repo: str) -> bool:
+    """Vrai si les poids sont en cache : au moins un blob complet > 50 Mo.
+    ponytail: heuristique taille — tous ces modèles TTS dépassent 100 Mo de poids."""
+    blobs = _cache_modele(repo) / "blobs"
+    try:
+        return any(
+            b.stat().st_size > 50_000_000
+            for b in blobs.iterdir()
+            if b.is_file() and not b.name.endswith(".incomplete")
+        )
+    except OSError:
+        return False
+
+
+installations: dict[str, dict] = {}   # id -> {"etat": en_cours|pret|erreur, "erreur"?}
+
+
+@app.get("/api/modeles")
+def liste_modeles():
+    return {"modeles": [
+        {
+            "id": mid,
+            "label": m["label"],
+            "repo": m["repo"],
+            "taille": m["taille"],
+            "moteur": m["moteur"],
+            "installe": _est_installe(m["repo"]),
+            **installations.get(mid, {"etat": ""}),
+        }
+        for mid, m in MODELES_TELECHARGEABLES.items()
+    ]}
+
+
+def _installer_modele(modele_id: str):
+    m = MODELES_TELECHARGEABLES[modele_id]
+    try:
+        for paquet, module in m["paquets"]:
+            if importlib.util.find_spec(module) is None:
+                if shutil.which("uv") is None:
+                    raise RuntimeError("uv introuvable : relance install.sh")
+                r = subprocess.run(
+                    ["uv", "pip", "install", "--python", sys.executable, paquet],
+                    capture_output=True, text=True,
+                )
+                if r.returncode != 0:
+                    raise RuntimeError((r.stderr or r.stdout)[-300:])
+        from huggingface_hub import snapshot_download
+
+        snapshot_download(m["repo"])
+        installations[modele_id] = {"etat": "pret"}
+        print(f">> modèle {m['label']} installé.", flush=True)
+    except Exception as e:  # noqa: BLE001 — remonté au client via /api/modeles
+        msg = str(e)
+        if "restricted" in msg or "gated" in msg or "401" in msg:
+            msg = ("modèle gated : accepte les conditions sur huggingface.co puis relance "
+                   "le studio avec HF_TOKEN (créé sur huggingface.co/settings/tokens)")
+        installations[modele_id] = {"etat": "erreur", "erreur": msg[:300]}
+
+
+@app.post("/api/modeles/{modele_id}/installer", status_code=202)
+def installer_modele(modele_id: str):
+    m = MODELES_TELECHARGEABLES.get(modele_id)
+    if not m:
+        raise HTTPException(404, "modèle inconnu")
+    if _est_installe(m["repo"]):
+        return {"ok": True, "installe": True}
+    if installations.get(modele_id, {}).get("etat") != "en_cours":
+        installations[modele_id] = {"etat": "en_cours"}
+        threading.Thread(target=_installer_modele, args=(modele_id,), daemon=True).start()
+    return {"ok": True, "etat": "en_cours"}
 
 
 @app.delete("/api/modeles/{modele_id}")
 def supprimer_modele(modele_id: str):
     """Supprime uniquement le dépôt Hugging Face correspondant au modèle choisi."""
-    repo = MODELES_TELECHARGEABLES.get(modele_id)
-    if not repo:
+    m = MODELES_TELECHARGEABLES.get(modele_id)
+    if not m:
         raise HTTPException(404, "modèle inconnu")
-    cache = Path.home() / ".cache" / "huggingface" / "hub" / f"models--{repo.replace('/', '--')}"
+    if moteur_pret == m["moteur"]:
+        raise HTTPException(409, "modèle chargé en mémoire : change de moteur avant de le supprimer")
+    cache = _cache_modele(m["repo"])
     if cache.exists():
         shutil.rmtree(cache)
-    return {"ok": True, "supprime": repo}
+    installations.pop(modele_id, None)
+    return {"ok": True, "supprime": m["repo"]}
 
 
 @app.post("/api/moteur", status_code=202)
@@ -364,6 +472,7 @@ def executer_generation(job, texte, vitesse, transcript):
                 time.sleep(0.5)
             jobs[job]["etat"] = "generation"
             ref = str(voix_courante["wav"])
+            transcript = transcript or voix_courante.get("transcript") or ""
             if moteur_pret == "dots":
                 resultat = modele.generate(
                     text=texte,
@@ -380,6 +489,10 @@ def executer_generation(job, texte, vitesse, transcript):
                     ref_text=(transcript or ""),
                 )
                 wav = wavs[0]
+            elif moteur_pret == "pocket":
+                etat = modele.get_state_for_audio_prompt(ref)
+                wav = modele.generate_audio(etat, texte).float().cpu().squeeze().numpy()
+                sample_rate = modele.sample_rate
             else:
                 kwargs = dict(
                     text=texte,

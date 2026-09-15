@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **0.5.0** · macOS Apple Silicon · Apache-2.0
+version **0.6.0** · macOS Apple Silicon · Apache-2.0
 
 🎙️ **Open source AI voice studio — 100 % local.** Your voice says any text. Powered by [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts) and [faster-whisper](https://github.com/SYSTRAN/faster-whisper) on Apple Silicon via MPS. **No data ever leaves the machine.**
 
@@ -12,7 +12,8 @@ curl -fsSL https://raw.githubusercontent.com/mondary/Macos_PKvoicecloner/main/in
 
 ## ✅ Features
 
-- **Two switchable engines** — **VoxCPM2** (MPS, fast, ~30 languages) and **dots.tts** (2B, high-fidelity 48 kHz cloning, 24 languages): one click in the studio header
+- **Switchable engines** — **VoxCPM2** (MPS, fast, ~30 languages) and **dots.tts** (2B, high-fidelity 48 kHz cloning, 24 languages): one click in the studio header
+- **Models to try** — an **Install** / **Delete** button per optional model (Qwen3-TTS 0.6B, Pocket TTS): weights land in the local cache and any installed model becomes selectable as a generation engine
 - **Ultimate cloning** — clip + transcript → timbre, rhythm and style preserved
 - **Voice library** — every imported or recorded clip becomes a persistent clone, reusable across sessions: list, preview, select, delete
 - **Upload or mic** — QuickTime `.m4a`, `.mp3`, `.wav`, `.webm`, or record straight in the page (guided empty state: import or record)

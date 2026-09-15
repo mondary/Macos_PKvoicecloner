@@ -1,6 +1,19 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [0.6.0] - 2026-09-15
+
+### Added
+
+- **Boutons Installer / Supprimer par modèle** : la liste « Modèles à tester » devient dynamique (`GET /api/modeles`) — « Installer » télécharge les poids (et le paquet pip manquant) en arrière-plan, « Supprimer » purge le cache Hugging Face (refusé si le moteur est chargé en mémoire)
+- **Tout modèle installé est sélectionnable** : les moteurs Qwen3-TTS 0,6B et Pocket TTS n'apparaissent dans l'en-tête du studio qu'une fois les poids présents en cache
+- **Moteur Pocket TTS (Kyutai)** : clonage vocal léger français (~0,4 Go), chargé sur MPS
+- Transcript de secours : la génération réutilise le transcript de la voix sélectionnée si le client n'en envoie pas
+
+### Changed
+
+- **Chatterbox retiré de la liste** : il impose torchaudio==2.6, incompatible avec la venv partagée (dots.tts exige >= 2.8)
+
 ## [0.5.0] - 2026-09-14
 
 ### Added

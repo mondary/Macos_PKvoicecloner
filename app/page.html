@@ -98,6 +98,7 @@
   .model-downloads .model-item a { min-width: 190px; }
   .model-downloads .model-delete { border: 0; padding: 0; background: none; color: var(--faint); font: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
   .model-downloads .model-delete:hover { color: var(--coral-deep); }
+  .model-downloads .model-delete:disabled { cursor: wait; opacity: .55; }
   .titre-mobile { display: none; }
 
   @media (max-width: 647px) {
@@ -127,6 +128,7 @@
   .engine:hover:not(:disabled):not(.active) { color: var(--ink); }
   .engine.active { color: var(--white); background: var(--ink); box-shadow: 0 1px 3px rgba(24, 19, 17, .18); }
   .engine:disabled { cursor: wait; opacity: .6; }
+  .engine.hidden { display: none; }
   .engine .dot-engine { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .8; }
 
   .demo-stage {
@@ -366,11 +368,9 @@
     <div>
       <p class="hero-copy">Quelques secondes de voix suffisent pour transformer n’importe quel texte en audio. Génération accélérée par Apple Silicon, entièrement locale. Ta voix entre, un WAV sort. Rien d’autre ne bouge.</p>
       <div class="hero-tags"><span>VOXCPM2</span><span>WHISPER LARGE-V3</span><span>MPS</span><span>OFFLINE</span></div>
-      <div class="model-downloads" aria-label="Téléchargement des modèles à tester">
+      <div class="model-downloads" aria-label="Installer ou supprimer des modèles">
         <strong>Modèles à tester</strong>
-        <div class="model-item"><a href="https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-Base" target="_blank" rel="noopener">Qwen3-TTS 0,6B · ~2–3 Go</a><button class="model-delete" type="button" data-modele="qwen3-tts">Supprimer</button></div>
-        <div class="model-item"><a href="https://huggingface.co/kyutai/pocket-tts" target="_blank" rel="noopener">Pocket TTS · ~0,4 Go</a><button class="model-delete" type="button" data-modele="pocket-tts">Supprimer</button></div>
-        <div class="model-item"><a href="https://huggingface.co/ResembleAI/chatterbox" target="_blank" rel="noopener">Chatterbox · ~2 Go</a><button class="model-delete" type="button" data-modele="chatterbox">Supprimer</button></div>
+        <div id="modelesList"></div>
       </div>
     </div>
   </section>
@@ -385,6 +385,7 @@
         <button class="engine active" type="button" data-moteur="voxcpm2" aria-pressed="true" title="Rapide, MPS, ~30 langues">VoxCPM2</button>
         <button class="engine" type="button" data-moteur="dots" aria-pressed="false" title="dots.tts — clonage haute fidélité, 48 kHz, 24 langues">dots.tts</button>
         <button class="engine" type="button" data-moteur="qwen3" aria-pressed="false" title="Qwen3-TTS 0,6B — clonage vocal multilingue, ~2–3 Go">Qwen3 · 0,6B</button>
+        <button class="engine" type="button" data-moteur="pocket" title="Pocket TTS (Kyutai) — clonage vocal léger français, ~0,4 Go">Pocket</button>
       </div>
     </div>
 

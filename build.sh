@@ -93,5 +93,12 @@ cat > "${CONTENTS}/Info.plist" << EOF
 </plist>
 EOF
 
-codesign --force --deep --sign - "${APP}"
+# Signature : identité de développement si présente (dyld/Gatekeeper plus rapides
+# qu'ad-hoc), sinon ad-hoc. Pour distribuer hors de ce Mac : Developer ID + notarisation.
+IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null | awk -F'"' '/Developer ID Application|Apple Development/{print $2; exit}')"
+if [[ -n "${IDENTITY}" ]]; then
+  codesign --force --deep --sign "${IDENTITY}" "${APP}"
+else
+  codesign --force --deep --sign - "${APP}"
+fi
 echo "✅ ${APP}"

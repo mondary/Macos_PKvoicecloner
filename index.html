@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VOICE // CLONE Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;800&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg: #030508;
+      --panel-bg: rgba(12, 16, 25, 0.72);
+      --panel-border: rgba(0, 240, 255, 0.18);
+      --panel-glow: rgba(0, 240, 255, 0.08);
+      --accent: #00f0ff;
+      --accent-pink: #ff0055;
+      --accent-purple: #7000ff;
+      --text: #e2e8f0;
+      --text-dim: #64748b;
+      --font-heading: 'Space Grotesk', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      height: 100vh;
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: 60px 1fr 24px;
+    }
+
+    /* 3D Canvas Container */
+    #canvas-container {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Header */
+    header {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--panel-border);
+      background: rgba(3, 5, 8, 0.8);
+      backdrop-filter: blur(12px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--font-heading);
+      font-weight: 700;
+      letter-spacing: 2px;
+      font-size: 1.1rem;
+      color: #fff;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, var(--accent-pink), var(--accent-purple));
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      font-family: var(--font-mono);
+      letter-spacing: 1px;
+    }
+
+    .system-status {
+      display: flex;
+      gap: 20px;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+
+    .status-item span {
+      color: var(--accent);
+    }
+
+    /* Main Workspace Layout */
+    main {
+      position: relative;
+      z-index: 10;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 20px;
+      padding: 20px;
+      height: calc(100vh - 84px);
+      overflow: hidden;
+    }
+
+    /* Glass Panels */
+    .glass-panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      backdrop-filter: blur(16px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 0 1px 1px rgba(255, 255, 255, 0.05);
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .glass-panel:hover {
+      border-color: rgba(0, 240, 255, 0.35);
+      box-shadow: 0 8px 32px 0 rgba(0, 240, 255, 0.1), inset 0 0 1px 1px rgba(255, 255, 255, 0.1);
+    }
+
+    .panel-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--panel-border);
+      font-family: var(--font-heading);
+      font-weight: 600;
+      font-size: 0.85rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* LEFT PANEL: Voice Samples & Recorder */
+    .left-panel {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 16px;
+      background: transparent;
+      border: none;
+      backdrop-filter: none;
+      box-shadow: none;
+    }
+
+    .recorder-box {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 18px;
+      backdrop-filter: blur(16px);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .rec-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--panel-border);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .btn:hover {
+      background: rgba(0, 240, 255, 0.15);
+      border-color: var(--accent);
+      color: #fff;
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.3);
+    }
+
+    .btn-pink:hover {
+      background: rgba(255, 0, 85, 0.2);
+      border-color: var(--accent-pink);
+      box-shadow: 0 0 12px rgba(255, 0, 85, 0.4);
+    }
+
+    .btn-rec.recording {
+      background: var(--accent-pink);
+      border-color: #ff3377;
+      color: #fff;
+      animation: pulse-rec 1.2s infinite;
+    }
+
+    @keyframes pulse-rec {
+      0% { box-shadow: 0 0 0 0 rgba(255, 0, 85, 0.7); }
+      70% { box-shadow: 0 0 0 12px rgba(255, 0, 85, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 0, 85, 0); }
+    }
+
+    .drop-zone {
+      border: 1px dashed var(--panel-border);
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      background: rgba(0, 0, 0, 0.2);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--accent);
+      background: rgba(0, 240, 255, 0.05);
+      color: var(--accent);
+    }
+
+    .sample-list {
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .sample-card {
+      background: rgba(20, 26, 40, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .sample-card.active {
+      border-color: var(--accent);
+      background: rgba(0, 240, 255, 0.08);
+    }
+
+    .sample-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .sample-name {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #fff;
+      border: none;
+      background: transparent;
+      outline: none;
+      font-family: var(--font-mono);
+      width: 140px;
+    }
+
+    .sample-name:focus {
+      border-bottom: 1px solid var(--accent);
+    }
+
+    .sample-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .icon-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 0.85rem;
+      padding: 4px;
+      transition: color 0.2s ease;
+    }
+
+    .icon-btn:hover { color: var(--accent); }
+    .icon-btn.danger:hover { color: var(--accent-pink); }
+
+    /* MAINFRAME: Synth + Player Spectrum */
+    .mainframe {
+      display: grid;
+      grid-template-rows: 1fr 240px;
+      gap: 20px;
+    }
+
+    .editor-section {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .text-synth-area {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #fff;
+      font-family: var(--font-heading);
+      font-size: 1.3rem;
+      line-height: 1.6;
+      padding: 24px;
+      resize: none;
+    }
+
+    .synth-bar {
+      padding: 16px 24px;
+      border-top: 1px solid var(--panel-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(0,0,0,0.3);
+    }
+
+    .synth-options {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+
+    .synth-options select {
+      background: #090d16;
+      border: 1px solid var(--panel-border);
+      color: var(--accent);
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      outline: none;
+    }
+
+    /* Player & Waveform Section */
+    .player-section {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 20px;
+    }
+
+    .waveform-wrapper {
+      position: relative;
+      height: 120px;
+      width: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 8px;
+      border: 1px solid rgba(0, 240, 255, 0.1);
+      overflow: hidden;
+    }
+
+    #waveform-canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    .player-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+
+    .play-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #030508;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+      transition: all 0.2s ease;
+    }
+
+    .play-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 30px rgba(0, 240, 255, 0.8);
+    }
+
+    .time-display {
+      font-size: 0.8rem;
+      color: var(--accent);
+      letter-spacing: 1px;
+    }
+
+    .player-tools {
+      display: flex;
+      gap: 10px;
+    }
+
+    /* Footer */
+    footer {
+      position: relative;
+      z-index: 10;
+      border-top: 1px solid var(--panel-border);
+      background: rgba(3, 5, 8, 0.9);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.65rem;
+      color: var(--text-dim);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+    ::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+  </style>
+</head>
+<body>
+
+  <div id="canvas-container"></div>
+
+  <header>
+    <div class="brand">
+      <span>VOICE // CLONE</span>
+      <span class="brand-badge">THREE.JS LAB</span>
+    </div>
+    <div class="system-status">
+      <div class="status-item">ENGINE: <span>SYNTH_v3.2</span></div>
+      <div class="status-item">AUDIO CONTEXT: <span>READY</span></div>
+      <div class="status-item">FPS: <span id="fps-counter">60</span></div>
+    </div>
+  </header>
+
+  <main>
+    <!-- LEFT PANEL -->
+    <div class="left-panel">
+      <div class="recorder-box">
+        <div class="rec-controls">
+          <button class="btn btn-pink btn-rec" id="rec-btn">⏺ REC MIC</button>
+          <label class="btn">
+            📂 IMPORT
+            <input type="file" id="audio-input" accept="audio/*,.wav,.mp3,.m4a,.aac,.ogg" style="display:none">
+          </label>
+        </div>
+        <div class="drop-zone" id="drop-zone">
+          GLISSER-DÉPOSER UN FICHER AUDIO (WAV, MP3, M4A...)
+        </div>
+      </div>
+
+      <div class="glass-panel">
+        <div class="panel-header">
+          <span>ÉCHANTILLONS VOIX</span>
+          <span style="color: var(--accent); font-size: 0.7rem;" id="sample-count">0 SAMPLES</span>
+        </div>
+        <div class="sample-list" id="sample-list">
+          <!-- Samples items injected dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- MAINFRAME -->
+    <div class="mainframe">
+      <div class="glass-panel editor-section">
+        <div class="panel-header">
+          <span>SYNTHÉTISEUR DE TEXTE</span>
+          <span style="color: var(--text-dim); font-size: 0.7rem;">PROMPT CLONAGE</span>
+        </div>
+        <textarea class="text-synth-area" id="synth-text" placeholder="Entrez le texte à synthétiser avec la voix clonée..."></textarea>
+        <div class="synth-bar">
+          <div class="synth-options">
+            <label>MODÈLE:</label>
+            <select>
+              <option>NEURAL_VOICE_HD (FAST)</option>
+              <option>ZERO_SHOT_CLONE_v2</option>
+              <option>EXPRESSIVE_STREAM</option>
+            </select>
+          </div>
+          <button class="btn" id="synth-btn" style="background: var(--accent); color: #000; font-weight: 700;">
+            ⚡ GENERATE CLONE AUDIO
+          </button>
+        </div>
+      </div>
+
+      <div class="glass-panel player-section">
+        <div class="panel-header" style="border:none; padding:0 0 10px 0;">
+          <span>SPECTRUM PLAYER</span>
+          <div class="time-display" id="time-display">00:00 / 00:00</div>
+        </div>
+
+        <div class="waveform-wrapper">
+          <canvas id="waveform-canvas"></canvas>
+        </div>
+
+        <div class="player-controls">
+          <button class="play-btn" id="play-btn">▶</button>
+
+          <div class="player-tools">
+            <button class="btn" id="export-btn">💾 EXPORTER AUDIO</button>
+            <button class="btn" id="clear-btn">🔄 RESET</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div>MAC OS PKVOICECLONER // HIGH-PRECISION AUDIO STUDIO</div>
+    <div>WEBGL / THREE.JS POWERED</div>
+  </footer>
+
+  <!-- Three.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <script>
+    /* ==========================================
+       THREE.JS DYNAMIC BACKGROUND & PARTICLE FIELD
+       ========================================== */
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 30;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    // Dynamic Wave Particles
+    const particleCount = 2000;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+
+    for (let i = 0; i < particleCount * 3; i += 3) {
+      positions[i] = (Math.random() - 0.5) * 100;
+      positions[i + 1] = (Math.random() - 0.5) * 60;
+      positions[i + 2] = (Math.random() - 0.5) * 50;
+
+      colors[i] = 0.0;
+      colors[i + 1] = Math.random() * 0.8 + 0.2; // Cyan/Teal shade
+      colors[i + 2] = 1.0;
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const material = new THREE.PointsMaterial({
+      size: 0.8,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.6,
+      blending: THREE.AdditiveBlending
+    });
+
+    const particles = new THREE.Points(geometry, material);
+    scene.add(particles);
+
+    // Audio Reactive Ribbon Mesh
+    const meshGeo = new THREE.PlaneGeometry(60, 30, 40, 20);
+    const meshMat = new THREE.MeshBasicMaterial({
+      color: 0x00f0ff,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.15
+    });
+    const ribbon = new THREE.Mesh(meshGeo, meshMat);
+    ribbon.rotation.x = -Math.PI / 3;
+    ribbon.position.y = -10;
+    scene.add(ribbon);
+
+    // Animation Loop Variables
+    let clock = new THREE.Clock();
+    let audioLevel = 0; // Linked to player audio analyzer
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const elapsedTime = clock.getElapsedTime();
+
+      // Particle movement
+      const posArr = geometry.attributes.position.array;
+      for (let i = 0; i < particleCount; i++) {
+        const ix = i * 3;
+        posArr[ix + 1] += Math.sin(elapsedTime + posArr[ix]) * 0.02 + (audioLevel * 0.05);
+      }
+      geometry.attributes.position.needsUpdate = true;
+
+      // Ribbon distortion
+      const planePos = meshGeo.attributes.position.array;
+      for (let i = 0; i < planePos.length; i += 3) {
+        const u = planePos[i];
+        const v = planePos[i + 1];
+        planePos[i + 2] = Math.sin(u * 0.2 + elapsedTime * 2) * Math.cos(v * 0.2 + elapsedTime) * (2 + audioLevel * 10);
+      }
+      meshGeo.attributes.position.needsUpdate = true;
+
+      particles.rotation.y = elapsedTime * 0.02;
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    /* ==========================================
+       AUDIO SYSTEM, WAVEFORM & RECORDING
+       ========================================== */
+    let audioCtx, analyser, sourceNode;
+    let audioBuffer = null;
+    let isPlaying = false;
+    let startTime = 0, pauseTime = 0;
+    let mediaRecorder, recordedChunks = [];
+    let samples = [];
+
+    const wfCanvas = document.getElementById('waveform-canvas');
+    const wfCtx = wfCanvas.getContext('2d');
+
+    function initAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+      }
+    }
+
+    function resizeCanvas() {
+      wfCanvas.width = wfCanvas.parentElement.clientWidth;
+      wfCanvas.height = wfCanvas.parentElement.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Draw Spectrum & Waveform
+    function drawWaveform() {
+      requestAnimationFrame(drawWaveform);
+      const width = wfCanvas.width;
+      const height = wfCanvas.height;
+
+      wfCtx.clearRect(0, 0, width, height);
+
+      if (!analyser || !isPlaying) {
+        // Idle ambient line
+        wfCtx.beginPath();
+        wfCtx.moveTo(0, height / 2);
+        for (let x = 0; x < width; x += 5) {
+          wfCtx.lineTo(x, height / 2 + Math.sin(x * 0.05 + Date.now() * 0.003) * 2);
+        }
+        wfCtx.strokeStyle = 'rgba(0, 240, 255, 0.2)';
+        wfCtx.lineWidth = 1.5;
+        wfCtx.stroke();
+        audioLevel = 0;
+        return;
+      }
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      analyser.getByteFrequencyData(dataArray);
+
+      // Average level for Three.js reactions
+      let sum = 0;
+      for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
+      audioLevel = sum / bufferLength / 255;
+
+      // Draw Bars
+      const barWidth = (width / bufferLength) * 2.5;
+      let x = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        const barHeight = (dataArray[i] / 255) * height * 0.8;
+
+        const gradient = wfCtx.createLinearGradient(0, height, 0, 0);
+        gradient.addColorStop(0, '#00f0ff');
+        gradient.addColorStop(0.7, '#7000ff');
+        gradient.addColorStop(1, '#ff0055');
+
+        wfCtx.fillStyle = gradient;
+        wfCtx.fillRect(x, height - barHeight, barWidth - 2, barHeight);
+
+        x += barWidth;
+      }
+    }
+    drawWaveform();
+
+    // File Input & Drop Zone
+    const fileInput = document.getElementById('audio-input');
+    const dropZone = document.getElementById('drop-zone');
+
+    fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      handleFiles(e.dataTransfer.files);
+    });
+
+    function handleFiles(files) {
+      if (!files.length) return;
+      const file = files[0];
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        initAudioContext();
+        audioCtx.decodeAudioData(e.target.result, (buf) => {
+          addSample(file.name, buf, URL.createObjectURL(file));
+        });
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // Microphone Recording
+    const recBtn = document.getElementById('rec-btn');
+    let isRecording = false;
+
+    recBtn.addEventListener('click', async () => {
+      initAudioContext();
+      if (!isRecording) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+          recordedChunks = [];
+          mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
+          mediaRecorder.onstop = async () => {
+            const blob = new Blob(recordedChunks, { type: 'audio/wav' });
+            const arrayBuffer = await blob.arrayBuffer();
+            audioCtx.decodeAudioData(arrayBuffer, (buf) => {
+              addSample(`Mic_Sample_${Date.now().toString().slice(-4)}.wav`, buf, URL.createObjectURL(blob));
+            });
+          };
+          mediaRecorder.start();
+          isRecording = true;
+          recBtn.classList.add('recording');
+          recBtn.innerText = '⏹ STOP REC';
+        } catch (err) {
+          alert("Erreur accès micro : " + err.message);
+        }
+      } else {
+        mediaRecorder.stop();
+        isRecording = false;
+        recBtn.classList.remove('recording');
+        recBtn.innerText = '⏺ REC MIC';
+      }
+    });
+
+    // Sample Management
+    function addSample(name, buffer, url) {
+      const sample = { id: Date.now(), name, buffer, url };
+      samples.push(sample);
+      renderSamples();
+      selectSample(sample.id);
+    }
+
+    function renderSamples() {
+      const list = document.getElementById('sample-list');
+      document.getElementById('sample-count').innerText = `${samples.length} SAMPLES`;
+      list.innerHTML = '';
+
+      samples.forEach(s => {
+        const card = document.createElement('div');
+        card.className = `sample-card ${audioBuffer === s.buffer ? 'active' : ''}`;
+        card.innerHTML = `
+          <div class="sample-meta">
+            <input class="sample-name" value="${s.name}" onchange="renameSample(${s.id}, this.value)" />
+            <div class="sample-actions">
+              <button class="icon-btn" title="Télécharger/Exporter" onclick="exportSample(${s.id})">💾</button>
+              <button class="icon-btn danger" title="Supprimer" onclick="deleteSample(${s.id})">🗑</button>
+            </div>
+          </div>
+        `;
+        card.addEventListener('click', (e) => {
+          if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
+            selectSample(s.id);
+          }
+        });
+        list.appendChild(card);
+      });
+    }
+
+    function selectSample(id) {
+      const s = samples.find(x => x.id === id);
+      if (s) {
+        audioBuffer = s.buffer;
+        renderSamples();
+      }
+    }
+
+    window.renameSample = (id, newName) => {
+      const s = samples.find(x => x.id === id);
+      if (s) s.name = newName;
+    };
+
+    window.deleteSample = (id) => {
+      samples = samples.filter(x => x.id !== id);
+      if (samples.length > 0) audioBuffer = samples[0].buffer;
+      else audioBuffer = null;
+      renderSamples();
+    };
+
+    window.exportSample = (id) => {
+      const s = samples.find(x => x.id === id);
+      if (s) {
+        const a = document.createElement('a');
+        a.href = s.url;
+        a.download = s.name;
+        a.click();
+      }
+    };
+
+    // Playback Controls
+    const playBtn = document.getElementById('play-btn');
+    playBtn.addEventListener('click', () => {
+      initAudioContext();
+      if (!audioBuffer) return;
+
+      if (isPlaying) {
+        sourceNode.stop();
+        isPlaying = false;
+        playBtn.innerText = '▶';
+      } else {
+        sourceNode = audioCtx.createBufferSource();
+        sourceNode.buffer = audioBuffer;
+        sourceNode.connect(analyser);
+        analyser.connect(audioCtx.destination);
+        sourceNode.start(0);
+        isPlaying = true;
+        playBtn.innerText = '⏸';
+
+        sourceNode.onended = () => {
+          isPlaying = false;
+          playBtn.innerText = '▶';
+        };
+      }
+    });
+
+    // Dummy Synthesis Trigger
+    document.getElementById('synth-btn').addEventListener('click', () => {
+      const text = document.getElementById('synth-text').value;
+      if (!text.trim()) {
+        alert("Veuillez saisir un texte à synthétiser.");
+        return;
+      }
+      initAudioContext();
+      
+      // Generate a quick synthetic tone buffer for demo preview
+      const sampleRate = audioCtx.sampleRate;
+      const duration = 3.0;
+      const buffer = audioCtx.createBuffer(1, sampleRate * duration, sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < buffer.length; i++) {
+        data[i] = Math.sin(i * 0.02) * Math.exp(-i / (sampleRate * 1.5));
+      }
+
+      addSample(`Cloned_Synth_${Date.now().toString().slice(-4)}.wav`, buffer, '#');
+    });
+  </script>
+</body>
+</html>

@@ -48,6 +48,7 @@ curl -fsSL https://raw.githubusercontent.com/mondary/Macos_PKvoicecloner/main/in
 - macOS Apple Silicon, 16 Go de RAM minimum (32 Go recommandé)
 - `brew install ffmpeg`
 - Les modèles (~5 Go VoxCPM2 + ~3 Go Whisper) se téléchargent au premier lancement, puis tout est local
+- App non notarisée : au premier lancement depuis un DMG, clic droit → **Ouvrir** (une seule fois)
 
 ## 📦 Build & Run
 

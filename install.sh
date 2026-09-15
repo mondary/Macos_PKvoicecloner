@@ -44,7 +44,14 @@ uv pip install --python .venv/bin/python --no-deps dots-tts
 uv pip install --python .venv/bin/python huggingface-hub loguru "langcodes[data]" einops \
   "librosa>=0.11.0" "torchaudio>=2.8" torchdiffeq tqdm lingua-language-detector
 
+say "app native macOS (swiftc + Sparkle)…"
+./build.sh
+if [ -d "/Applications/PK Voice Cloner.app" ] || [ -w /Applications ]; then
+  rm -rf "/Applications/PK Voice Cloner.app"
+  cp -R "PK Voice Cloner.app" /Applications/ 2>/dev/null && say "app copiée dans /Applications" || true
+fi
+
 say "installation terminée. Lancement :"
-printf "  %s/.venv/bin/python app/serveur.py    puis ouvre http://127.0.0.1:8809\n" "$DEST"
-printf "  ou en app macOS : brew install --cask pk-voice-cloner\n"
+printf "  ouvre l'app PK Voice Cloner (Applications) — ou : open \"%s/PK Voice Cloner.app\"\n" "$DEST"
+printf "  en app macOS versionnée : brew install --cask pk-voice-cloner\n"
 printf "  Les modèles (~5 Go VoxCPM2, ~4 Go dots.tts, ~3 Go Whisper) se téléchargent au premier usage.\n"

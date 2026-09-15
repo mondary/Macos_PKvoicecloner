@@ -3,6 +3,10 @@
 .venv-whisper/
 third_party/
 
+# Artefacts de build (app reconstruite via build.sh, Sparkle en cache)
+release/
+PK Voice Cloner.app/
+
 # Données voix privées (jamais versionnées)
 data/
 clones/

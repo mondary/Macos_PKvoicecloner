@@ -22,6 +22,7 @@ curl -fsSL https://raw.githubusercontent.com/mondary/Macos_PKvoicecloner/main/in
 - **On-demand resident model** — loaded once for a session; **Power off** releases its memory when you are done
 - **Offline** — models cached locally, no network calls
 - **`mavox`** — one-command cloning from the terminal, quoted or not
+- **Native macOS app** — embedded window (WKWebView), zero browser: the server starts and stops with the app, automatic Sparkle updates
 - **Clean studio** — an ElevenLabs-style clear interface: voices on the left, text and **Generate** on the right, PK coral accent
 
 ## 🧠 Usage
@@ -66,7 +67,9 @@ uv pip install --python .venv/bin/python huggingface-hub loguru "langcodes[data]
 # Run the server only
 ./.venv/bin/python app/serveur.py
 
-# Or double-click PK Voice Cloner.app (server + browser)
+# Or build the native app (embedded window, no browser) and launch it
+./build.sh
+open "PK Voice Cloner.app"
 ```
 
 ## 🗂️ Layout
@@ -74,6 +77,8 @@ uv pip install --python .venv/bin/python huggingface-hub loguru "langcodes[data]
 | Path | Role |
 |---|---|
 | `app/` | FastAPI server + web page |
+| `src/macos/PKVoiceCloner.swift` | Native macOS app: WKWebView window, Python server lifecycle, Sparkle |
+| `build.sh` | App build (`swiftc` + bundled Sparkle + icon) |
 | `ma-voix.sh` | Command-line cloning |
 | `arreter-studio.sh` | Safely stops the local server and releases the model |
 | `data/voix`, `data/sorties` | Clone library (references + transcripts) and generated audio (private, not versioned) |

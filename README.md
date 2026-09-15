@@ -22,6 +22,7 @@ curl -fsSL https://raw.githubusercontent.com/mondary/Macos_PKvoicecloner/main/in
 - **Modèle résident, à la demande** — chargé une fois pendant la session ; **Éteindre** libère sa mémoire dès que tu as fini
 - **Offline** — modèles en cache local, aucun appel réseau
 - **`mavox`** — clone en une commande depuis le terminal, texte quoté ou non
+- **App native macOS** — fenêtre intégrée (WKWebView), zéro navigateur : le serveur démarre et s'arrête avec l'app, mises à jour automatiques via Sparkle
 - **Studio épuré** — interface claire façon ElevenLabs : voix à gauche, texte et **Générer** à droite, accent corail PK
 
 ## 🧠 Utilisation
@@ -66,7 +67,9 @@ uv pip install --python .venv/bin/python huggingface-hub loguru "langcodes[data]
 # Lancer le serveur seul
 ./.venv/bin/python app/serveur.py
 
-# Ou double-cliquer PK Voice Cloner.app (serveur + navigateur)
+# Ou construire l'app native (fenêtre intégrée, pas de navigateur) puis la lancer
+./build.sh
+open "PK Voice Cloner.app"
 ```
 
 ## 🗂️ Structure
@@ -74,6 +77,8 @@ uv pip install --python .venv/bin/python huggingface-hub loguru "langcodes[data]
 | Chemin | Rôle |
 |---|---|
 | `app/` | Serveur FastAPI + page web |
+| `src/macos/PKVoiceCloner.swift` | App native macOS : fenêtre WKWebView, cycle de vie du serveur Python, Sparkle |
+| `build.sh` | Build de l'app (`swiftc` + Sparkle embarqué + icône) |
 | `ma-voix.sh` | Clonage en ligne de commande |
 | `arreter-studio.sh` | Arrêt sûr du serveur local et libération du modèle |
 | `data/voix`, `data/sorties` | Bibliothèque de clones (références + transcripts) et audios générés (privé, non versionné) |

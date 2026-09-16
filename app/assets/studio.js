@@ -518,6 +518,7 @@
     list.textContent = "";
     let enCours = false;
     (payload.modeles || []).forEach((m) => {
+      if (m.core) return; // moteurs de base : gérés hors du panneau « à tester »
       const row = document.createElement("div");
       row.className = "model-item";
       const link = document.createElement("a");

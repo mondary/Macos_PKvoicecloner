@@ -343,13 +343,25 @@
     *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
   }
 </style>
+<link rel="stylesheet" href="/assets/dashboard.css">
 </head>
 <body>
 
+<div class="dashboard-shell">
+<aside class="sidebar">
+  <a class="sidebar-brand" href="#studio"><span class="brand-square">pk</span>Voice Studio</a>
+  <div class="section-label">Espace de travail</div>
+  <nav class="dashboard-nav" aria-label="Navigation du studio">
+    <a href="#studio" aria-current="page"><span aria-hidden="true">▦</span>Vue d’ensemble</a>
+    <a href="#voices"><span aria-hidden="true">◉</span>Bibliothèque de voix</a>
+    <a href="#editor"><span aria-hidden="true">≋</span>Texte vers voix</a>
+    <a href="#models"><span aria-hidden="true">□</span>Modèles</a>
+  </nav>
+  <div class="sidebar-bottom"><span class="local-avatar">PK</span><div><strong>Studio personnel</strong><small>Sur ce Mac · 100 % local</small></div></div>
+</aside>
+<div class="dashboard-main">
 <header class="site-header">
-  <a class="brand" href="#" aria-label="PK Voice Studio">
-    <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span>PK Voice Studio</span>
-  </a>
+  <div class="breadcrumbs">Espace de travail <span>/</span> <strong>Vue d’ensemble</strong></div>
   <div class="top-actions">
     <span class="chip presence" id="serverPresence"><i></i>Studio local</span>
     <span class="chip presence" id="modelPresence"><i></i>VoxCPM2</span>
@@ -359,22 +371,18 @@
   </div>
 </header>
 
-<main>
+<main id="studio">
   <section class="hero" aria-labelledby="titre-studio">
-    <div>
-      <div class="eyebrow">Clonage vocal · 100 % local</div>
-      <h1 id="titre-studio"><span class="titre-desktop">Clone ta voix.<br>Pas tes données<span class="dot">.</span></span><span class="titre-mobile">Clone ta voix. Pas tes données.</span></h1>
-    </div>
-    <div>
-      <p class="hero-copy">Quelques secondes de voix suffisent pour transformer n’importe quel texte en audio. Génération accélérée par Apple Silicon, entièrement locale. Ta voix entre, un WAV sort. Rien d’autre ne bouge.</p>
-      <div class="hero-tags"><span>VOXCPM2</span><span>WHISPER LARGE-V3</span><span>MPS</span><span>OFFLINE</span></div>
-      <div class="model-downloads" aria-label="Installer ou supprimer des modèles">
-        <strong>Modèles à tester</strong>
-        <div id="modelesList"></div>
-      </div>
-    </div>
+    <div><div class="eyebrow">Ton espace de création</div><h1 id="titre-studio">Le studio vocal.</h1>
+    <p class="hero-copy">Tes voix, tes mots. Crée un nouvel audio, entièrement sur ce Mac.</p></div>
+    <a class="new-take" href="#editor">+ Nouvelle prise</a>
   </section>
-
+  <section class="dashboard-stats" aria-label="Le studio en un regard">
+    <article><span>Confidentialité</span><strong>100 % local</strong><small>Aucun audio envoyé dans le cloud</small></article>
+    <article><span>Création vocale</span><strong>Ta voix</strong><small>Importe un clip ou utilise ton micro</small></article>
+    <article><span>Export audio</span><strong>WAV</strong><small>Prêt à écouter et à télécharger</small></article>
+    <article><span>Transcription</span><strong>Whisper</strong><small>Transcript de référence éditable</small></article>
+  </section>
   <section class="demo-panel" aria-label="Studio texte vers voix">
     <div class="demo-top">
       <div class="demo-heading">
@@ -390,7 +398,7 @@
     </div>
 
     <div class="demo-stage">
-      <div class="voice-card" aria-label="Bibliothèque de voix">
+      <div class="voice-card" id="voices" aria-label="Bibliothèque de voix">
         <div class="voice-card-head"><span>Mes voix</span><span id="voiceCount">—</span></div>
         <div class="voice-status" id="etatVoix" aria-live="polite">Bibliothèque en chargement…</div>
         <div class="voice-list" id="voiceList"></div>
@@ -414,7 +422,7 @@
         <input type="file" id="fichier" accept="audio/*,.m4a,.mp3,.wav,.webm" hidden>
       </div>
 
-      <div class="editor" aria-label="Texte à synthétiser">
+      <div class="editor" id="editor" aria-label="Texte à synthétiser">
         <label class="editor-label" for="texte">Ton texte</label>
         <textarea id="texte" rows="6" spellcheck="false" placeholder="Écris ce que ta voix doit dire…"></textarea>
         <div class="editor-bottom">
@@ -437,12 +445,17 @@
       </div>
     </div>
   </section>
+  <section class="model-downloads" id="models" aria-label="Installer ou supprimer des modèles">
+    <strong>Bibliothèque de modèles</strong><p>Gère les moteurs disponibles sur ce Mac.</p><div id="modelesList"></div>
+  </section>
 </main>
 
 <footer class="site-footer">
   <span><b>100 % local</b> · la voix ne quitte pas ce Mac</span>
   <span>PK Voice Studio · v<span id="version">0.6.0</span></span>
 </footer>
+
+</div></div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 

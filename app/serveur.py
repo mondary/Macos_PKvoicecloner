@@ -23,6 +23,7 @@ peut vivre n'importe où sur le disque.
 import gc
 import hashlib
 import importlib.util
+import json
 import os
 import shutil
 import subprocess
@@ -53,9 +54,9 @@ app.mount("/assets", StaticFiles(directory=APP / "assets"), name="assets")
 modele = None                    # moteur TTS chargé en arrière-plan
 moteur_actif = "voxcpm2"         # "voxcpm2" | "dots" (demandé)
 moteur_pret = None               # moteur réellement présent dans `modele`
+erreur_modele = None             # échec visible dans les clients
 MOTEUR_LABELS = {"voxcpm2": "VoxCPM2", "dots": "dots.tts"}
 # Modèles optionnels : paquets pip (nom pip, nom d'import) + dépôt de poids HF.
-# chatterbox retiré : il impose torchaudio==2.6, incompatible avec la .venv partagée.
 MODELES_TELECHARGEABLES = {
     "qwen3-tts": {
         "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
@@ -72,6 +73,14 @@ MODELES_TELECHARGEABLES = {
         "paquets": (("pocket-tts", "pocket_tts"),),
     },
 }
+MOTEURS_CEUR = (  # catalogue des moteurs principaux
+    {"id": "voxcpm2", "moteur": "voxcpm2", "repo": "openbmb/VoxCPM2", "label": "VoxCPM2", "taille": "~5 Go"},
+    {"id": "dots", "moteur": "dots", "repo": "dots-studio/dots.tts-mf-2steps", "label": "dots.tts", "taille": "~4 Go"},
+)
+# dépôts que l'app sait réellement charger (pour marquer la recherche HF)
+REPOS_SUPPORTES = {m["repo"]: m["moteur"] for m in MOTEURS_CEUR}
+REPOS_SUPPORTES.update({m["repo"]: m["moteur"] for m in MODELES_TELECHARGEABLES.values()})
+ALIAS_FILE = PROJET / "data" / "alias_modeles.json"
 verrou_gen = threading.Lock()    # une génération à la fois
 transcripts = {}                 # hash audio -> transcript ASR
 voix_courante = {}               # {"id", "wav", "transcript", "source"}
@@ -155,13 +164,16 @@ verrou_chargement = threading.Lock()
 
 
 def charger_modele(moteur: str):
-    global moteur_actif, moteur_pret, modele
+    global moteur_actif, moteur_pret, modele, erreur_modele
     moteur_actif = moteur
+    erreur_modele = None
     print(f">> chargement du moteur {MOTEUR_LABELS[moteur]} (~1-2 min)...", flush=True)
     with verrou_chargement:   # un chargement à la fois, même en cas de double-clic
         try:
             instance = CHARGEURS[moteur]()
         except Exception as e:  # noqa: BLE001 — le studio reste utilisable via l'autre moteur
+            if moteur == moteur_actif:
+                erreur_modele = str(e)[:500]
             print(f">> ÉCHEC chargement {moteur} : {e}", flush=True)
             return
     if moteur != moteur_actif:  # une bascule plus récente est passée entre-temps
@@ -186,7 +198,9 @@ def decharger_modele():
         pass
 
 
-threading.Thread(target=charger_modele, args=("voxcpm2",), daemon=True).start()
+# Tests and diagnostics can exercise the HTTP service without loading gigabytes of weights.
+if os.environ.get("PKVOICE_SKIP_MODEL_LOAD") != "1":
+    threading.Thread(target=charger_modele, args=("voxcpm2",), daemon=True).start()
 
 
 def convertir_wav(src: Path, dst: Path):
@@ -243,11 +257,13 @@ def index():
 @app.get("/api/etat")
 def etat():
     return {
-        "modele": modele is not None,
+        "modele": modele is not None and moteur_pret == moteur_actif,
+        "erreur": erreur_modele,
+        "chargement": verrou_chargement.locked(),
         "voix": bool(voix_courante),
         "moteur": moteur_actif,
         "moteurs": list(CHARGEURS),
-        "installes": [m["moteur"] for m in MODELES_TELECHARGEABLES.values() if _est_installe(m["repo"])],
+        "installes": [m["moteur"] for m in (*MOTEURS_CEUR, *MODELES_TELECHARGEABLES.values()) if _est_installe(m["repo"])],
     }
 
 
@@ -272,26 +288,102 @@ def _est_installe(repo: str) -> bool:
 installations: dict[str, dict] = {}   # id -> {"etat": en_cours|pret|erreur, "erreur"?}
 
 
+def _alias_modeles() -> dict:
+    try:
+        return json.loads(ALIAS_FILE.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001 — fichier absent ou corrompu : aucun alias
+        return {}
+
+
+def _item_modele(mid: str, moteur: str, repo: str, label: str, taille: str, core: bool) -> dict:
+    item = {
+        "id": mid,
+        "moteur": moteur,
+        "repo": repo,
+        "taille": taille,
+        "core": core,
+        "installe": _est_installe(repo),
+        "label": _alias_modeles().get(mid) or label,
+    }
+    item.update(installations.get(mid, {"etat": ""}))
+    return item
+
+
 @app.get("/api/modeles")
 def liste_modeles():
-    return {"modeles": [
-        {
-            "id": mid,
-            "label": m["label"],
-            "repo": m["repo"],
-            "taille": m["taille"],
-            "moteur": m["moteur"],
-            "installe": _est_installe(m["repo"]),
-            **installations.get(mid, {"etat": ""}),
-        }
+    items = [_item_modele(m["id"], m["moteur"], m["repo"], m["label"], m["taille"], True) for m in MOTEURS_CEUR]
+    items += [
+        _item_modele(mid, m["moteur"], m["repo"], m["label"], m["taille"], False)
         for mid, m in MODELES_TELECHARGEABLES.items()
-    ]}
+    ]
+    return {"modeles": items}
+
+
+@app.post("/api/modeles/{modele_id}/renommer")
+def renommer_modele(modele_id: str, req: dict = Body(...)):
+    nom = (req.get("nom") or "").strip()[:60]
+    if not nom:
+        raise HTTPException(400, "nom vide")
+    connus = {m["id"] for m in MOTEURS_CEUR} | set(MODELES_TELECHARGEABLES)
+    if modele_id not in connus:
+        raise HTTPException(404, "modèle inconnu")
+    alias = _alias_modeles()
+    alias[modele_id] = nom
+    ALIAS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    ALIAS_FILE.write_text(json.dumps(alias, ensure_ascii=False), encoding="utf-8")
+    return {"ok": True, "nom": nom}
+
+
+@app.get("/api/hf/recherche")
+def hf_recherche(q: str = "tts voice cloning", limite: int = 20):
+    """Recherche sur Hugging Face (pipelines text-to-speech), modèles supportés marqués."""
+    try:
+        from huggingface_hub import HfApi
+
+        trouves = HfApi(token=os.environ.get("HF_TOKEN") or None).list_models(
+            search=q, filter="text-to-speech", sort="downloads", direction=-1, limit=max(1, min(limite, 50))
+        )
+        return {"resultats": [
+            {
+                "repo": m.id,
+                "telechargements": m.downloads or 0,
+                "likes": m.likes or 0,
+                "gated": bool(m.gated),
+                "moteur": REPOS_SUPPORTES.get(m.id),
+            }
+            for m in trouves
+        ]}
+    except Exception as e:  # noqa: BLE001 — réseau/HF indisponible : liste vide + raison
+        return {"resultats": [], "erreur": str(e)[:200]}
+
+
+@app.post("/api/hf/token")
+def hf_token(req: dict = Body(...)):
+    token = (req.get("token") or "").strip()
+    if token and not token.startswith("hf_"):
+        raise HTTPException(400, "Un token Hugging Face commence par hf_.")
+    if token:
+        os.environ["HF_TOKEN"] = token
+    else:
+        os.environ.pop("HF_TOKEN", None)
+    return {"ok": True, "configure": bool(token)}
+
+
+@app.get("/api/audios")
+def liste_audios():
+    fichiers = sorted(SORTIES.glob("*.wav"), key=lambda f: f.stat().st_mtime, reverse=True)
+    return {"audios": [{"nom": f.name, "duree": duree_audio(f), "taille": f.stat().st_size,
+                         "transcript": f.with_suffix('.txt').read_text(encoding='utf-8') if f.with_suffix('.txt').exists() else ""} for f in fichiers]}
+
+
+def _modele_catalogue(modele_id: str):
+    return MODELES_TELECHARGEABLES.get(modele_id) or next((m for m in MOTEURS_CEUR if m["id"] == modele_id), None)
 
 
 def _installer_modele(modele_id: str):
-    m = MODELES_TELECHARGEABLES[modele_id]
+    m = _modele_catalogue(modele_id)
     try:
-        for paquet, module in m["paquets"]:
+        for paquet, module in m.get("paquets", ()):
             if importlib.util.find_spec(module) is None:
                 if shutil.which("uv") is None:
                     raise RuntimeError("uv introuvable : relance install.sh")
@@ -303,7 +395,7 @@ def _installer_modele(modele_id: str):
                     raise RuntimeError((r.stderr or r.stdout)[-300:])
         from huggingface_hub import snapshot_download
 
-        snapshot_download(m["repo"])
+        snapshot_download(m["repo"], token=os.environ.get("HF_TOKEN") or None)
         installations[modele_id] = {"etat": "pret"}
         print(f">> modèle {m['label']} installé.", flush=True)
     except Exception as e:  # noqa: BLE001 — remonté au client via /api/modeles
@@ -316,7 +408,7 @@ def _installer_modele(modele_id: str):
 
 @app.post("/api/modeles/{modele_id}/installer", status_code=202)
 def installer_modele(modele_id: str):
-    m = MODELES_TELECHARGEABLES.get(modele_id)
+    m = _modele_catalogue(modele_id)
     if not m:
         raise HTTPException(404, "modèle inconnu")
     if _est_installe(m["repo"]):
@@ -330,11 +422,17 @@ def installer_modele(modele_id: str):
 @app.delete("/api/modeles/{modele_id}")
 def supprimer_modele(modele_id: str):
     """Supprime uniquement le dépôt Hugging Face correspondant au modèle choisi."""
-    m = MODELES_TELECHARGEABLES.get(modele_id)
+    m = _modele_catalogue(modele_id)
     if not m:
         raise HTTPException(404, "modèle inconnu")
+    if installations.get(modele_id, {}).get("etat") == "en_cours":
+        raise HTTPException(409, "installation en cours : attends sa fin avant de supprimer")
+    if verrou_chargement.locked():
+        raise HTTPException(409, "chargement en cours : attends sa fin avant de supprimer")
+    if any(j.get("etat") in ("attente", "chargement", "generation") for j in jobs.values()):
+        raise HTTPException(409, "génération en cours : attends sa fin avant de supprimer")
     if moteur_pret == m["moteur"]:
-        raise HTTPException(409, "modèle chargé en mémoire : change de moteur avant de le supprimer")
+        decharger_modele()
     cache = _cache_modele(m["repo"])
     if cache.exists():
         shutil.rmtree(cache)
@@ -354,6 +452,18 @@ def changer_moteur(req: dict = Body(...)):
     decharger_modele()
     threading.Thread(target=charger_modele, args=(moteur,), daemon=True).start()
     return {"ok": True, "moteur": moteur}
+
+
+@app.post("/api/chargement/annuler")
+def annuler_chargement():
+    """Abandonne le chargement courant côté application sans supprimer ses poids."""
+    global moteur_actif, erreur_modele
+    if not verrou_chargement.locked() and modele is not None:
+        return {"ok": True, "etat": "pret"}
+    moteur_actif = "__cancelled__"
+    erreur_modele = "Chargement annulé par l’utilisateur."
+    decharger_modele()
+    return {"ok": True, "etat": "annule"}
 
 def programmer_arret():
     """Laisse la réponse HTTP partir avant d'arrêter Uvicorn."""
@@ -409,6 +519,8 @@ def renommer_voix(vid: str, req: dict = Body(...)):
 
 @app.delete("/api/voix/{vid}")
 def supprimer_voix(vid: str):
+    if any(j.get("etat") in ("attente", "chargement", "generation") for j in jobs.values()):
+        raise HTTPException(409, "génération en cours : attends sa fin avant de supprimer une voix")
     fichiers = list(VOIX.glob(f"*_{vid}.*"))
     if not fichiers:
         raise HTTPException(404, "voix inconnue")
@@ -430,12 +542,23 @@ def definir_voix(audio: UploadFile = File(...)):
     src.write_bytes(brut)
     wav = VOIX / f"ref_{h}.wav"
     txt = VOIX / f"ref_{h}.txt"
-    convertir_wav(src, wav)
+    try:
+        convertir_wav(src, wav)
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        src.unlink(missing_ok=True)
+        wav.unlink(missing_ok=True)
+        raise HTTPException(400, "Conversion audio impossible : vérifie le fichier et l’installation de ffmpeg.") from exc
     if txt.exists():                      # transcript persistant : pas de 2e ASR
         transcripts[h] = txt.read_text(encoding="utf-8").strip()
     elif h not in transcripts:
-        transcripts[h] = transcrire(wav)
+        try:
+            transcripts[h] = transcrire(wav)
+        except Exception as exc:
+            raise HTTPException(503, str(exc)[:500]) from exc
         txt.write_text(transcripts[h], encoding="utf-8")
+    surnom = VOIX / f"nom_{h}.txt"
+    if not surnom.exists():
+        surnom.write_text(Path(nom).stem[:60], encoding="utf-8")
     voix_courante.clear()
     voix_courante.update({"id": h, "wav": wav, "transcript": transcripts[h], "source": nom})
     return {"id": h, "transcript": transcripts[h], "duree": duree_audio(wav), "source": nom}
@@ -454,25 +577,35 @@ def lancer_generation(req: dict = Body(...)):
         raise HTTPException(400, f"vitesse entre {VITESSE_MIN} et {VITESSE_MAX}")
     if not voix_courante:
         raise HTTPException(400, "aucune voix définie : choisis ou enregistre un audio d'abord")
+    if erreur_modele:
+        raise HTTPException(503, f"Le modèle n’a pas pu être chargé : {erreur_modele}")
+    if any(j.get("etat") in ("attente", "chargement", "generation") for j in jobs.values()):
+        raise HTTPException(409, "une génération est déjà en cours")
     job = uuid.uuid4().hex[:10]
     jobs[job] = {"etat": "attente", "debut": time.time()}
     threading.Thread(
         target=executer_generation,
-        args=(job, texte, vitesse, (req.get("transcript") or "").strip()),
+        args=(job, texte, vitesse, (req.get("transcript") or "").strip(), dict(voix_courante)),
         daemon=True,
     ).start()
     return {"job": job}
 
 
-def executer_generation(job, texte, vitesse, transcript):
+def executer_generation(job, texte, vitesse, transcript, reference=None):
     try:
         with verrou_gen:
             jobs[job]["etat"] = "chargement"
+            deadline = time.monotonic() + 180
             while modele is None or moteur_pret != moteur_actif:
+                if erreur_modele:
+                    raise RuntimeError(erreur_modele)
+                if time.monotonic() > deadline:
+                    raise RuntimeError("Le modèle ne répond pas après trois minutes. Réessaie ou change de moteur.")
                 time.sleep(0.5)
             jobs[job]["etat"] = "generation"
-            ref = str(voix_courante["wav"])
-            transcript = transcript or voix_courante.get("transcript") or ""
+            reference = reference or dict(voix_courante)
+            ref = str(reference["wav"])
+            transcript = transcript or reference.get("transcript") or ""
             if moteur_pret == "dots":
                 resultat = modele.generate(
                     text=texte,
@@ -516,6 +649,7 @@ def executer_generation(job, texte, vitesse, transcript):
                 brute.unlink()
             else:
                 brute.rename(final)
+            final.with_suffix(".txt").write_text(texte, encoding="utf-8")
             jobs[job] = {"etat": "pret", "fichier": final.name, "duree": duree_audio(final), "debut": jobs[job]["debut"]}
     except Exception as e:  # noqa: BLE001 — remonte au client via /api/job
         jobs[job] = {"etat": "erreur", "erreur": str(e)[:500], "debut": jobs.get(job, {}).get("debut", time.time())}

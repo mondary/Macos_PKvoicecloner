@@ -22,8 +22,16 @@ curl -fsSL https://raw.githubusercontent.com/mondary/Macos_PKvoicecloner/main/in
 - **Modèle résident, à la demande** — chargé une fois pendant la session ; **Éteindre** libère sa mémoire dès que tu as fini
 - **Offline** — modèles en cache local, aucun appel réseau
 - **`mavox`** — clone en une commande depuis le terminal, texte quoté ou non
-- **App native macOS** — fenêtre intégrée (WKWebView), zéro navigateur : le serveur démarre et s'arrête avec l'app, mises à jour automatiques via Sparkle
-- **Studio épuré** — interface claire façon ElevenLabs : voix à gauche, texte et **Générer** à droite, accent corail PK
+- **App native macOS** — interface native SwiftUI, zéro navigateur : le serveur démarre et s'arrête avec l'app, mises à jour automatiques via Sparkle
+- **Studio épuré** — tableau de bord monochrome : bibliothèque de voix, éditeur et catalogue de modèles
+
+### Interface native
+
+- **Démarrer** lance le serveur local, y compris depuis Finder. L’état du modèle s’actualise automatiquement.
+- **Bibliothèque de voix** : importer un audio, enregistrer au micro, sélectionner une voix, l’écouter ; menu **…** pour renommer ou supprimer.
+- **Modèles** : installer un moteur du catalogue pris en charge, l’activer ; menu **…** pour renommer ou supprimer ses poids locaux. Les installations et erreurs sont visibles.
+- **Texte vers voix** : éditer le transcript, régler la vitesse, générer, puis écouter ou exporter le WAV.
+- Les erreurs apparaissent dans la page avec un accès au journal du serveur.
 
 ## 🧠 Utilisation
 
@@ -77,8 +85,9 @@ open "PK Voice Cloner.app"
 
 | Chemin | Rôle |
 |---|---|
-| `app/` | Serveur FastAPI + page web |
-| `src/macos/PKVoiceCloner.swift` | App native macOS : fenêtre WKWebView, cycle de vie du serveur Python, Sparkle |
+| `app/` | Serveur FastAPI + studio web |
+| `src/macos/PKVoiceCloner.swift` | App native macOS : interface SwiftUI et cycle de vie de l’app |
+| `src/macos/Studio.swift` | Client HTTP natif, démarrage Python, import, micro et lecture audio |
 | `build.sh` | Build de l'app (`swiftc` + Sparkle embarqué + icône) |
 | `ma-voix.sh` | Clonage en ligne de commande |
 | `arreter-studio.sh` | Arrêt sûr du serveur local et libération du modèle |

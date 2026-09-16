@@ -28,7 +28,7 @@ fi
 echo "🔨 Compilation (${VERSION})…"
 mkdir -p "${CONTENTS}/MacOS" "${CONTENTS}/Resources" "${CONTENTS}/Frameworks"
 
-swiftc "${DIR}/src/macos/PKVoiceCloner.swift" \
+swiftc "${DIR}"/src/macos/*.swift \
   -F "${SPARKLE_DIR}" \
   -parse-as-library \
   -o "${CONTENTS}/MacOS/PKVoiceCloner" \
@@ -38,6 +38,8 @@ swiftc "${DIR}/src/macos/PKVoiceCloner.swift" \
   -Xlinker -rpath -Xlinker "@executable_path/../Frameworks"
 
 cp -R "${SPARKLE_DIR}/Sparkle.framework" "${CONTENTS}/Frameworks/"
+
+printf '%s\n' "${DIR}" > "${CONTENTS}/Resources/ProjectRoot.txt"
 
 # --- Icône (.icns) depuis icon.png ---
 if [[ -f "${DIR}/icon.png" ]]; then

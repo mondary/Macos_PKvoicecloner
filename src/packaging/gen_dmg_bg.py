@@ -3,13 +3,13 @@
 Même chorégraphie validée que PKmonitor (tracé pointillés app -> Applications,
 tracé lumineux, mini-icône voyageuse qui se dépose, anneau de confirmation,
 sparkline de marque) dans la palette du studio : papier chaud, corail, laiton.
-Boucle 64 frames @ 70 ms. Sortie : packaging/dmg-background.gif (660×400)."""
+Boucle 64 frames @ 70 ms. Sortie : src/packaging/dmg-background.gif (660×400)."""
 import math
 import os
 
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 W, H = 1320, 800            # rendu 2x, GIF final 660x400
 APP = (360, 340)            # centres des icônes Finder (create-dmg, x2)
@@ -251,7 +251,7 @@ def build_frames():
 
 if __name__ == "__main__":
     frames = build_frames()
-    out_dir = os.path.join(REPO, "packaging")
+    out_dir = os.path.join(REPO, "src/packaging")
     os.makedirs(out_dir, exist_ok=True)
     petits = [fr.resize((660, 400), Image.LANCZOS) for fr in frames]
     gif = os.path.join(out_dir, "dmg-background.gif")

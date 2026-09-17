@@ -142,27 +142,6 @@ def mini_icon(size):
     return ic, m
 
 
-SPARK_RAW = [
-    (120, 680), (190, 680), (176, 604), (236, 608), (292, 676), (376, 676),
-    (464, 688), (536, 688), (608, 700), (680, 700), (744, 676), (808, 676),
-    (856, 592), (904, 600), (944, 672), (1016, 676), (1096, 676), (1200, 680),
-]
-
-
-def spark_points():
-    pts = []
-    for i in range(len(SPARK_RAW) - 1):
-        x0, y0 = SPARK_RAW[i]
-        x1, y1 = SPARK_RAW[i + 1]
-        steps = max(2, int((x1 - x0) / 4))
-        for s in range(steps):
-            t = s / steps
-            pts.append((x0 + (x1 - x0) * t, y0 + (y1 - y0) * t))
-    pts.append(SPARK_RAW[-1])
-    return pts
-
-
-SPARK = spark_points()
 
 SPECKS = [(74 * i % W, 180 + (106 * i) % 600, 0.22 + (i % 5) * 0.11, (i % 7) - 3) for i in range(14)]
 
@@ -232,15 +211,6 @@ def build_frames():
             d.ellipse([FOLDER[0] - r, FOLDER[1] - r, FOLDER[0] + r, FOLDER[1] + r], outline=col, width=6)
             r2 = lerp(116, 156, t)
             d.ellipse([FOLDER[0] - r2, FOLDER[1] - r2, FOLDER[0] + r2, FOLDER[1] + r2], outline=TRACE_FAINT, width=4)
-        sp_end = ICON_END
-        sp = ease(min(1, f / sp_end))
-        cnt = max(2, int(len(SPARK) * sp))
-        seg = SPARK[:cnt]
-        d.line(seg, fill=(214, 205, 196), width=22, joint="curve")
-        d.line(seg, fill=INK, width=10, joint="curve")
-        if sp < 1:
-            tx, ty = seg[-1]
-            d.ellipse([tx - 10, ty - 10, tx + 10, ty + 10], fill=CORAL)
         raw.append(img)
     sample = Image.new("RGB", (W, H * 3))
     for i, pick in enumerate((8, 30, 50)):

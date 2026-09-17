@@ -16,7 +16,7 @@ VERSION="${1:-$(tr -d '\n' < VERSION)}"
 TAG="v${VERSION}"
 ZIP_NAME="PKVoiceCloner-${VERSION}.zip"
 DMG_NAME="PKVoiceCloner-${VERSION}.dmg"
-SIGN_UPDATE="release/sparkle/bin/sign_update"
+SIGN_UPDATE="build/sparkle/bin/sign_update"
 
 if ! command -v gh >/dev/null 2>&1; then
   echo "❌ gh CLI requis : brew install gh" >&2
@@ -27,12 +27,12 @@ echo "🔨 Build v${VERSION}…"
 ./scripts/package_dmg.sh
 
 echo "📦 Zip de l'app (contrat Sparkle : ditto préserve symlinks et permissions)…"
-rm -f "release/${ZIP_NAME}"
-ditto -c -k --keepParent "PK Voice Cloner.app" "release/${ZIP_NAME}"
+rm -f "build/${ZIP_NAME}"
+ditto -c -k --keepParent "build/PK Voice Cloner.app" "build/${ZIP_NAME}"
 
 echo "✍️  Signature EdDSA…"
-SIG=$("$SIGN_UPDATE" "release/${ZIP_NAME}" | sed -E 's/.*edSignature="([^"]+)".*/\1/')
-LEN=$(stat -f%z "release/${ZIP_NAME}")
+SIG=$("$SIGN_UPDATE" "build/${ZIP_NAME}" | sed -E 's/.*edSignature="([^"]+)".*/\1/')
+LEN=$(stat -f%z "build/${ZIP_NAME}")
 PUB_DATE="$(date -u '+%a, %d %b %Y %H:%M:%S %z')"
 
 cat > appcast.xml << EOF
@@ -66,7 +66,7 @@ git commit -m "release v${VERSION}" || true
 gh release create "${TAG}" \
   --title "PK Voice Cloner ${VERSION}" \
   --generate-notes \
-  "release/${ZIP_NAME}" "release/${DMG_NAME}"
+  "build/${ZIP_NAME}" "build/${DMG_NAME}"
 git push
 
 echo "✅ Release ${TAG} publiée. L'appcast est à jour sur main."

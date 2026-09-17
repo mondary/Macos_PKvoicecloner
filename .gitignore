@@ -3,21 +3,14 @@
 .venv-whisper/
 third_party/
 
-# Artefacts de build (app reconstruite via build.sh, Sparkle en cache)
-release/
-PK Voice Cloner.app/
+# Artefacts de build (app reconstruite via scripts/build.sh, Sparkle en cache)
+build/
 
 # Données voix privées (jamais versionnées)
 data/
-clones/
-clement_voice.wav
-*.wav
 
 # Système / logs
 .DS_Store
 *.log
 __pycache__/
 .ipynb_checkpoints/
-
-# Prototype html local non lié au projet
-/index.html

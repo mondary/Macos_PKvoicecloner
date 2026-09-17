@@ -1,6 +1,6 @@
 #!/bin/bash
 # PK Voice Cloner — build de l'app native (swiftc brut, pas de projet Xcode)
-# Produit « PK Voice Cloner.app » à la racine : fenêtre WKWebView + serveur
+# Produit « PK Voice Cloner.app » dans build/ : fenêtre WKWebView + serveur
 # Python enfant + Sparkle (mises à jour via appcast GitHub).
 set -euo pipefail
 
@@ -9,10 +9,10 @@ VERSION="$(tr -d '\n' < "${DIR}/VERSION")"
 
 SPARKLE_VERSION="2.9.6"
 SPARKLE_SHA256="52bf9e88cdd972fc0c81501377a880e90d47031bd8ca5462488f843e2609e192"
-SPARKLE_DIR="${DIR}/release/sparkle"
+SPARKLE_DIR="${DIR}/build/sparkle"
 
 APP_NAME="PK Voice Cloner"
-APP="${DIR}/${APP_NAME}.app"
+APP="${DIR}/build/${APP_NAME}.app"
 CONTENTS="${APP}/Contents"
 
 if [[ ! -f "${SPARKLE_DIR}/Sparkle.framework/Sparkle" || ! -x "${SPARKLE_DIR}/bin/sign_update" ]]; then
@@ -42,13 +42,13 @@ cp -R "${SPARKLE_DIR}/Sparkle.framework" "${CONTENTS}/Frameworks/"
 printf '%s\n' "${DIR}" > "${CONTENTS}/Resources/ProjectRoot.txt"
 
 # --- Icône (.icns) depuis icon.png ---
-if [[ -f "${DIR}/icon.png" ]]; then
+if [[ -f "${DIR}/packaging/icon.png" ]]; then
   ICONSET="$(mktemp -d)/AppIcon.iconset"
   mkdir -p "${ICONSET}"
   for sz in 16 32 128 256 512; do
-    sips -z "${sz}" "${sz}" "${DIR}/icon.png" --out "${ICONSET}/icon_${sz}x${sz}.png" >/dev/null
+    sips -z "${sz}" "${sz}" "${DIR}/packaging/icon.png" --out "${ICONSET}/icon_${sz}x${sz}.png" >/dev/null
     d=$((sz * 2))
-    sips -z "${d}" "${d}" "${DIR}/icon.png" --out "${ICONSET}/icon_${sz}x${sz}@2x.png" >/dev/null
+    sips -z "${d}" "${d}" "${DIR}/packaging/icon.png" --out "${ICONSET}/icon_${sz}x${sz}@2x.png" >/dev/null
   done
   iconutil -c icns "${ICONSET}" -o "${CONTENTS}/Resources/AppIcon.icns"
 fi

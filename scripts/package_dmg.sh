@@ -4,9 +4,9 @@ set -eu
 
 ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 VERSION=$(tr -d '[:space:]' < "$ROOT/VERSION")
-APP="$ROOT/PK Voice Cloner.app"
-STAGE="$ROOT/release/dmg-stage"
-DMG="$ROOT/release/PKVoiceCloner-$VERSION.dmg"
+APP="$ROOT/build/PK Voice Cloner.app"
+STAGE="$ROOT/build/dmg-stage"
+DMG="$ROOT/build/PKVoiceCloner-$VERSION.dmg"
 BACKGROUND="$ROOT/packaging/dmg-background.gif"
 
 "$ROOT/scripts/build.sh"

@@ -131,7 +131,7 @@ def make_overlay():
 
 OVERLAY, OVERLAY_MASK = make_overlay()
 
-SRC = Image.open(os.path.join(REPO, "packaging/icon.png")).convert("RGBA")
+SRC = Image.open(os.path.join(REPO, "src/packaging/icon.png")).convert("RGBA")
 
 
 def mini_icon(size):

@@ -36,7 +36,7 @@ cd "$DEST"
 say "création des environnements Python (VoxCPM2 + Whisper)…"
 uv venv .venv
 uv venv .venv-whisper
-uv pip install --python .venv/bin/python -e third_party/VoxCPM
+uv pip install --python .venv/bin/python -e vendor/VoxCPM
 uv pip install --python .venv-whisper/bin/python faster-whisper
 
 say "moteur dots.tts (français haute fidélité, 48 kHz)…"

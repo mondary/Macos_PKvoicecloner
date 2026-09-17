@@ -1,7 +1,7 @@
 # Environnements et vendu
 .venv/
 .venv-whisper/
-third_party/
+vendor/
 
 # Artefacts de build (app reconstruite via scripts/build.sh, Sparkle en cache)
 build/

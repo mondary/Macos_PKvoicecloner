@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 os.environ['PKVOICE_SKIP_MODEL_LOAD'] = '1'
-spec = importlib.util.spec_from_file_location('studio_server', Path(__file__).resolve().parents[1] / 'src/server/serveur.py')
+spec = importlib.util.spec_from_file_location('studio_server', Path(__file__).resolve().parents[2] / 'src/server/serveur.py')
 server = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(server)
 from fastapi.testclient import TestClient

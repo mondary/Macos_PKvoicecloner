@@ -67,7 +67,7 @@ curl -fsSL https://raw.githubusercontent.com/mondary/Macos_PKvoicecloner/main/in
 # À la main
 brew install ffmpeg
 uv venv .venv && uv venv .venv-whisper
-uv pip install --python .venv/bin/python -e third_party/VoxCPM
+uv pip install --python .venv/bin/python -e vendor/VoxCPM
 uv pip install --python .venv-whisper/bin/python faster-whisper
 # moteur dots.tts (optionnel) — pynini ne compile pas sur macOS, on l'installe sans
 uv pip install --python .venv/bin/python --no-deps dots-tts
@@ -86,16 +86,16 @@ open "build/PK Voice Cloner.app"
 | Chemin | Rôle |
 |---|---|
 | `src/server/` | Serveur FastAPI |
-| `web/` | Studio web (`page.html`, `assets/`) |
+| `src/web/` | Studio web (`page.html`, `assets/`) |
 | `src/macos/PKVoiceCloner.swift` | App native macOS : interface SwiftUI et cycle de vie de l’app |
 | `src/macos/Studio.swift` | Client HTTP natif, démarrage Python, import, micro et lecture audio |
 | `scripts/build.sh` | Build de l'app (`swiftc` + Sparkle embarqué + icône) |
 | `scripts/ma-voix.sh` | Clonage en ligne de commande |
 | `scripts/arreter-studio.sh` | Arrêt sûr du serveur local et libération du modèle |
 | `data/voix`, `data/sorties` | Bibliothèque de clones (références + transcripts) et audios générés (privé, non versionné) |
-| `third_party/VoxCPM` | Modèle et bibliothèque (Apache-2.0) |
+| `vendor/VoxCPM` | Modèle et bibliothèque (Apache-2.0) |
 | `.venv`, `.venv-whisper` | Environnements Python (non versionnés) |
-| `web/assets/` | Logique d'interface (`studio.js`) et licence MIT du runtime Three.js historique |
+| `src/web/assets/` | Logique d'interface (`studio.js`) et licence MIT du runtime Three.js historique |
 
 ## ⚠️ Éthique
 

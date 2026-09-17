@@ -7,7 +7,7 @@ VERSION=$(tr -d '[:space:]' < "$ROOT/VERSION")
 APP="$ROOT/build/PK Voice Cloner.app"
 STAGE="$ROOT/build/dmg-stage"
 DMG="$ROOT/build/PKVoiceCloner-$VERSION.dmg"
-BACKGROUND="$ROOT/packaging/dmg-background.gif"
+BACKGROUND="$ROOT/src/packaging/dmg-background.gif"
 
 "$ROOT/scripts/build.sh"
 rm -rf "$STAGE" "$DMG"

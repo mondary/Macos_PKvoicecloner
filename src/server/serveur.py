@@ -41,7 +41,7 @@ from fastapi.staticfiles import StaticFiles
 
 SRC = Path(__file__).resolve().parent
 PROJET = SRC.parent.parent
-WEB = PROJET / "web"
+WEB = PROJET / "src" / "web"
 SORTIES = PROJET / "data" / "sorties"
 VOIX = PROJET / "data" / "voix"
 PID_FILE = PROJET / "data" / "run" / "serveur.pid"

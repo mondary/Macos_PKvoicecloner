@@ -42,13 +42,13 @@ cp -R "${SPARKLE_DIR}/Sparkle.framework" "${CONTENTS}/Frameworks/"
 printf '%s\n' "${DIR}" > "${CONTENTS}/Resources/ProjectRoot.txt"
 
 # --- Icône (.icns) depuis icon.png ---
-if [[ -f "${DIR}/packaging/icon.png" ]]; then
+if [[ -f "${DIR}/src/packaging/icon.png" ]]; then
   ICONSET="$(mktemp -d)/AppIcon.iconset"
   mkdir -p "${ICONSET}"
   for sz in 16 32 128 256 512; do
-    sips -z "${sz}" "${sz}" "${DIR}/packaging/icon.png" --out "${ICONSET}/icon_${sz}x${sz}.png" >/dev/null
+    sips -z "${sz}" "${sz}" "${DIR}/src/packaging/icon.png" --out "${ICONSET}/icon_${sz}x${sz}.png" >/dev/null
     d=$((sz * 2))
-    sips -z "${d}" "${d}" "${DIR}/packaging/icon.png" --out "${ICONSET}/icon_${sz}x${sz}@2x.png" >/dev/null
+    sips -z "${d}" "${d}" "${DIR}/src/packaging/icon.png" --out "${ICONSET}/icon_${sz}x${sz}@2x.png" >/dev/null
   done
   iconutil -c icns "${ICONSET}" -o "${CONTENTS}/Resources/AppIcon.icns"
 fi

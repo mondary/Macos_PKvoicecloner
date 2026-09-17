@@ -5,7 +5,7 @@
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="$(tr -d '\n' < "${DIR}/VERSION")"
+VERSION="$(sed -nE 's/^## \[([^]]+)\].*/\1/p' "${DIR}/CHANGELOG.md" | grep -v Unreleased | head -1)"
 
 SPARKLE_VERSION="2.9.6"
 SPARKLE_SHA256="52bf9e88cdd972fc0c81501377a880e90d47031bd8ca5462488f843e2609e192"

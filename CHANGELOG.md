@@ -5,6 +5,8 @@ Keep a Changelog — https://keepachangelog.com
 
 ### Changed
 
+- **Fichier `VERSION` supprimé** : la version est lue depuis le dernier en-tête versionné du `CHANGELOG.md` (section `[Unreleased]` ignorée) — une seule source de vérité ; lors d'une release, renommer `[Unreleased]` en `[x.y.z]` avant de lancer `.github/scripts/release.sh`
+
 - **REFACTO arborescence** : le code serveur va dans `src/server/` (`serveur.py`, `transcrire.py`), le studio web dans `web/` (`page.html`, `assets/`) et les scripts dans `scripts/` (`build.sh`, `package_dmg.sh`, `ma-voix.sh`, `arreter-studio.sh`) ; `install.sh` reste à la racine (point d'entrée curl) — chemins mis à jour dans l'app native, les tests et les README, aucun changement fonctionnel
 - **Racine nettoyée** : artefacts de build regroupés dans `build/` (app + DMG/zip + cache Sparkle), clones et sorties CLI réunis dans `data/` (`data/clones`), échantillon vocal perso déplacé en `data/voix/`, icône dans `packaging/`, prototype `index.html` et `.inspi` supprimés
 - **Tout le source sous `src/`** : `web/` → `src/web/`, `packaging/` → `src/packaging/`, `tests/` → `src/tests/` ; `third_party/` renommé `vendor/` (VoxCPM). `data/` reste à la racine : contenu généré/privé (voix, clones, logs), pas du code

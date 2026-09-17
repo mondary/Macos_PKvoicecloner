@@ -5,14 +5,14 @@
 #   3. Génération de appcast.xml (lu par l'app pour détecter les MAJ)
 #   4. Publication : commit de l'appcast + GitHub Release (zip + dmg)
 #
-# Usage : ./.github/scripts/release.sh            (version lue depuis VERSION)
+# Usage : ./.github/scripts/release.sh            (version = dernier en-tête versionné du CHANGELOG.md)
 #         ./.github/scripts/release.sh 0.7.0      (version explicite)
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$DIR"
 
-VERSION="${1:-$(tr -d '\n' < VERSION)}"
+VERSION="${1:-$(sed -nE 's/^## \[([^]]+)\].*/\1/p' CHANGELOG.md | grep -v Unreleased | head -1)}"
 TAG="v${VERSION}"
 ZIP_NAME="PKVoiceCloner-${VERSION}.zip"
 DMG_NAME="PKVoiceCloner-${VERSION}.dmg"

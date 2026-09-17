@@ -3,7 +3,7 @@
 set -eu
 
 ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
-VERSION=$(tr -d '[:space:]' < "$ROOT/VERSION")
+VERSION=$(sed -nE 's/^## \[([^]]+)\].*/\1/p' "$ROOT/CHANGELOG.md" | grep -v Unreleased | head -1)
 APP="$ROOT/build/PK Voice Cloner.app"
 STAGE="$ROOT/build/dmg-stage"
 DMG="$ROOT/build/PKVoiceCloner-$VERSION.dmg"

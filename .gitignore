@@ -4,7 +4,7 @@
 vendor/
 
 # Artefacts de build (app reconstruite via scripts/build.sh, Sparkle en cache)
-build/
+releases/
 
 # Données voix privées (jamais versionnées)
 data/

@@ -1,6 +1,6 @@
 #!/bin/bash
 # PK Voice Cloner — build de l'app native (swiftc brut, pas de projet Xcode)
-# Produit « PK Voice Cloner.app » dans build/ : fenêtre WKWebView + serveur
+# Produit « PK Voice Cloner.app » dans releases/ : fenêtre WKWebView + serveur
 # Python enfant + Sparkle (mises à jour via appcast GitHub).
 set -euo pipefail
 
@@ -9,10 +9,10 @@ VERSION="$(sed -nE 's/^## \[([^]]+)\].*/\1/p' "${DIR}/CHANGELOG.md" | grep -v Un
 
 SPARKLE_VERSION="2.9.6"
 SPARKLE_SHA256="52bf9e88cdd972fc0c81501377a880e90d47031bd8ca5462488f843e2609e192"
-SPARKLE_DIR="${DIR}/build/sparkle"
+SPARKLE_DIR="${DIR}/vendor/sparkle"
 
 APP_NAME="PK Voice Cloner"
-APP="${DIR}/build/${APP_NAME}.app"
+APP="${DIR}/releases/${APP_NAME}.app"
 CONTENTS="${APP}/Contents"
 
 if [[ ! -f "${SPARKLE_DIR}/Sparkle.framework/Sparkle" || ! -x "${SPARKLE_DIR}/bin/sign_update" ]]; then

@@ -48,7 +48,7 @@ say "app native macOS (swiftc + Sparkle)…"
 ./scripts/build.sh
 if [ -d "/Applications/PK Voice Cloner.app" ] || [ -w /Applications ]; then
   rm -rf "/Applications/PK Voice Cloner.app"
-  cp -R "build/PK Voice Cloner.app" /Applications/ 2>/dev/null && say "app copiée dans /Applications" || true
+  cp -R "releases/PK Voice Cloner.app" /Applications/ 2>/dev/null && say "app copiée dans /Applications" || true
 fi
 
 say "installation terminée. Lancement :"

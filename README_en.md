@@ -70,7 +70,7 @@ uv pip install --python .venv/bin/python huggingface-hub loguru "langcodes[data]
 
 # Or build the native app (embedded window, no browser) and launch it
 ./scripts/build.sh
-open "build/PK Voice Cloner.app"
+open "releases/PK Voice Cloner.app"
 ```
 
 ## 🗂️ Layout

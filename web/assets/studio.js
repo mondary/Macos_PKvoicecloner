@@ -1,5 +1,5 @@
 /* PK Voice Studio v2 — bibliothèque de voix + éditeur texte → voix.
- * Tout tourne contre le serveur local FastAPI (voir app/serveur.py).
+ * Tout tourne contre le serveur local FastAPI (voir src/server/serveur.py).
  */
 (() => {
   "use strict";

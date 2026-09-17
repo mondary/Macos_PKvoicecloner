@@ -36,11 +36,11 @@ curl -fsSL https://raw.githubusercontent.com/mondary/Macos_PKvoicecloner/main/in
 ### Terminal
 
 ```sh
-./ma-voix.sh The text your voice should say
-./ma-voix.sh -a ~/Desktop/new_recording.m4a The text
+./scripts/ma-voix.sh The text your voice should say
+./scripts/ma-voix.sh -a ~/Desktop/new_recording.m4a The text
 
 # If the browser is already closed: safely stop the studio and its model
-./arreter-studio.sh
+./scripts/arreter-studio.sh
 ```
 
 ## ⚙️ Requirements
@@ -66,10 +66,10 @@ uv pip install --python .venv/bin/python --no-deps dots-tts
 uv pip install --python .venv/bin/python huggingface-hub loguru "langcodes[data]" einops "librosa>=0.11.0" "torchaudio>=2.8" torchdiffeq tqdm lingua-language-detector
 
 # Run the server only
-./.venv/bin/python app/serveur.py
+./.venv/bin/python src/server/serveur.py
 
 # Or build the native app (embedded window, no browser) and launch it
-./build.sh
+./scripts/build.sh
 open "PK Voice Cloner.app"
 ```
 
@@ -77,15 +77,16 @@ open "PK Voice Cloner.app"
 
 | Path | Role |
 |---|---|
-| `app/` | FastAPI server + web page |
+| `src/server/` | FastAPI server |
+| `web/` | Web studio (`page.html`, `assets/`) |
 | `src/macos/PKVoiceCloner.swift` | Native macOS app: WKWebView window, Python server lifecycle, Sparkle |
-| `build.sh` | App build (`swiftc` + bundled Sparkle + icon) |
-| `ma-voix.sh` | Command-line cloning |
-| `arreter-studio.sh` | Safely stops the local server and releases the model |
+| `scripts/build.sh` | App build (`swiftc` + bundled Sparkle + icon) |
+| `scripts/ma-voix.sh` | Command-line cloning |
+| `scripts/arreter-studio.sh` | Safely stops the local server and releases the model |
 | `data/voix`, `data/sorties` | Clone library (references + transcripts) and generated audio (private, not versioned) |
 | `third_party/VoxCPM` | Model and library (Apache-2.0) |
 | `.venv`, `.venv-whisper` | Python environments (not versioned) |
-| `app/assets/` | UI logic (`studio.js`) and the legacy MIT Three.js license notice |
+| `web/assets/` | UI logic (`studio.js`) and the legacy MIT Three.js license notice |
 
 ## ⚠️ Ethics
 

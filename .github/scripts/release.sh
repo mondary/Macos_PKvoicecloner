@@ -24,7 +24,7 @@ if ! command -v gh >/dev/null 2>&1; then
 fi
 
 echo "🔨 Build v${VERSION}…"
-./package_dmg.sh
+./scripts/package_dmg.sh
 
 echo "📦 Zip de l'app (contrat Sparkle : ditto préserve symlinks et permissions)…"
 rm -f "release/${ZIP_NAME}"

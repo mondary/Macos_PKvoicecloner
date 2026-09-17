@@ -1,6 +1,12 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [Unreleased]
+
+### Changed
+
+- **REFACTO arborescence** : le code serveur va dans `src/server/` (`serveur.py`, `transcrire.py`), le studio web dans `web/` (`page.html`, `assets/`) et les scripts dans `scripts/` (`build.sh`, `package_dmg.sh`, `ma-voix.sh`, `arreter-studio.sh`) ; `install.sh` reste à la racine (point d'entrée curl) — chemins mis à jour dans l'app native, les tests et les README, aucun changement fonctionnel
+
 ## [0.6.0] - 2026-09-15
 
 ### Added

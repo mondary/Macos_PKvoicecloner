@@ -39,8 +39,9 @@ from fastapi import Body, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-APP = Path(__file__).resolve().parent
-PROJET = APP.parent
+SRC = Path(__file__).resolve().parent
+PROJET = SRC.parent.parent
+WEB = PROJET / "web"
 SORTIES = PROJET / "data" / "sorties"
 VOIX = PROJET / "data" / "voix"
 PID_FILE = PROJET / "data" / "run" / "serveur.pid"
@@ -50,7 +51,7 @@ for _d in (SORTIES, VOIX, PID_FILE.parent):
 VITESSE_MIN, VITESSE_MAX = 0.75, 1.5
 
 app = FastAPI(title="PK Voice Cloner")
-app.mount("/assets", StaticFiles(directory=APP / "assets"), name="assets")
+app.mount("/assets", StaticFiles(directory=WEB / "assets"), name="assets")
 modele = None                    # moteur TTS chargé en arrière-plan
 moteur_actif = "voxcpm2"         # "voxcpm2" | "dots" (demandé)
 moteur_pret = None               # moteur réellement présent dans `modele`
@@ -212,7 +213,7 @@ def convertir_wav(src: Path, dst: Path):
 
 def transcrire(wav: Path) -> str:
     r = subprocess.run(
-        [str(PROJET / ".venv-whisper" / "bin" / "python"), str(APP / "transcrire.py"), str(wav)],
+        [str(PROJET / ".venv-whisper" / "bin" / "python"), str(SRC / "transcrire.py"), str(wav)],
         capture_output=True, text=True, timeout=600,
         env={**os.environ, "HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1"},
     )
@@ -251,7 +252,7 @@ def info_voix(vid: str, wav: Path | None = None) -> dict:
 
 @app.get("/")
 def index():
-    return HTMLResponse((APP / "page.html").read_text(encoding="utf-8"))
+    return HTMLResponse((WEB / "page.html").read_text(encoding="utf-8"))
 
 
 @app.get("/api/etat")

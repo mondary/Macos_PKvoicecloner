@@ -44,11 +44,11 @@ curl -fsSL https://raw.githubusercontent.com/mondary/Macos_PKvoicecloner/main/in
 ### Terminal
 
 ```sh
-./ma-voix.sh Le texte que ta voix doit dire
-./ma-voix.sh -a ~/Desktop/nouvel_enregistrement.m4a Le texte
+./scripts/ma-voix.sh Le texte que ta voix doit dire
+./scripts/ma-voix.sh -a ~/Desktop/nouvel_enregistrement.m4a Le texte
 
 # Si le navigateur est déjà fermé : arrêt sûr du studio et de son modèle
-./arreter-studio.sh
+./scripts/arreter-studio.sh
 ```
 
 ## ⚙️ Prérequis
@@ -74,10 +74,10 @@ uv pip install --python .venv/bin/python --no-deps dots-tts
 uv pip install --python .venv/bin/python huggingface-hub loguru "langcodes[data]" einops "librosa>=0.11.0" "torchaudio>=2.8" torchdiffeq tqdm lingua-language-detector
 
 # Lancer le serveur seul
-./.venv/bin/python app/serveur.py
+./.venv/bin/python src/server/serveur.py
 
 # Ou construire l'app native (fenêtre intégrée, pas de navigateur) puis la lancer
-./build.sh
+./scripts/build.sh
 open "PK Voice Cloner.app"
 ```
 
@@ -85,16 +85,17 @@ open "PK Voice Cloner.app"
 
 | Chemin | Rôle |
 |---|---|
-| `app/` | Serveur FastAPI + studio web |
+| `src/server/` | Serveur FastAPI |
+| `web/` | Studio web (`page.html`, `assets/`) |
 | `src/macos/PKVoiceCloner.swift` | App native macOS : interface SwiftUI et cycle de vie de l’app |
 | `src/macos/Studio.swift` | Client HTTP natif, démarrage Python, import, micro et lecture audio |
-| `build.sh` | Build de l'app (`swiftc` + Sparkle embarqué + icône) |
-| `ma-voix.sh` | Clonage en ligne de commande |
-| `arreter-studio.sh` | Arrêt sûr du serveur local et libération du modèle |
+| `scripts/build.sh` | Build de l'app (`swiftc` + Sparkle embarqué + icône) |
+| `scripts/ma-voix.sh` | Clonage en ligne de commande |
+| `scripts/arreter-studio.sh` | Arrêt sûr du serveur local et libération du modèle |
 | `data/voix`, `data/sorties` | Bibliothèque de clones (références + transcripts) et audios générés (privé, non versionné) |
 | `third_party/VoxCPM` | Modèle et bibliothèque (Apache-2.0) |
 | `.venv`, `.venv-whisper` | Environnements Python (non versionnés) |
-| `app/assets/` | Logique d'interface (`studio.js`) et licence MIT du runtime Three.js historique |
+| `web/assets/` | Logique d'interface (`studio.js`) et licence MIT du runtime Three.js historique |
 
 ## ⚠️ Éthique
 

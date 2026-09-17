@@ -2,14 +2,14 @@
 # PK Voice Cloner — DMG d'installation stylée (contrat dmgly : create-dmg + fond GIF animé).
 set -eu
 
-ROOT=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 VERSION=$(tr -d '[:space:]' < "$ROOT/VERSION")
 APP="$ROOT/PK Voice Cloner.app"
 STAGE="$ROOT/release/dmg-stage"
 DMG="$ROOT/release/PKVoiceCloner-$VERSION.dmg"
 BACKGROUND="$ROOT/packaging/dmg-background.gif"
 
-"$ROOT/build.sh"
+"$ROOT/scripts/build.sh"
 rm -rf "$STAGE" "$DMG"
 mkdir -p "$STAGE"
 cp -R "$APP" "$STAGE/PK Voice Cloner.app"

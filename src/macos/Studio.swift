@@ -86,7 +86,7 @@ struct StudioError: LocalizedError {
         }
         candidates.append(home.appendingPathComponent("Documents/GitHub/PROJECTS/Macos_PKvoicecloner"))
         candidates.append(URL(fileURLWithPath: fm.currentDirectoryPath))
-        return candidates.first { fm.fileExists(atPath: $0.appendingPathComponent("app/serveur.py").path)
+        return candidates.first { fm.fileExists(atPath: $0.appendingPathComponent("src/server/serveur.py").path)
             && fm.isExecutableFile(atPath: $0.appendingPathComponent(".venv/bin/python").path) }
     }
 
@@ -174,7 +174,7 @@ struct StudioError: LocalizedError {
         do {
             let p = Process()
             p.executableURL = root.appendingPathComponent(".venv/bin/python")
-            p.arguments = [root.appendingPathComponent("app/serveur.py").path]
+            p.arguments = [root.appendingPathComponent("src/server/serveur.py").path]
             p.currentDirectoryURL = root
             var env = ProcessInfo.processInfo.environment
             let home = FileManager.default.homeDirectoryForCurrentUser.path

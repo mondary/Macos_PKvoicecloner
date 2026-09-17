@@ -45,7 +45,7 @@ uv pip install --python .venv/bin/python huggingface-hub loguru "langcodes[data]
   "librosa>=0.11.0" "torchaudio>=2.8" torchdiffeq tqdm lingua-language-detector
 
 say "app native macOS (swiftc + Sparkle)…"
-./build.sh
+./scripts/build.sh
 if [ -d "/Applications/PK Voice Cloner.app" ] || [ -w /Applications ]; then
   rm -rf "/Applications/PK Voice Cloner.app"
   cp -R "PK Voice Cloner.app" /Applications/ 2>/dev/null && say "app copiée dans /Applications" || true

@@ -4,7 +4,7 @@
 # Python enfant + Sparkle (mises à jour via appcast GitHub).
 set -euo pipefail
 
-DIR="$(cd "$(dirname "$0")" && pwd)"
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="$(tr -d '\n' < "${DIR}/VERSION")"
 
 SPARKLE_VERSION="2.9.6"

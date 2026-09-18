@@ -14,3 +14,6 @@ data/
 *.log
 __pycache__/
 .ipynb_checkpoints/
+
+# Brouillons d icones locaux
+/ChatGPT Image*.png

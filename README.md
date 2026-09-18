@@ -97,6 +97,15 @@ open "releases/PK Voice Cloner.app"
 | `.venv`, `.venv-whisper` | Environnements Python (non versionnés) |
 | `src/web/assets/` | Logique d'interface (`studio.js`) et licence MIT du runtime Three.js historique |
 
+## 🖼 Aperçu
+
+![Boucle d'interface : voix de référence, génération et lecteur du clone](store/gifs/demo-large-1200.gif)
+
+| | |
+|---|---|
+| ![Bibliothèque de voix](store/screenshots/voix-reference@2x.png) | ![Génération et résultat](store/screenshots/generation-resultat@2x.png) |
+| *Bibliothèque de voix — waveform et transcript* | *Génération — texte, moteur, lecteur du clone* |
+
 ## ⚠️ Éthique
 
 Le clonage de voix est interdit pour l'usurpation d'identité. Ce projet est conçu pour ta propre voix : un produit public devrait exiger une preuve de consentement.

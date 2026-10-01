@@ -406,5 +406,14 @@ private extension View {
     var body: some Scene {
         WindowGroup("PK Voice Cloner") { ContentView(studio: delegate.studio) }
             .defaultSize(width: 1180, height: 800)
+            .commands {
+                CommandGroup(after: .help) {
+                    Button("Soutenir PK Voice Cloner sur Ko-fi") {
+                        if let url = URL(string: "https://ko-fi.com/pouark") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
+                }
+            }
     }
 }

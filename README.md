@@ -2,13 +2,21 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **0.6.0** · macOS Apple Silicon · Apache-2.0
+version **2026.10.0** · macOS Apple Silicon · Apache-2.0
 
 🎙️ **Studio vocal IA open source — 100 % local.** Ta voix dit n'importe quel texte. Basé sur [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts) et [faster-whisper](https://github.com/SYSTRAN/faster-whisper), sur la puce Apple via MPS. **Aucune donnée ne quitte la machine.**
+
+![Bibliothèque de voix](store/screenshots/voix-reference@2x.png) ![Génération et résultat](store/screenshots/generation-resultat@2x.png)
+
+## 📥 Installation
+
+Le canal actuellement vérifié est l’installateur depuis les sources (macOS Apple Silicon). Il prépare l’environnement Python et construit l’app :
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/mondary/Macos_PKvoicecloner/main/install.sh | sh
 ```
+
+La release GitHub v0.6.0 propose aussi un DMG, et le tap Homebrew possède un cask, mais ces deux paquets ne sont pas autonomes : l’app seule dépend du dépôt source et de son environnement Python. Leur installation directe ne constitue donc pas encore un parcours fonctionnel. Voir [la page store](store/home.html) et [CHANGELOG](CHANGELOG.md).
 
 ## ✅ Fonctionnalités
 
@@ -97,15 +105,6 @@ open "releases/PK Voice Cloner.app"
 | `.venv`, `.venv-whisper` | Environnements Python (non versionnés) |
 | `src/web/assets/` | Logique d'interface (`studio.js`) et licence MIT du runtime Three.js historique |
 
-## 🖼 Aperçu
-
-![Boucle d'interface : voix de référence, génération et lecteur du clone](store/gifs/demo-large-1200.gif)
-
-| | |
-|---|---|
-| ![Bibliothèque de voix](store/screenshots/voix-reference@2x.png) | ![Génération et résultat](store/screenshots/generation-resultat@2x.png) |
-| *Bibliothèque de voix — waveform et transcript* | *Génération — texte, moteur, lecteur du clone* |
-
 ## ⚠️ Éthique
 
 Le clonage de voix est interdit pour l'usurpation d'identité. Ce projet est conçu pour ta propre voix : un produit public devrait exiger une preuve de consentement.
@@ -121,3 +120,5 @@ Le clonage de voix est interdit pour l'usurpation d'identité. Ce projet est con
 ---
 
 🇬🇧 See [README_en.md](README_en.md) for English version.
+
+❤️ Soutenir ce projet sur [Ko-fi](https://ko-fi.com/pouark).

@@ -8,16 +8,17 @@ résultat. Aucun cloud, aucun compte — tout tourne sur Apple Silicon.
 
 ## Laius long
 
-PK Voice Cloner est une app macOS open source de clonage vocal qui tourne
-entièrement en local. Importe un enregistrement ou parle dans le micro : le
-transcript est extrait automatiquement (Whisper), puis n'importe quel texte est
-prononcé avec ta voix grâce aux moteurs VoxCPM2, dots.tts, Qwen3-TTS ou Pocket
-TTS, exécutés sur le GPU de ton Mac. Ta voix et tes clones restent sur ton
-disque — rien n'est envoyé sur un serveur, rien n'est versionné.
+PK Voice Cloner est un studio macOS open source de clonage vocal local. Importe
+un enregistrement ou parle dans le micro, révise la transcription puis génère
+un fichier audio avec un moteur compatible installé sur ton Mac. Ta voix et tes
+clones restent sur ton disque. L’installation utilisateur actuellement
+documentée passe par l’installateur source ; le DMG et le cask v0.6.0 ne sont
+pas autonomes et nécessitent encore le dépôt et son environnement Python.
 
 - Plateforme : macOS 14+, Apple Silicon
-- Installation : `brew install --cask pk-voice-cloner` ou GitHub Releases
-- Mises à jour : Sparkle signé (EdDSA)
+- Installation vérifiée : `curl -fsSL https://raw.githubusercontent.com/mondary/Macos_PKvoicecloner/main/install.sh | sh`
+- DMG / Homebrew : disponibles en v0.6.0 mais non autonomes ; ne pas les présenter comme installateurs prêts à l’emploi avant correction
+- Mises à jour Sparkle : feed et zip signés présents pour la release v0.6.0 ; vérifier à chaque publication
 - Éthique : pour ta propre voix ; le consentement n'est pas optionnel
 
 ## Assets

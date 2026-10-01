@@ -1,9 +1,16 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
-## [Unreleased]
+## [2026.10.0] - 2026-10-01
+
+### Added
+
+- Lien de soutien Ko-fi dans le menu Aide de l’application.
 
 ### Changed
+
+- Refonte de la page store en v2 bilingue, responsive et accessible ; installation décrite honnêtement selon les artefacts réellement publiés.
+- Vérification de distribution : le DMG et le cask v0.6.0 installent l’app seule, qui dépend encore du dépôt et de son environnement Python ; distribution autonome à traiter avant de promouvoir ces canaux.
 
 - **Fichier `VERSION` supprimé** : la version est lue depuis le dernier en-tête versionné du `CHANGELOG.md` (section `[Unreleased]` ignorée) — une seule source de vérité ; lors d'une release, renommer `[Unreleased]` en `[x.y.z]` avant de lancer `.github/scripts/release.sh`
 

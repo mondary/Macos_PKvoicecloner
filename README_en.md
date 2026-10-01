@@ -2,13 +2,21 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **0.6.0** · macOS Apple Silicon · Apache-2.0
+version **2026.10.0** · macOS Apple Silicon · Apache-2.0
 
 🎙️ **Open source AI voice studio — 100 % local.** Your voice says any text. Powered by [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts) and [faster-whisper](https://github.com/SYSTRAN/faster-whisper) on Apple Silicon via MPS. **No data ever leaves the machine.**
+
+![Voice library](store/screenshots/voix-reference@2x.png) ![Generation and result](store/screenshots/generation-resultat@2x.png)
+
+## 📥 Installation
+
+The currently verified channel is the source installer (macOS Apple Silicon). It prepares the Python environment and builds the app:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/mondary/Macos_PKvoicecloner/main/install.sh | sh
 ```
+
+GitHub release v0.6.0 also offers a DMG, and the Homebrew tap has a cask, but neither package is standalone: the app alone depends on the source checkout and its Python environment. Direct installation is therefore not yet a working end-user path. See the [store page](store/home.html) and [CHANGELOG](CHANGELOG.md).
 
 ## ✅ Features
 
@@ -88,15 +96,6 @@ open "releases/PK Voice Cloner.app"
 | `.venv`, `.venv-whisper` | Python environments (not versioned) |
 | `src/web/assets/` | UI logic (`studio.js`) and the legacy MIT Three.js license notice |
 
-## 🖼 Preview
-
-![Interface loop: voice reference, generation and clone player](store/gifs/demo-large-1200.gif)
-
-| | |
-|---|---|
-| ![Voice library](store/screenshots/voix-reference@2x.png) | ![Generation and result](store/screenshots/generation-resultat@2x.png) |
-| *Voice library — waveform and transcript* | *Generation — text, engine, clone player* |
-
 ## ⚠️ Ethics
 
 Voice cloning must not be used for impersonation. This project is meant for your own voice; a public product should require proof of consent.
@@ -112,3 +111,5 @@ Voice cloning must not be used for impersonation. This project is meant for your
 ---
 
 🇫🇷 Voir [README.md](README.md) pour la version française.
+
+❤️ Support this project on [Ko-fi](https://ko-fi.com/pouark).

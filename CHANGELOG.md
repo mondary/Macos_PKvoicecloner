@@ -1,6 +1,17 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.6] - 2026-10-01
+
+### Fixed
+
+- « No module named 'voxcpm' » persistant après installation : l'editable Python pointait encore sur `third_party/` (ancien nom avant renommage en `vendor/`) et le bouton Installer posait le paquet PyPI sans réparer ce chemin mort ; l'installation réinstalle désormais le VoxCPM vendored (même commande qu'`install.sh`, `-e vendor/VoxCPM`) et invalide les caches d'import pour que le serveur en cours d'exécution voie le paquet — « Activer » fonctionne alors directement.
+
+### Changed
+
+- Le studio démarre tout seul à l'ouverture de l'app ; éteint, l'écran montre un panneau d'accueil « Le studio est éteint » avec un gros bouton Démarrer (le bouton power de la barre haute est aussi mis en évidence à l'arrêt).
+- Après une installation réussie depuis l'app, le moteur s'active automatiquement (suivi en arrière-plan, plus besoin de retoucher « Activer ») ; le CTA d'erreur affiche « Activer » quand tout est déjà installé.
+
 ## [2026.10.5] - 2026-10-01
 
 ### Added

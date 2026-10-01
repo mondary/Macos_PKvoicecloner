@@ -34,7 +34,7 @@ struct ContentView: View {
                                     Button("Voir le journal") { studio.openLog() }
                                     if let engine = studio.state?.moteur,
                                        let model = studio.models.first(where: { $0.moteur == engine }) {
-                                        Button("Installer \(model.label)") { Task { await studio.install(model) } }
+                                        Button(model.installe ? "Activer \(model.label)" : "Installer \(model.label)") { Task { await studio.install(model) } }
                                     }
                                     if studio.error != nil { Button("Masquer") { studio.error = nil } }
                                 }
@@ -44,15 +44,19 @@ struct ContentView: View {
                         if let engine = studio.loadingEngine {
                             loadingDrawer(engine: engine)
                         }
-                        if section == "Vue d’ensemble" { stats }
-                        if section == "Vue d’ensemble" || section == "Bibliothèque de voix" || section == "Bibliothèque des textes" {
-                            HStack(alignment: .top, spacing: 16) {
-                                if section != "Bibliothèque des textes" { voices.frame(maxWidth: section == "Vue d’ensemble" ? 310 : .infinity) }
-                                if section != "Bibliothèque de voix" { editor }
+                        if studio.state == nil {
+                            welcome
+                        } else {
+                            if section == "Vue d’ensemble" { stats }
+                            if section == "Vue d’ensemble" || section == "Bibliothèque de voix" || section == "Bibliothèque des textes" {
+                                HStack(alignment: .top, spacing: 16) {
+                                    if section != "Bibliothèque des textes" { voices.frame(maxWidth: section == "Vue d’ensemble" ? 310 : .infinity) }
+                                    if section != "Bibliothèque de voix" { editor }
+                                }
                             }
+                            if section == "Vue d’ensemble" || section == "Bibliothèque des modèles" { models }
+                            if section == "Bibliothèque des textes" { texts }
                         }
-                        if section == "Vue d’ensemble" || section == "Bibliothèque des modèles" { models }
-                        if section == "Bibliothèque des textes" { texts }
                         HStack(spacing: 14) {
                             Text("PK VOICE STUDIO · V\(studio.appVersion)")
                             if let serveur = studio.ecartVersion {
@@ -69,7 +73,7 @@ struct ContentView: View {
         .background(.white).foregroundStyle(Dashboard.ink)
         .frame(minWidth: 920, minHeight: 650)
         .preferredColorScheme(.light)
-        .task { await studio.monitor() }
+        .task { await studio.boot() }
         .sheet(isPresented: Binding(get: { renamePath != nil }, set: { if !$0 { renamePath = nil } })) {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Renommer").font(.headline)
@@ -133,10 +137,35 @@ struct ContentView: View {
             Spacer()
             Circle().fill(studio.state == nil ? Dashboard.muted : Color.green).frame(width: 6, height: 6)
             Text(studio.message).foregroundStyle(Dashboard.muted).lineLimit(1)
-            Button(studio.powerBusy ? "Patiente…" : studio.state == nil ? "Démarrer" : "Éteindre", systemImage: "power") { Task { await studio.toggle() } }
-                .buttonStyle(.bordered).tint(Dashboard.ink)
-                .disabled(studio.powerBusy || studio.busy || studio.generating || studio.recording)
+            if studio.state == nil {
+                Button(studio.powerBusy ? "Patiente…" : "Démarrer", systemImage: "power") { Task { await studio.toggle() } }
+                    .buttonStyle(.borderedProminent).tint(Dashboard.ink)
+                    .disabled(studio.powerBusy || studio.busy || studio.generating || studio.recording)
+            } else {
+                Button(studio.powerBusy ? "Patiente…" : "Éteindre", systemImage: "power") { Task { await studio.toggle() } }
+                    .buttonStyle(.bordered).tint(Dashboard.ink)
+                    .disabled(studio.powerBusy || studio.busy || studio.generating || studio.recording)
+            }
         }.font(.system(size: 11)).padding(.horizontal, 28).frame(height: 60)
+    }
+
+    /// Écran d'accueil quand le serveur local est éteint : rien n'est utilisable,
+    /// alors on l'explique et on propose un démarrage impossible à manquer.
+    private var welcome: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Le studio est éteint").font(.system(size: 27, weight: .semibold)).tracking(-0.8)
+            Text("Bibliothèque de voix, textes et modèles ont besoin du serveur local : il démarre le moteur vocal Python sur ce Mac, sans envoyer quoi que ce soit sur le réseau.")
+                .font(.system(size: 12)).foregroundStyle(Dashboard.muted).frame(maxWidth: 560, alignment: .leading)
+            HStack(spacing: 12) {
+                Button(studio.powerBusy ? "Démarrage du studio…" : "Démarrer le studio") { Task { await studio.toggle() } }
+                    .buttonStyle(.borderedProminent).tint(Dashboard.ink).controlSize(.large)
+                    .disabled(studio.powerBusy)
+                Button("Voir le journal") { studio.openLog() }
+                    .buttonStyle(.bordered).controlSize(.large).disabled(studio.powerBusy)
+            }
+            Text(studio.state == nil && studio.powerBusy ? "Le serveur démarre, puis le moteur se charge (~1-2 min la première fois)." : "Astuce : le studio démarre aussi tout seul à l’ouverture de l’app.")
+                .font(.system(size: 10)).foregroundStyle(Dashboard.muted)
+        }.padding(28).frame(maxWidth: .infinity, alignment: .leading).dashboardPanel()
     }
 
     private func loadingDrawer(engine: String) -> some View {

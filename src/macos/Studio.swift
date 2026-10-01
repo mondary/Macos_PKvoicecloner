@@ -40,7 +40,7 @@ struct StudioError: LocalizedError {
     @Published var text = UserDefaults.standard.string(forKey: "studio.text") ?? "" {
         didSet { UserDefaults.standard.set(text, forKey: "studio.text") }
     }
-    @Published var message = "Studio arrêté"
+    @Published var message = "Studio éteint — clique sur Démarrer"
     @Published var error: String?
     @Published var busy = false
     @Published var powerBusy = false
@@ -151,6 +151,12 @@ struct StudioError: LocalizedError {
         }
     }
 
+    /// Démarrage à l'ouverture : le studio se lance tout seul s'il n'est pas déjà up.
+    func boot() async {
+        if state == nil { await toggle() }
+        await monitor()
+    }
+
     func toggle() async {
         guard !powerBusy, !busy, !generating, !recording else { return }
         powerBusy = true; error = nil
@@ -161,7 +167,7 @@ struct StudioError: LocalizedError {
                 for _ in 0..<40 {
                     try await Task.sleep(for: .milliseconds(250))
                     do { _ = try await request("api/etat", timeout: 1) }
-                    catch { state = nil; selectedVoiceID = nil; message = "Studio arrêté"; endActivity(); return }
+                    catch { state = nil; selectedVoiceID = nil; message = "Studio éteint — clique sur Démarrer"; endActivity(); return }
                 }
                 throw StudioError(message: "L’arrêt prend plus longtemps que prévu. Réessaie dans quelques secondes.")
             } catch { self.error = error.localizedDescription }
@@ -254,8 +260,31 @@ struct StudioError: LocalizedError {
 
     func install(_ model: Model) async {
         await perform {
-            _ = try await self.request("api/modeles/\(model.id)/installer", method: "POST")
+            struct Reponse: Decodable { let etat: String?; let installe: Bool? }
+            let rep = try JSONDecoder().decode(Reponse.self, from:
+                try await self.request("api/modeles/\(model.id)/installer", method: "POST"))
             try await self.refreshLibrary()
+            if rep.etat == "en_cours" {
+                self.message = "Installation de \(model.label), activation à la fin…"
+                Task { await self.watchInstall(model) }
+            } else {
+                await self.engine(model.moteur)   // déjà installé : activation directe
+            }
+        }
+    }
+
+    /// Attend la fin d'une installation (fond de tâche serveur) puis active le moteur.
+    private func watchInstall(_ model: Model) async {
+        for _ in 0..<1500 {
+            try? await Task.sleep(for: .seconds(1))
+            guard let data = try? await request("api/modeles", timeout: 5),
+                  let list = try? JSONDecoder().decode(ModelResponse.self, from: data).modeles,
+                  let m = list.first(where: { $0.id == model.id }) else { continue }
+            if m.etat == "pret" { await engine(m.moteur); return }
+            if m.etat == "erreur" {
+                error = "Installation de \(model.label) échouée : \(m.erreur ?? "consulte le journal")"
+                return
+            }
         }
     }
 

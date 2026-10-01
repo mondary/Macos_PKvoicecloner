@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.5** · macOS Apple Silicon · Apache-2.0
+version **2026.10.6** · macOS Apple Silicon · Apache-2.0
 
 🎙️ **Studio vocal IA open source — 100 % local.** Ta voix dit n'importe quel texte. Basé sur [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts) et [faster-whisper](https://github.com/SYSTRAN/faster-whisper), sur la puce Apple via MPS. **Aucune donnée ne quitte la machine.**
 
@@ -37,7 +37,9 @@ La release GitHub v0.6.0 propose aussi un DMG, et le tap Homebrew possède un ca
 
 ### Interface native
 
-- **Démarrer** lance le serveur local, y compris depuis Finder. L’état du modèle s’actualise automatiquement.
+- **Démarrer** lance le serveur local, y compris depuis Finder. L'état du modèle s'actualise automatiquement.
+- **Démarrage automatique** : le serveur démarre à l'ouverture de l'app ; éteint, un panneau d'accueil explique et propose un gros bouton Démarrer.
+- **Installation puis activation enchaînées** : un modèle installé depuis le studio s'active tout seul à la fin du téléchargement.
 - **Bibliothèque de voix** : importer un audio, enregistrer au micro, sélectionner une voix, l’écouter ; menu **…** pour renommer ou supprimer.
 - **Modèles** : installer un moteur du catalogue pris en charge, l’activer ; menu **…** pour renommer ou supprimer ses poids locaux. Les installations et erreurs sont visibles.
 - **Texte vers voix** : éditer le transcript, régler la vitesse, générer, puis écouter ou exporter le WAV.

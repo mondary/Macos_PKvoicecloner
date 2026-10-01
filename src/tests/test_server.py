@@ -3,6 +3,7 @@ import importlib.util
 import io
 import os
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -91,6 +92,23 @@ class StudioContracts(unittest.TestCase):
             response = self.client.post('/api/modeles/voxcpm2/installer')
         self.assertEqual(response.status_code, 202)
         thread.return_value.start.assert_called_once()
+
+    def test_install_uses_vendored_editable_and_refreshes_import_caches(self):
+        captured = {}
+
+        def fake_run(args, **kwargs):
+            captured['args'] = args
+            return subprocess.CompletedProcess(args, 0, '', '')
+
+        with patch.object(server.importlib.util, 'find_spec', return_value=None), \
+             patch.object(server.subprocess, 'run', side_effect=fake_run), \
+             patch.object(server.importlib, 'invalidate_caches') as invalide, \
+             patch.object(server, '_est_installe', return_value=True):
+            server._installer_modele('voxcpm2')
+        self.assertIn('-e', captured['args'])
+        self.assertTrue(captured['args'][-1].endswith('vendor/VoxCPM'))
+        invalide.assert_called_once()
+        self.assertEqual(server.installations['voxcpm2']['etat'], 'pret')
 
     def test_failed_model_is_reported_and_generation_rejected(self):
         with patch.dict(server.CHARGEURS, {'voxcpm2': lambda: (_ for _ in ()).throw(RuntimeError('poids absents'))}):

@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.5** · macOS Apple Silicon · Apache-2.0
+version **2026.10.6** · macOS Apple Silicon · Apache-2.0
 
 🎙️ **Open source AI voice studio — 100 % local.** Your voice says any text. Powered by [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts) and [faster-whisper](https://github.com/SYSTRAN/faster-whisper) on Apple Silicon via MPS. **No data ever leaves the machine.**
 
@@ -33,6 +33,8 @@ GitHub release v0.6.0 also offers a DMG, and the Homebrew tap has a cask, but ne
 - **Roadmap** — the "digital double" plan (fast voice cloning, photo → lipsynced video avatar) lives in [TODO.md](TODO.md)
 - **`mavox`** — one-command cloning from the terminal, quoted or not
 - **Native macOS app** — embedded window (WKWebView), zero browser: the server starts and stops with the app, automatic Sparkle updates
+- **Automatic startup** — the server starts when the app opens; when off, a welcome panel explains it with a big Start button
+- **Install then activate in one go** — a model installed from the studio activates by itself once the download finishes
 - **Clean studio** — an ElevenLabs-style clear interface: voices on the left, text and **Generate** on the right, PK coral accent
 
 ## 🧠 Usage

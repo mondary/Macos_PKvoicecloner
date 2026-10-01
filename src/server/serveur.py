@@ -397,12 +397,19 @@ def _installer_modele(modele_id: str):
             if importlib.util.find_spec(module) is None:
                 if shutil.which("uv") is None:
                     raise RuntimeError("uv introuvable : relance install.sh")
-                r = subprocess.run(
-                    ["uv", "pip", "install", "--python", sys.executable, paquet],
-                    capture_output=True, text=True,
-                )
+                # voxcpm : la référence testée est le dépôt vendored (même commande
+                # qu'install.sh). L'editable PyPI ne répare pas une installation
+                # cassée par un déplacement du dossier (third_party -> vendor).
+                vendore = PROJET / "vendor" / "VoxCPM"
+                editable = paquet == "voxcpm" and (vendore / "pyproject.toml").exists()
+                args = ["uv", "pip", "install", "--python", sys.executable]
+                args += ["-e", str(vendore)] if editable else [paquet]
+                r = subprocess.run(args, capture_output=True, text=True)
                 if r.returncode != 0:
                     raise RuntimeError((r.stderr or r.stdout)[-300:])
+                # le serveur tourne déjà : sans ça, l'import peut rester aveugle
+                # au paquet fraîchement installé (caches de finders).
+                importlib.invalidate_caches()
         if not _est_installe(m["repo"]):
             from huggingface_hub import snapshot_download
 

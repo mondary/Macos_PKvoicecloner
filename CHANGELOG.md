@@ -1,6 +1,12 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.5] - 2026-10-01
+
+### Added
+
+- Lien « Soutenir sur Ko-fi » toujours visible dans la navigation de la page store (rouge, FR/EN) ; le lien reste aussi présent en pied de page.
+
 ## [2026.10.4] - 2026-10-01
 
 ### Added

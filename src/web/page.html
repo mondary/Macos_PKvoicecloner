@@ -438,6 +438,10 @@
         </div>
         <div class="render-progress" aria-hidden="true"><i id="progress"></i></div>
         <div class="take-status" id="etatGen" aria-live="polite">Sélectionne une voix et écris ton texte.</div>
+        <div id="recuperationMoteur" class="take-status error" hidden>
+          <span id="erreurMoteur"></span>
+          <button type="button" class="secondary" id="installerDependance">Installer le composant manquant</button>
+        </div>
         <div class="result" id="resultPanel">
           <audio id="resultat" controls></audio>
           <a id="telecharger" class="download" download="pk-voice-studio.wav">Télécharger le master WAV →</a>

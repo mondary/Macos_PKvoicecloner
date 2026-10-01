@@ -549,14 +549,34 @@
     if (enCours) setTimeout(refreshModeles, 2000);
   }
 
-  async function installerModele(id) {
+  async function installerModele(id, relancerMoteur = false) {
     try {
       const response = await fetch(`/api/modeles/${id}/installer`, { method: "POST" });
       if (!response.ok) throw new Error((await response.json()).detail || "installation impossible");
-      notify("Téléchargement du modèle lancé — compte quelques minutes.");
+      notify("Installation du composant lancée…");
+      if (relancerMoteur) {
+        $("installerDependance").disabled = true;
+        $("installerDependance").textContent = "Installation…";
+        const deadline = Date.now() + 15 * 60_000;
+        while (Date.now() < deadline) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          const models = await (await fetch("/api/modeles")).json();
+          const model = (models.modeles || []).find((item) => item.id === id);
+          if (model?.etat === "erreur") throw new Error(model.erreur || "installation impossible");
+          if (model?.etat === "pret") {
+            $("recuperationMoteur").hidden = true;
+            await switchEngine(id);
+            refreshModeles();
+            return;
+          }
+        }
+        throw new Error("délai d’installation dépassé");
+      }
       refreshModeles();
     } catch (error) {
+      $("installerDependance").disabled = false;
       notify(`Installation impossible : ${error.message}`, "error");
+      refreshSystem();
     }
   }
 
@@ -584,23 +604,35 @@
       const active = button.dataset.moteur === system.moteur;
       button.classList.toggle("active", active);
       button.setAttribute("aria-pressed", String(active));
-      button.disabled = !system.modele;
+      button.disabled = !system.modele && !system.erreur;
     });
   }
 
   async function refreshSystem() {
     if (shuttingDown) return;
+    const labels = { dots: "dots.tts", qwen3: "Qwen3-TTS 0,6B", pocket: "Pocket TTS", voxcpm2: "VoxCPM2" };
     try {
       const system = await (await fetch("/api/etat")).json();
       setPresence($("serverPresence"), "ready");
       setPresence($("modelPresence"), system.modele ? "ready" : "wait");
       setEngineUI(system);
       if (!generating) {
-        if (!system.modele) {
+        if (system.erreur) {
+          engineLoading = false;
+          const recovery = $("recuperationMoteur");
+          recovery.hidden = false;
+          $("erreurMoteur").textContent = `Échec du chargement : ${system.erreur}.`;
+          $("installerDependance").textContent = `Installer ${labels[system.moteur] || system.moteur}`;
+          $("installerDependance").onclick = () => installerModele(system.moteur, true);
+          setPanelStatus("Moteur indisponible — une installation est nécessaire.");
+          setTakeStatus("Le moteur n’a pas pu démarrer. Installe le composant requis puis réessaie.", "error");
+        } else if (!system.modele) {
+          $("recuperationMoteur").hidden = true;
           engineLoading = true;
           const labels = { dots: "dots.tts", qwen3: "Qwen3-TTS 0,6B", pocket: "Pocket TTS", voxcpm2: "VoxCPM2" };
           setPanelStatus(`Chargement de ${labels[system.moteur] || system.moteur}…`, true);
         } else if (engineLoading) {
+          $("recuperationMoteur").hidden = true;
           engineLoading = false;
           setPanelStatus(PANNEAU_AIDE);
           setTakeStatus("La cabine est prête — écris ton texte.");

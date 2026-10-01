@@ -75,7 +75,8 @@ MODELES_TELECHARGEABLES = {
     },
 }
 MOTEURS_CEUR = (  # catalogue des moteurs principaux
-    {"id": "voxcpm2", "moteur": "voxcpm2", "repo": "openbmb/VoxCPM2", "label": "VoxCPM2", "taille": "~5 Go"},
+    {"id": "voxcpm2", "moteur": "voxcpm2", "repo": "openbmb/VoxCPM2", "label": "VoxCPM2", "taille": "~5 Go",
+     "paquets": (("voxcpm", "voxcpm"),)},
     {"id": "dots", "moteur": "dots", "repo": "dots-studio/dots.tts-mf-2steps", "label": "dots.tts", "taille": "~4 Go"},
 )
 # dépôts que l'app sait réellement charger (pour marquer la recherche HF)
@@ -394,9 +395,10 @@ def _installer_modele(modele_id: str):
                 )
                 if r.returncode != 0:
                     raise RuntimeError((r.stderr or r.stdout)[-300:])
-        from huggingface_hub import snapshot_download
+        if not _est_installe(m["repo"]):
+            from huggingface_hub import snapshot_download
 
-        snapshot_download(m["repo"], token=os.environ.get("HF_TOKEN") or None)
+            snapshot_download(m["repo"], token=os.environ.get("HF_TOKEN") or None)
         installations[modele_id] = {"etat": "pret"}
         print(f">> modèle {m['label']} installé.", flush=True)
     except Exception as e:  # noqa: BLE001 — remonté au client via /api/modeles
@@ -412,7 +414,10 @@ def installer_modele(modele_id: str):
     m = _modele_catalogue(modele_id)
     if not m:
         raise HTTPException(404, "modèle inconnu")
-    if _est_installe(m["repo"]):
+    dependances_manquantes = any(
+        importlib.util.find_spec(module) is None for _, module in m.get("paquets", ())
+    )
+    if _est_installe(m["repo"]) and not dependances_manquantes:
         return {"ok": True, "installe": True}
     if installations.get(modele_id, {}).get("etat") != "en_cours":
         installations[modele_id] = {"etat": "en_cours"}

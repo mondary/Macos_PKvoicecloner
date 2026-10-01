@@ -75,6 +75,17 @@ class StudioContracts(unittest.TestCase):
             self.assertEqual(self.client.delete(f'/api/modeles/{mid}').status_code, 200)
             self.assertFalse(cache.exists())
 
+    def test_cached_model_still_installs_missing_python_package(self):
+        cache = server._cache_modele('openbmb/VoxCPM2')
+        blobs = cache / 'blobs'
+        blobs.mkdir(parents=True)
+        (blobs / 'weights').write_bytes(b'x' * 50_000_001)
+        with patch.object(server.importlib.util, 'find_spec', return_value=None), \
+             patch.object(server.threading, 'Thread') as thread:
+            response = self.client.post('/api/modeles/voxcpm2/installer')
+        self.assertEqual(response.status_code, 202)
+        thread.return_value.start.assert_called_once()
+
     def test_failed_model_is_reported_and_generation_rejected(self):
         with patch.dict(server.CHARGEURS, {'voxcpm2': lambda: (_ for _ in ()).throw(RuntimeError('poids absents'))}):
             server.charger_modele('voxcpm2')

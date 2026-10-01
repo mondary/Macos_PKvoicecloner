@@ -32,6 +32,10 @@ struct ContentView: View {
                                 Label(error, systemImage: "exclamationmark.triangle").textSelection(.enabled)
                                 HStack {
                                     Button("Voir le journal") { studio.openLog() }
+                                    if let engine = studio.state?.moteur,
+                                       let model = studio.models.first(where: { $0.moteur == engine }) {
+                                        Button("Installer \(model.label)") { Task { await studio.install(model) } }
+                                    }
                                     if studio.error != nil { Button("Masquer") { studio.error = nil } }
                                 }
                             }.font(.system(size: 12)).foregroundStyle(.red).padding(14).frame(maxWidth: .infinity, alignment: .leading).dashboardPanel()

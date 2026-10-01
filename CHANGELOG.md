@@ -1,6 +1,12 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.2] - 2026-10-01
+
+### Fixed
+
+- Échec de chargement d’un moteur affiché avec un CTA d’installation des dépendances manquantes ; l’installation reste possible lorsque les poids sont déjà en cache.
+
 ## [2026.10.0] - 2026-10-01
 
 ### Added

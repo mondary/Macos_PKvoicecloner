@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 struct ServerState: Codable {
     var modele: Bool
     var voix: Bool
+    var version: String?
     var moteur: String?
     var moteurs: [String]
     var installes: [String]
@@ -66,6 +67,11 @@ struct StudioError: LocalizedError {
     let baseURL: URL
     let session: URLSession
     let root: URL?
+    var appVersion: String { (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "inconnue" }
+    var ecartVersion: String? {
+        guard let serveur = state?.version, !serveur.isEmpty, serveur != appVersion else { return nil }
+        return serveur
+    }
 
     init(baseURL: URL = URL(string: "http://127.0.0.1:8809")!, session: URLSession = .shared, root: URL? = Studio.projectRoot()) {
         self.baseURL = baseURL; self.session = session; self.root = root

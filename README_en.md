@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.3** · macOS Apple Silicon · Apache-2.0
+version **2026.10.4** · macOS Apple Silicon · Apache-2.0
 
 🎙️ **Open source AI voice studio — 100 % local.** Your voice says any text. Powered by [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts) and [faster-whisper](https://github.com/SYSTRAN/faster-whisper) on Apple Silicon via MPS. **No data ever leaves the machine.**
 
@@ -29,6 +29,8 @@ GitHub release v0.6.0 also offers a DMG, and the Homebrew tap has a cask, but ne
 - **Speed** 0.75×–1.5× — pure time-stretch, pitch stays untouched
 - **On-demand resident model** — loaded once for a session; **Power off** releases its memory when you are done
 - **Offline** — models cached locally, no network calls
+- **Always-visible version** — the running version shows in the native app footer and the web studio footer; app/server mismatch is flagged
+- **Roadmap** — the "digital double" plan (fast voice cloning, photo → lipsynced video avatar) lives in [TODO.md](TODO.md)
 - **`mavox`** — one-command cloning from the terminal, quoted or not
 - **Native macOS app** — embedded window (WKWebView), zero browser: the server starts and stops with the app, automatic Sparkle updates
 - **Clean studio** — an ElevenLabs-style clear interface: voices on the left, text and **Generate** on the right, PK coral accent
@@ -86,6 +88,7 @@ open "releases/PK Voice Cloner.app"
 | Path | Role |
 |---|---|
 | `src/server/` | FastAPI server |
+| `TODO.md` | Digital-double roadmap: voice, avatar, lipsync |
 | `src/web/` | Web studio (`page.html`, `assets/`) |
 | `src/macos/PKVoiceCloner.swift` | Native macOS app: WKWebView window, Python server lifecycle, Sparkle |
 | `scripts/build.sh` | App build (`swiftc` + bundled Sparkle + icon) |

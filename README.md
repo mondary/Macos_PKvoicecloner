@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.3** · macOS Apple Silicon · Apache-2.0
+version **2026.10.4** · macOS Apple Silicon · Apache-2.0
 
 🎙️ **Studio vocal IA open source — 100 % local.** Ta voix dit n'importe quel texte. Basé sur [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts) et [faster-whisper](https://github.com/SYSTRAN/faster-whisper), sur la puce Apple via MPS. **Aucune donnée ne quitte la machine.**
 
@@ -29,6 +29,8 @@ La release GitHub v0.6.0 propose aussi un DMG, et le tap Homebrew possède un ca
 - **Vitesse** 0,75×–1,5× — étirement temporel pur, le pitch reste intact
 - **Modèle résident, à la demande** — chargé une fois pendant la session ; **Éteindre** libère sa mémoire dès que tu as fini
 - **Offline** — modèles en cache local, aucun appel réseau
+- **Version toujours visible** — le numéro de version exécuté s'affiche en pied d'app native et du studio web ; un écart app ↔ serveur est signalé
+- **Feuille de route** — le plan « double numérique » (clonage rapide, avatar photo → vidéo lipsyncé) se lit dans [TODO.md](TODO.md)
 - **`mavox`** — clone en une commande depuis le terminal, texte quoté ou non
 - **App native macOS** — interface native SwiftUI, zéro navigateur : le serveur démarre et s'arrête avec l'app, mises à jour automatiques via Sparkle
 - **Studio épuré** — tableau de bord monochrome : bibliothèque de voix, éditeur et catalogue de modèles
@@ -94,6 +96,7 @@ open "releases/PK Voice Cloner.app"
 | Chemin | Rôle |
 |---|---|
 | `src/server/` | Serveur FastAPI |
+| `TODO.md` | Feuille de route du double numérique : voix, avatar, lipsync |
 | `src/web/` | Studio web (`page.html`, `assets/`) |
 | `src/macos/PKVoiceCloner.swift` | App native macOS : interface SwiftUI et cycle de vie de l’app |
 | `src/macos/Studio.swift` | Client HTTP natif, démarrage Python, import, micro et lecture audio |

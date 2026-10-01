@@ -53,8 +53,12 @@ struct ContentView: View {
                         }
                         if section == "Vue d’ensemble" || section == "Bibliothèque des modèles" { models }
                         if section == "Bibliothèque des textes" { texts }
-                        HStack {
-                            Text("PK VOICE STUDIO · SUR CE MAC")
+                        HStack(spacing: 14) {
+                            Text("PK VOICE STUDIO · V\(studio.appVersion)")
+                            if let serveur = studio.ecartVersion {
+                                Text("APP \(studio.appVersion) ≠ SERVEUR \(serveur)").foregroundStyle(.orange)
+                                    .help("L'app et le serveur local viennent de versions différentes du dépôt. Relance l'app après une mise à jour du dépôt (./scripts/build.sh puis copie dans /Applications).")
+                            }
                             Spacer()
                             Text("AUCUN AUDIO ENVOYÉ DANS LE CLOUD")
                         }.font(.system(size: 9, design: .monospaced)).foregroundStyle(Dashboard.muted).padding(.top, 4)

@@ -613,6 +613,7 @@
     const labels = { dots: "dots.tts", qwen3: "Qwen3-TTS 0,6B", pocket: "Pocket TTS", voxcpm2: "VoxCPM2" };
     try {
       const system = await (await fetch("/api/etat")).json();
+      if (system.version) $("version").textContent = system.version;
       setPresence($("serverPresence"), "ready");
       setPresence($("modelPresence"), system.modele ? "ready" : "wait");
       setEngineUI(system);

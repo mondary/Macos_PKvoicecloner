@@ -50,6 +50,13 @@ for _d in (SORTIES, VOIX, PID_FILE.parent):
 
 VITESSE_MIN, VITESSE_MAX = 0.75, 1.5
 
+VERSION = next(
+    (l.split("[", 1)[1].split("]", 1)[0].strip() for l in
+     (PROJET / "CHANGELOG.md").read_text(encoding="utf-8").splitlines()
+     if l.startswith("## [") and "Unreleased" not in l),
+    "inconnue",
+)
+
 app = FastAPI(title="PK Voice Cloner")
 app.mount("/assets", StaticFiles(directory=WEB / "assets"), name="assets")
 modele = None                    # moteur TTS chargé en arrière-plan
@@ -259,6 +266,7 @@ def index():
 @app.get("/api/etat")
 def etat():
     return {
+        "version": VERSION,
         "modele": modele is not None and moteur_pret == moteur_actif,
         "erreur": erreur_modele,
         "chargement": verrou_chargement.locked(),

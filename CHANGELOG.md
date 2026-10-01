@@ -1,6 +1,13 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.4] - 2026-10-01
+
+### Added
+
+- Version de l'application toujours visible : barre de pied de l'app native et pied du studio web affichent la version réellement exécutée ; l'app signale en orange un écart entre la version du bundle et celle du serveur (`/api/etat` expose désormais `version`).
+- Feuille de route du double numérique dans `TODO.md` : clonage vocal rapide, avatar photo → vidéo lipsyncé, studio avatar — moteurs candidats et pièges Mac documentés.
+
 ## [2026.10.3] - 2026-10-01
 
 ### Added

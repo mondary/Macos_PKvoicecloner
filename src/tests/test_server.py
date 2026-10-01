@@ -34,6 +34,12 @@ class StudioContracts(unittest.TestCase):
         for p in reversed(self.patches): p.stop()
         self.tmp.cleanup()
 
+    def test_etat_exposes_running_version(self):
+        version = self.client.get('/api/etat').json()['version']
+        self.assertIsInstance(version, str)
+        self.assertRegex(version, r'^\d+\.\d+\.\d+$')
+        self.assertEqual(version, server.VERSION)
+
     def test_audio_import_select_rename_preview_delete(self):
         audio = io.BytesIO()
         sf.write(audio, np.zeros(1600), 16000, format='WAV')

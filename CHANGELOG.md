@@ -1,6 +1,12 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.3] - 2026-10-01
+
+### Added
+
+- Deux variantes d’icône et personnalisations de couleurs de fenêtre pour VS Code.
+
 ## [2026.10.2] - 2026-10-01
 
 ### Fixed

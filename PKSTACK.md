@@ -2,7 +2,7 @@
 
 ## Skills appliquées
 
-- `premium-promo-media` — refonte v2 bilingue de `store/home.html`, récupération honnête des liens d’installation et revue de l’état des assets de présentation. Assets et captures existants réutilisés ; aucune nouvelle capture n’a été générée.
+- `premium-promo-media` — refonte v2 bilingue de `store/website/index.html`, récupération honnête des liens d’installation et revue de l’état des assets de présentation. Le site autonome est isolé dans `store/website/` pour téléversement FTP ; assets et captures existants réutilisés, aucune nouvelle capture générée.
 - `-pk-COMMIT` — synchronisation des README FR/EN, captures, Ko-fi, notes dans `CHANGELOG.md` et contrôle des canaux de distribution.
 - `pk-app-release` / `pkhomebrew` — audit en lecture seule de la release GitHub `v0.6.0`, de ses assets et du cask Homebrew existant ; aucune publication ni modification distante effectuée.
 - `macos-build` — vérification de la compilation native après ajout du lien Ko-fi au menu Aide.

@@ -2,11 +2,11 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.6** · macOS Apple Silicon · Apache-2.0
+version **2026.10.7** · macOS Apple Silicon · Apache-2.0
 
 🎙️ **Open source AI voice studio — 100 % local.** Your voice says any text. Powered by [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts) and [faster-whisper](https://github.com/SYSTRAN/faster-whisper) on Apple Silicon via MPS. **No data ever leaves the machine.**
 
-![Voice library](store/screenshots/voix-reference@2x.png) ![Generation and result](store/screenshots/generation-resultat@2x.png)
+![Voice library](store/website/screenshots/voix-reference@2x.png) ![Generation and result](store/website/screenshots/generation-resultat@2x.png)
 
 ## 📥 Installation
 
@@ -16,7 +16,9 @@ The currently verified channel is the source installer (macOS Apple Silicon). It
 curl -fsSL https://raw.githubusercontent.com/mondary/Macos_PKvoicecloner/main/install.sh | sh
 ```
 
-GitHub release v0.6.0 also offers a DMG, and the Homebrew tap has a cask, but neither package is standalone: the app alone depends on the source checkout and its Python environment. Direct installation is therefore not yet a working end-user path. See the [store page](store/home.html) and [CHANGELOG](CHANGELOG.md).
+GitHub release v0.6.0 also offers a DMG, and the Homebrew tap has a cask, but neither package is standalone: the app alone depends on the source checkout and its Python environment. Direct installation is therefore not yet a working end-user path. See the [store page](store/website/index.html) and [CHANGELOG](CHANGELOG.md).
+
+The FTP-ready website is self-contained in [`store/website/`](store/website/): upload the contents of this folder to your hosting (entry point: `index.html`).
 
 ## ✅ Features
 

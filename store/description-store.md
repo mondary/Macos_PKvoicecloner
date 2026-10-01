@@ -26,11 +26,12 @@ pas autonomes et nécessitent encore le dépôt et son environnement Python.
 | Fichier | Usage |
 |---|---|
 | `store/assets/banner-1544x500.png` | bannière store |
-| `store/assets/card-1200x630.png` | carte Open Graph |
-| `store/screenshots/voix-reference@2x.png` | capture : bibliothèque de voix |
-| `store/screenshots/generation-resultat@2x.png` | capture : génération + lecteur |
-| `store/gifs/demo-large-1200.gif` | GIF boucle d'interface (large) |
+| `store/website/assets/card-1200x630.png` | carte Open Graph du site |
+| `store/website/screenshots/voix-reference@2x.png` | capture : bibliothèque de voix |
+| `store/website/screenshots/generation-resultat@2x.png` | capture : génération + lecteur |
+| `store/website/gifs/demo-large-1200.gif` | GIF boucle d'interface (large), utilisé par le site |
+| `store/website/assets/icon.png` | icône de marque du site, embarquée pour FTP |
 | `store/gifs/demo-compact-640.gif` | GIF compact |
 | `store/videos/demo-master.mp4` | master vidéo |
-| `store/home.html` | home promo |
+| `store/website/index.html` | page store bilingue, prête à téléverser |
 | `store/media-kit/dynamic-demo.html` | démo source (régénère tout) |

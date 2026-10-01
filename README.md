@@ -2,11 +2,11 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.6** · macOS Apple Silicon · Apache-2.0
+version **2026.10.7** · macOS Apple Silicon · Apache-2.0
 
 🎙️ **Studio vocal IA open source — 100 % local.** Ta voix dit n'importe quel texte. Basé sur [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts) et [faster-whisper](https://github.com/SYSTRAN/faster-whisper), sur la puce Apple via MPS. **Aucune donnée ne quitte la machine.**
 
-![Bibliothèque de voix](store/screenshots/voix-reference@2x.png) ![Génération et résultat](store/screenshots/generation-resultat@2x.png)
+![Bibliothèque de voix](store/website/screenshots/voix-reference@2x.png) ![Génération et résultat](store/website/screenshots/generation-resultat@2x.png)
 
 ## 📥 Installation
 
@@ -16,7 +16,9 @@ Le canal actuellement vérifié est l’installateur depuis les sources (macOS A
 curl -fsSL https://raw.githubusercontent.com/mondary/Macos_PKvoicecloner/main/install.sh | sh
 ```
 
-La release GitHub v0.6.0 propose aussi un DMG, et le tap Homebrew possède un cask, mais ces deux paquets ne sont pas autonomes : l’app seule dépend du dépôt source et de son environnement Python. Leur installation directe ne constitue donc pas encore un parcours fonctionnel. Voir [la page store](store/home.html) et [CHANGELOG](CHANGELOG.md).
+La release GitHub v0.6.0 propose aussi un DMG, et le tap Homebrew possède un cask, mais ces deux paquets ne sont pas autonomes : l’app seule dépend du dépôt source et de son environnement Python. Leur installation directe ne constitue donc pas encore un parcours fonctionnel. Voir [la page store](store/website/index.html) et [CHANGELOG](CHANGELOG.md).
+
+Le site publiable prêt pour FTP est autonome dans [`store/website/`](store/website/) : téléverse le contenu de ce dossier sur ton hébergement (le point d’entrée est `index.html`).
 
 ## ✅ Fonctionnalités
 

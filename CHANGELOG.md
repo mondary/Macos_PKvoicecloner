@@ -1,6 +1,12 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.7] - 2026-10-01
+
+### Changed
+
+- Site store isolé dans `store/website/`, prêt à téléverser par FTP : `index.html` et uniquement ses ressources utilisées, avec chemins relatifs autonomes ; le kit média non utilisé reste dans `store/`.
+
 ## [2026.10.6] - 2026-10-01
 
 ### Fixed

@@ -81,4 +81,15 @@ body{font-size:13px;line-height:1.45}::selection{background:#e4e4e7}a{color:inhe
 .analyse-barre i{display:block;height:100%;background:var(--ink);transition:width .5s ease}
 .analyse-erreur{margin-top:8px;font-size:11px;color:#b91c1c;max-width:420px}
 .chapter-voices{display:flex;flex-wrap:wrap;gap:5px}
+/* Token Hugging Face : guide et erreurs de modèles protégés */
+.hf-token{border:1px solid var(--line);border-radius:8px;background:white;margin-bottom:14px}
+.hf-token summary{cursor:pointer;padding:10px 14px;font-size:12px;color:var(--ink-2);list-style:none}
+.hf-token summary::-webkit-details-marker{display:none}
+.hf-token[open] summary{border-bottom:1px solid var(--soft)}
+.hf-token .ia-fields{padding:12px 14px}
+.hf-etapes{margin:0;padding-left:18px;display:grid;gap:7px;font-size:11px;color:var(--ink-2);line-height:1.55}
+.hf-etapes a,.model-guide a{color:#3b6db4;text-decoration:underline;text-underline-offset:2px}
+.hf-etapes a:hover,.model-guide a:hover{color:#2a4f85}
+.model-erreur{flex-basis:100%;color:#b91c1c;font-size:11px;line-height:1.5}
+.model-guide{flex-basis:100%;font-size:11px;line-height:1.7;color:var(--ink-2);background:var(--soft);border-radius:6px;padding:8px 10px;margin-top:4px}
 @media(max-width:700px){.book-card{grid-template-columns:auto minmax(0,1fr)}.book-actions{grid-column:1/-1;justify-content:flex-end}.book-drop{padding:10px}.books-head-actions{flex-direction:column-reverse;width:100%}.ia-fields{width:100%}}

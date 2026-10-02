@@ -1,6 +1,14 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.14] - 2026-10-02
+
+### Changed
+
+- Échec d'installation d'un modèle protégé Hugging Face : le message explique la marche à suivre pas à pas (accepter les conditions sur la page du modèle, créer un token Read sur huggingface.co/settings/tokens, le coller dans le studio, réessayer) au lieu du jargon `HF_TOKEN` ; un flag `aide` permet à l'UI d'afficher le guide avec liens cliquables.
+- Studio web : bloc « Token Hugging Face — guide pas à pas » dans la section Modèles (champ de saisie + étapes numérotées avec liens) ; l'erreur d'un modèle protégé affiche désormais les 4 étapes avec le lien direct vers SA page Hugging Face.
+- App native : les 4 étapes numérotées remplacent l'ancien texte dans le bloc Accès Hugging Face.
+
 ## [2026.10.13] - 2026-10-02
 
 ### Added

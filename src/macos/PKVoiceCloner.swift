@@ -469,8 +469,14 @@ struct ContentView: View {
             panelTitle("Bibliothèque des modèles", subtitle: "Installe et active les moteurs disponibles localement")
             VStack(alignment: .leading, spacing: 10) {
                 Label("Accès Hugging Face", systemImage: "info.circle").font(.system(size: 12, weight: .semibold))
-                Text("Certains modèles sont protégés. Accepte d’abord leurs conditions sur Hugging Face, puis colle ici un token personnel commençant par hf_. Le token reste local à cette session.")
+                Text("Certains modèles sont protégés (gated). Marche à suivre :")
                     .font(.system(size: 11)).foregroundStyle(Dashboard.muted)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("1. Ouvre la page du modèle (lien sous son nom) et accepte les conditions « Agree and access repository ».")
+                    Text("2. Sur huggingface.co/settings/tokens : « Create new token », nomme-le, type « Read », puis « Create token ».")
+                    Text("3. Copie tout de suite le token affiché (il commence par hf_ — montré une seule fois).")
+                    Text("4. Colle-le ici, Enregistrer, puis relance Installer sur le modèle.")
+                }.font(.system(size: 11)).foregroundStyle(Dashboard.muted)
                 HStack {
                     SecureField("hf_…", text: $studio.hfToken).textFieldStyle(.roundedBorder)
                     Button("Enregistrer le token") { Task { await studio.saveHFToken() } }

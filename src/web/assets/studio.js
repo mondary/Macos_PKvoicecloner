@@ -567,8 +567,8 @@
     let enCours = false;
     (payload.modeles || []).forEach((m) => {
       if (m.core) return; // moteurs de base : gérés hors du panneau « à tester »
-      const row = document.createElement("div");
-      row.className = "model-item";
+      const item = document.createElement("div");
+      item.className = "model-item";
       const link = document.createElement("a");
       link.href = `https://huggingface.co/${m.repo}`;
       link.target = "_blank";
@@ -589,8 +589,26 @@
         if (m.etat === "erreur") btn.title = `Échec : ${m.erreur || "erreur"} — clique pour réessayer`;
         btn.addEventListener("click", () => installerModele(m.id));
       }
-      row.append(link, btn);
-      list.appendChild(row);
+      item.append(link, btn);
+      if (m.etat === "erreur") {
+        const erreur = document.createElement("div");
+        erreur.className = "model-erreur";
+        erreur.textContent = m.erreur;
+        item.appendChild(erreur);
+        if (m.aide === "gated") {
+          const guide = document.createElement("div");
+          guide.className = "model-guide";
+          const etapes = [
+            `<a href="https://huggingface.co/${m.repo}" target="_blank" rel="noopener">1. Ouvrir la page du modèle</a> et accepter les conditions (« Agree and access repository »)`,
+            `<a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">2. Créer un token</a> — « Create new token » → type « Read » → copier le hf_…`,
+            `3. Le coller dans « Token Hugging Face » ci-dessus → Enregistrer`,
+            `4. Recliquer <b>Installer</b> ici même`,
+          ];
+          guide.innerHTML = etapes.join("<br>");
+          item.appendChild(guide);
+        }
+      }
+      list.appendChild(item);
       const engine = document.querySelector(`.engine[data-moteur="${m.moteur}"]`);
       if (engine) engine.classList.toggle("hidden", !m.installe);
     });
@@ -638,6 +656,31 @@
       refreshModeles();
     } catch (error) {
       notify(`Suppression impossible : ${error.message}`, "error");
+    }
+  }
+
+  async function enregistrerHfToken() {
+    const token = $("hfChamp").value.trim();
+    $("hfBouton").disabled = true;
+    $("hfStatut").textContent = "Enregistrement…";
+    $("hfStatut").className = "chapter-status";
+    try {
+      const response = await fetch("/api/hf/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "enregistrement impossible");
+      $("hfChamp").value = "";
+      $("hfStatut").textContent = payload.configure ? "Token enregistré — relance Installer." : "Token retiré.";
+      $("hfStatut").className = `chapter-status ${payload.configure ? "saved" : ""}`;
+      notify(payload.configure ? "Token Hugging Face enregistré." : "Token Hugging Face retiré.");
+    } catch (error) {
+      $("hfStatut").textContent = error.message;
+      $("hfStatut").className = "chapter-status dirty";
+    } finally {
+      $("hfBouton").disabled = false;
     }
   }
 
@@ -1407,6 +1450,7 @@
     });
     $("generer").addEventListener("click", createTake);
     $("stopStudio").addEventListener("click", stopStudio);
+    $("hfBouton").addEventListener("click", enregistrerHfToken);
     document.querySelectorAll(".engine").forEach((button) => {
       button.addEventListener("click", () => switchEngine(button.dataset.moteur));
     });

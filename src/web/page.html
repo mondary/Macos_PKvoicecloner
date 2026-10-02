@@ -489,7 +489,28 @@
     <input type="file" id="fichierLivre" accept=".epub,application/epub+zip" hidden>
   </section>
   <section class="model-downloads" id="models" aria-label="Installer ou supprimer des modèles">
-    <strong>Bibliothèque de modèles</strong><p>Gère les moteurs disponibles sur ce Mac.</p><div id="modelesList"></div>
+    <strong>Bibliothèque de modèles</strong><p>Gère les moteurs disponibles sur ce Mac.</p>
+    <details class="hf-token" id="hfTokenBox">
+      <summary>🔐 Token Hugging Face — guide pas à pas (modèles protégés)</summary>
+      <div class="ia-fields">
+        <ol class="hf-etapes">
+          <li>Clique le <b>lien du modèle</b> dans la liste ci-dessous (ex. <code>kyutai/pocket-tts</code>) : sa page Hugging Face s'ouvre, connecte-toi puis clique <b>« Agree and access repository »</b>.</li>
+          <li>Va sur <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">huggingface.co/settings/tokens</a> → bouton <b>« Create new token »</b>.</li>
+          <li>Nomme-le (ex. <code>pk-voice-studio</code>), choisis le type <b>« Read »</b> → <b>« Create token »</b>.</li>
+          <li><b>Copie immédiatement</b> le token affiché (il commence par <code>hf_</code> — il ne sera plus jamais montré).</li>
+          <li>Colle-le ci-dessous, <b>Enregistrer</b>, puis relance <b>Installer</b> sur le modèle.</li>
+        </ol>
+        <label>Token d'accès
+          <input id="hfChamp" type="password" placeholder="hf_…" autocomplete="off" spellcheck="false">
+        </label>
+        <div class="ia-actions">
+          <button class="pill-light" id="hfBouton" type="button">Enregistrer</button>
+          <span class="chapter-status" id="hfStatut"></span>
+        </div>
+        <p class="ia-note">Le token reste local à cette session du studio et ne sert qu'au téléchargement des poids.</p>
+      </div>
+    </details>
+    <div id="modelesList"></div>
   </section>
 </main>
 

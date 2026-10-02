@@ -2,6 +2,8 @@
 import importlib.util
 import io
 import os
+import sys
+import types
 from pathlib import Path
 import subprocess
 import tempfile
@@ -144,6 +146,28 @@ class StudioContracts(unittest.TestCase):
         server.jobs['busy'] = {'etat': 'generation'}
         self.assertEqual(self.client.delete('/api/modeles/pocket-tts').status_code, 409)
         self.assertEqual(self.client.post('/api/moteur', json={'moteur': 'dots'}).status_code, 409)
+
+    def test_gated_failure_returns_actionable_help(self):
+        """Un modèle protégé doit renvoyer un message pas à pas + un flag aide=gated."""
+        faux_hf = types.ModuleType('huggingface_hub')
+
+        def telecharge(*args, **kwargs):
+            raise RuntimeError('401 Client Error: gated repo access denied')
+
+        faux_hf.snapshot_download = telecharge
+        with patch.dict(sys.modules, {'huggingface_hub': faux_hf}), \
+             patch.object(server.importlib.util, 'find_spec', return_value=object()), \
+             patch.object(server, '_est_installe', return_value=False):
+            server._installer_modele('pocket-tts')
+        etat = server.installations['pocket-tts']
+        self.assertEqual(etat['etat'], 'erreur')
+        self.assertEqual(etat['aide'], 'gated')
+        self.assertIn('huggingface.co/settings/tokens', etat['erreur'])
+        self.assertIn('Installer', etat['erreur'])
+        self.assertNotIn('HF_TOKEN', etat['erreur'])   # plus de jargon développeur
+        modele = next(m for m in self.client.get('/api/modeles').json()['modeles']
+                      if m['id'] == 'pocket-tts')
+        self.assertEqual(modele['aide'], 'gated')      # le flag remonte jusqu'à l'UI
 
 
 if __name__ == '__main__': unittest.main()

@@ -437,10 +437,13 @@ def _installer_modele(modele_id: str):
         print(f">> modèle {m['label']} installé.", flush=True)
     except Exception as e:  # noqa: BLE001 — remonté au client via /api/modeles
         msg = str(e)
+        aide = ""
         if "restricted" in msg or "gated" in msg or "401" in msg:
-            msg = ("modèle gated : accepte les conditions sur huggingface.co puis relance "
-                   "le studio avec HF_TOKEN (créé sur huggingface.co/settings/tokens)")
-        installations[modele_id] = {"etat": "erreur", "erreur": msg[:300]}
+            msg = ("modèle protégé sur Hugging Face : accepte les conditions sur la page du modèle, "
+                   "crée un token hf_ sur huggingface.co/settings/tokens, colle-le dans « Token Hugging Face » "
+                   "du studio, puis clique à nouveau sur Installer")
+            aide = "gated"
+        installations[modele_id] = {"etat": "erreur", "erreur": msg[:300], "aide": aide}
 
 
 @app.post("/api/modeles/{modele_id}/installer", status_code=202)

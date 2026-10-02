@@ -597,8 +597,17 @@
   let books = [];
   let openBook = null;
   const openChapters = new Set();
-  const chapterTexts = new Map();
+  const chapterTexts = new Map();    // "id:num" -> texte servi par le serveur
+  const chapterDrafts = new Map();   // "id:num" -> {texte, titre, dirty, savedAt}
+  const chapterPainters = new Map(); // "id:num" -> rafraîchit l'éditeur affiché
   const BOOKS_HINT = "Dépose un EPUB : découpé en chapitres sur ce Mac, prêt à être narré.";
+  const MOTS_PAR_MINUTE = 160;       // débit de narration d'un audiobook français
+
+  function dureeEstimee(mots) {
+    const minutes = Math.max(1, Math.round(mots / MOTS_PAR_MINUTE));
+    if (minutes < 60) return `≈ ${minutes} min`;
+    return `≈ ${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, "0")}`;
+  }
 
   async function refreshBooks() {
     try {
@@ -646,6 +655,7 @@
       [...openChapters].filter((cle) => cle.startsWith(`${book.id}:`)).forEach((cle) => {
         openChapters.delete(cle);
         chapterTexts.delete(cle);
+        chapterDrafts.delete(cle);
       });
       notify("Livre supprimé.");
       refreshBooks();
@@ -654,10 +664,66 @@
     }
   }
 
+  function renameBook(book, titleEl) {
+    if (titleEl.querySelector("input")) return;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "rename-input";
+    input.value = book.titre;
+    input.setAttribute("aria-label", "Nouveau titre du livre");
+    titleEl.textContent = "";
+    titleEl.appendChild(input);
+    input.focus();
+    input.select();
+    let closed = false;
+    const done = (save) => {
+      if (closed) return;
+      closed = true;
+      const value = input.value.trim();
+      if (!save || !value || value === book.titre) { renderBooks(); return; }
+      fetch(`/api/livres/${book.id}/renommer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ titre: value.slice(0, 160) }),
+      })
+        .then(async (response) => {
+          if (!response.ok) throw new Error((await response.json()).detail || "renommage impossible");
+          notify("Livre renommé");
+          refreshBooks();
+        })
+        .catch((error) => { notify(`Renommage impossible : ${error.message}`, "error"); renderBooks(); });
+    };
+    input.addEventListener("keydown", (event) => {
+      event.stopPropagation();
+      if (event.key === "Enter") done(true);
+      else if (event.key === "Escape") done(false);
+    });
+    input.addEventListener("blur", () => done(true));
+  }
+
   function renderBooks() {
+    recolteEditeurs();
+    chapterPainters.clear();
     const list = $("bookList");
     list.textContent = "";
     books.forEach((book) => list.appendChild(bookCard(book)));
+  }
+
+  /* Ramasse les éditeurs ouverts avant un re-rendu : rien ne se perd. */
+  function recolteEditeurs() {
+    document.querySelectorAll(".chapter-edit").forEach((edit) => {
+      const cle = edit.dataset.chapter;
+      const textarea = edit.querySelector("textarea");
+      const input = edit.querySelector(".chapter-title-input");
+      if (!textarea || !input) return;
+      const draft = chapterDrafts.get(cle) || {};
+      draft.texte = textarea.value;
+      draft.titre = input.value;
+      const served = chapterTexts.get(cle);
+      draft.dirty = served != null && (textarea.value !== served || input.value !== edit.dataset.titre);
+      draft.savedAt = draft.dirty ? null : draft.savedAt;
+      chapterDrafts.set(cle, draft);
+    });
   }
 
   function bookCard(book) {
@@ -675,15 +741,16 @@
     const title = document.createElement("div");
     title.className = "book-title";
     title.textContent = book.titre;
-    title.title = book.titre;
+    title.title = `${book.titre} — double-clic pour renommer`;
+    title.addEventListener("dblclick", () => renameBook(book, title));
     const author = document.createElement("div");
     author.className = "book-author";
     author.textContent = book.auteur || "Auteur inconnu";
     const meta = document.createElement("div");
     meta.className = "book-meta";
     const date = book.importe ? new Date(book.importe).toLocaleDateString("fr-FR") : "";
-    meta.textContent = `${book.chapitres.length} chapitres · ${book.mots.toLocaleString("fr-FR")} mots` +
-                       `${date ? ` · ${date}` : ""}`;
+    meta.textContent = `${book.chapitres.length} chapitres · ${book.mots.toLocaleString("fr-FR")} mots · ` +
+                       `${dureeEstimee(book.mots)} d'audio${date ? ` · ${date}` : ""}`;
     info.append(title, author, meta);
 
     const actions = document.createElement("div");
@@ -731,11 +798,16 @@
     row.innerHTML =
       `<span class="chapter-num">${String(chapter.num).padStart(2, "0")}</span>` +
       `<span class="chapter-title"></span>` +
-      `<span class="chapter-words">${chapter.mots.toLocaleString("fr-FR")} mots</span>`;
+      `<span class="chapter-words">${chapter.mots.toLocaleString("fr-FR")} mots · ${dureeEstimee(chapter.mots)}</span>`;
     row.querySelector(".chapter-title").textContent = chapter.titre;
     const toggle = () => {
-      if (openChapters.has(cle)) openChapters.delete(cle);
-      else openChapters.add(cle);
+      if (openChapters.has(cle)) {
+        if (chapterDrafts.get(cle)?.dirty &&
+            !window.confirm("Des modifications ne sont pas enregistrées. Fermer quand même le chapitre ?")) return;
+        openChapters.delete(cle);
+      } else {
+        openChapters.add(cle);
+      }
       renderBooks();
       if (openChapters.has(cle)) loadChapter(book, chapter.num);
     };
@@ -745,32 +817,179 @@
     });
     block.appendChild(row);
 
-    if (openChapters.has(cle)) {
-      const zone = document.createElement("div");
-      zone.className = "chapter-text";
-      zone.textContent = chapterTexts.get(cle) || "Chargement…";
-      block.appendChild(zone);
-    }
+    if (openChapters.has(cle)) block.appendChild(chapterEditor(book, chapter, cle));
     return block;
+  }
+
+  function chapterEditor(book, chapter, cle) {
+    const draft = chapterDrafts.get(cle) || { texte: null, titre: chapter.titre, dirty: false, savedAt: null };
+    chapterDrafts.set(cle, draft);
+
+    const edit = document.createElement("div");
+    edit.className = "chapter-edit";
+    edit.dataset.chapter = cle;
+    edit.dataset.titre = chapter.titre;
+
+    const head = document.createElement("div");
+    head.className = "chapter-edit-head";
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "chapter-title-input";
+    input.value = draft.titre;
+    input.setAttribute("aria-label", "Titre du chapitre");
+    input.placeholder = "Titre du chapitre";
+    const stats = document.createElement("span");
+    stats.className = "chapter-stats";
+    head.append(input, stats);
+
+    const textarea = document.createElement("textarea");
+    textarea.className = "chapter-textarea";
+    textarea.spellcheck = false;
+    textarea.value = draft.texte ?? chapterTexts.get(cle) ?? "";
+    textarea.disabled = !chapterTexts.has(cle) && draft.texte == null;
+
+    const foot = document.createElement("div");
+    foot.className = "chapter-edit-foot";
+    const saveBtn = document.createElement("button");
+    saveBtn.className = "pill-light";
+    saveBtn.type = "button";
+    saveBtn.textContent = "Enregistrer";
+    const splitBtn = document.createElement("button");
+    splitBtn.className = "pill-light";
+    splitBtn.type = "button";
+    splitBtn.textContent = "Scinder au curseur";
+    splitBtn.title = "Coupe le chapitre en deux à la position du curseur (utile pour les EPUB au sommaire cassé)";
+    const status = document.createElement("span");
+    status.className = "chapter-status";
+    foot.append(saveBtn, splitBtn, status);
+
+    edit.append(head, textarea, foot);
+
+    let saving = false;
+    const updateStats = () => {
+      const mots = (textarea.value.match(/\S+/g) || []).length;
+      stats.textContent = `${mots.toLocaleString("fr-FR")} mots · ${dureeEstimee(mots)}`;
+    };
+    const paintDirty = () => {
+      const served = chapterTexts.get(cle);
+      const dirty = served != null && (textarea.value !== served || input.value !== edit.dataset.titre);
+      draft.texte = textarea.value;
+      draft.titre = input.value;
+      draft.dirty = dirty;
+      if (dirty) draft.savedAt = null;
+      saveBtn.disabled = saving || !dirty;
+      status.textContent = dirty ? "Modifié — non enregistré"
+                                 : (draft.savedAt ? "Enregistré" : "");
+      status.className = `chapter-status ${dirty ? "dirty" : "saved"}`;
+    };
+
+    input.addEventListener("input", paintDirty);
+    textarea.addEventListener("input", () => { updateStats(); paintDirty(); });
+    textarea.addEventListener("keydown", (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        saveChapter();
+      }
+    });
+    saveBtn.addEventListener("click", saveChapter);
+    splitBtn.addEventListener("click", splitChapter);
+
+    async function saveChapter() {
+      if (saveBtn.disabled || saving) return;
+      saving = true;
+      saveBtn.disabled = true;
+      status.textContent = "Enregistrement…";
+      status.className = "chapter-status";
+      try {
+        const response = await fetch(`/api/livres/${book.id}/chapitre/${chapter.num}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ texte: textarea.value, titre: input.value }),
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.detail || "enregistrement impossible");
+        chapterTexts.set(cle, payload.texte);
+        draft.texte = payload.texte;
+        draft.titre = payload.titre;
+        draft.dirty = false;
+        draft.savedAt = Date.now();
+        textarea.value = payload.texte;
+        edit.dataset.titre = payload.titre;
+        updateStats();
+        paintDirty();
+        notify("Chapitre enregistré");
+        await refreshBooks();
+      } catch (error) {
+        notify(`Enregistrement impossible : ${error.message}`, "error");
+        saving = false;
+        paintDirty();
+      }
+    }
+
+    async function splitChapter() {
+      const position = textarea.selectionStart;
+      if (!position || position >= textarea.value.length) {
+        notify("Place le curseur à l'endroit où couper le chapitre.", "error");
+        return;
+      }
+      if (!window.confirm("Scinder le chapitre à la position du curseur ?")) return;
+      splitBtn.disabled = true;
+      try {
+        const response = await fetch(`/api/livres/${book.id}/chapitre/${chapter.num}/scinder`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ texte: textarea.value, position, titre1: input.value }),
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.detail || "scission impossible");
+        for (let num = chapter.num; num <= book.chapitres.length + 1; num += 1) {
+          const ancienne = `${book.id}:${num}`;
+          chapterTexts.delete(ancienne);
+          chapterDrafts.delete(ancienne);
+          openChapters.delete(ancienne);
+        }
+        openChapters.add(`${book.id}:${chapter.num + 1}`);
+        notify("Chapitre scindé en deux.");
+        await refreshBooks();
+      } catch (error) {
+        splitBtn.disabled = false;
+        notify(`Scission impossible : ${error.message}`, "error");
+      }
+    }
+
+    chapterPainters.set(cle, () => {
+      textarea.value = chapterTexts.get(cle) ?? "";
+      textarea.disabled = false;
+      draft.texte = textarea.value;
+      updateStats();
+      paintDirty();
+    });
+    updateStats();
+    paintDirty();
+    return edit;
   }
 
   async function loadChapter(book, num) {
     const cle = `${book.id}:${num}`;
     if (chapterTexts.has(cle)) {
-      const zone = document.querySelector(`[data-chapter="${cle}"] .chapter-text`);
-      if (zone) zone.textContent = chapterTexts.get(cle);
+      chapterPainters.get(cle)?.();
       return;
+    }
+    const painter = chapterPainters.get(cle);
+    if (painter) {
+      const edit = document.querySelector(`.chapter-edit[data-chapter="${cle}"] textarea`);
+      if (edit) edit.placeholder = "Chargement du chapitre…";
     }
     try {
       const response = await fetch(`/api/livres/${book.id}/chapitre/${num}`);
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.detail || "chapitre indisponible");
       chapterTexts.set(cle, payload.texte);
-      const zone = document.querySelector(`[data-chapter="${cle}"] .chapter-text`);
-      if (zone) zone.textContent = payload.texte;
+      chapterPainters.get(cle)?.();
     } catch (error) {
-      const zone = document.querySelector(`[data-chapter="${cle}"] .chapter-text`);
-      if (zone) zone.textContent = `Chargement impossible : ${error.message}`;
+      const zone = document.querySelector(`.chapter-edit[data-chapter="${cle}"] textarea`);
+      if (zone) zone.placeholder = `Chargement impossible : ${error.message}`;
+      notify(`Chapitre indisponible : ${error.message}`, "error");
     }
   }
 

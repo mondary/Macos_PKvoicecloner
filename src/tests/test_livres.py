@@ -202,6 +202,62 @@ class LivresContracts(unittest.TestCase):
         self.assertEqual(self.client.get("/api/livres").json()["livres"], [])
         self.assertEqual(self.client.get(f"/api/livres/{livre['id']}").status_code, 404)
 
+    def test_edition_renomme_aussi_le_titre_du_chapitre(self):
+        livre = self.importer(epub_par_fichiers(CHAPITRES[:1])).json()
+        reponse = self.client.put(f"/api/livres/{livre['id']}/chapitre/1",
+                                  json={"texte": "Nouveau corps du chapitre " + " ".join(f"mot{i}" for i in range(50)),
+                                        "titre": "Prologue"})
+        self.assertEqual(reponse.status_code, 200, reponse.text)
+        self.assertEqual(reponse.json()["titre"], "Prologue")
+        self.assertEqual(self.client.get(f"/api/livres/{livre['id']}").json()["chapitres"][0]["titre"], "Prologue")
+        # un titre vide ne doit pas écraser le titre existant
+        relu = self.client.put(f"/api/livres/{livre['id']}/chapitre/1",
+                               json={"texte": "Corps " + " ".join(f"mot{i}" for i in range(50)), "titre": "  "})
+        self.assertEqual(relu.json()["titre"], "Prologue")
+
+    def test_scission_de_chapitre_renumerote_les_suivants(self):
+        livre = self.importer(epub_par_fichiers(CHAPITRES)).json()
+        texte = self.client.get(f"/api/livres/{livre['id']}/chapitre/2").json()["texte"]
+        position = texte.index("plongee0")                      # début du 2e paragraphe
+        mots_avant = self.client.get(f"/api/livres/{livre['id']}").json()["mots"]
+        reponse = self.client.post(f"/api/livres/{livre['id']}/chapitre/2/scinder",
+                                   json={"texte": texte, "position": position,
+                                         "titre1": "Avant la plongée", "titre2": "La plongée"})
+        self.assertEqual(reponse.status_code, 200, reponse.text)
+        projet = reponse.json()
+        self.assertEqual([c["num"] for c in projet["chapitres"]], [1, 2, 3, 4])
+        self.assertEqual(projet["chapitres"][1]["titre"], "Avant la plongée")
+        self.assertEqual(projet["chapitres"][2]["titre"], "La plongée")
+        self.assertEqual(projet["chapitres"][3]["titre"], "Troisième chapitre")
+        deuxieme = self.client.get(f"/api/livres/{livre['id']}/chapitre/2").json()["texte"]
+        troisieme = self.client.get(f"/api/livres/{livre['id']}/chapitre/3").json()["texte"]
+        self.assertNotIn("plongee0", deuxieme)
+        self.assertIn("plongee0", troisieme)
+        self.assertEqual(projet["mots"], mots_avant)            # rien de perdu ni dupliqué
+
+    def test_scission_refuse_les_positions_invalides(self):
+        livre = self.importer(epub_par_fichiers(CHAPITRES[:1])).json()
+        texte = self.client.get(f"/api/livres/{livre['id']}/chapitre/1").json()["texte"]
+        for position in (-5, 0, len(texte) + 10):
+            reponse = self.client.post(f"/api/livres/{livre['id']}/chapitre/1/scinder",
+                                       json={"texte": texte, "position": position})
+            self.assertEqual(reponse.status_code, 400, reponse.text)
+        self.assertEqual(self.client.post(f"/api/livres/{livre['id']}/chapitre/9/scinder",
+                                          json={"texte": texte, "position": 5}).status_code, 404)
+
+    def test_renommage_de_livre(self):
+        livre = self.importer(epub_par_fichiers(CHAPITRES[:1])).json()
+        reponse = self.client.post(f"/api/livres/{livre['id']}/renommer",
+                                   json={"titre": "Étoiles, garde-à-vous", "auteur": "Robert A. Heinlein"})
+        self.assertEqual(reponse.status_code, 200, reponse.text)
+        relu = self.client.get(f"/api/livres/{livre['id']}").json()
+        self.assertEqual(relu["titre"], "Étoiles, garde-à-vous")
+        self.assertEqual(relu["auteur"], "Robert A. Heinlein")
+        self.assertEqual(self.client.post(f"/api/livres/{livre['id']}/renommer",
+                                          json={"titre": "  "}).status_code, 400)
+        self.assertEqual(self.client.post(f"/api/livres/{livre['id']}/renommer",
+                                          json={}).status_code, 400)
+
     def test_identifiants_malformes_rejetes(self):
         for chemin in ("/api/livres/abc", "/api/livres/abc/chapitre/1",
                        "/api/livres/ZZZ0ZZZ0ZZZ0/couverture",

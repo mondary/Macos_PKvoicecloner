@@ -11,6 +11,8 @@ Endpoints :
   GET  /api/livres      bibliothèque de livres (data/livres)
   GET  /api/livres/{id}          détail d'un livre (projet.json)
   GET|PUT /api/livres/{id}/chapitre/{n}  lecture / édition du texte d'un chapitre
+  POST /api/livres/{id}/chapitre/{n}/scinder  coupe un chapitre au curseur
+  POST /api/livres/{id}/renommer renomme le livre / rectifie l'auteur
   DELETE /api/livres/{id}        supprime le projet de livre
   GET  /api/livres/{id}/couverture       image de couverture
   POST /api/generer     {texte, vitesse, transcript} -> job id
@@ -752,10 +754,42 @@ def modifier_chapitre(lid: str, num: int, req: dict = Body(...)):
     texte = (req.get("texte") or "").strip()
     if not texte:
         raise HTTPException(400, "texte vide")
-    chapitre = livres.enregistrer_chapitre(LIVRES, _id_livre(lid), num, texte)
+    chapitre = livres.enregistrer_chapitre(
+        LIVRES, _id_livre(lid), num, texte, titre=req.get("titre"))
     if not chapitre:
         raise HTTPException(404, "chapitre inconnu")
-    return chapitre
+    return {**chapitre, "texte": texte}
+
+
+@app.post("/api/livres/{lid}/chapitre/{num}/scinder")
+def scinder_chapitre(lid: str, num: int, req: dict = Body(...)):
+    try:
+        position = int(req.get("position"))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "position de coupure invalide")
+    try:
+        projet = livres.scinder_chapitre(
+            LIVRES, _id_livre(lid), num, req.get("texte") or "", position,
+            titre1=req.get("titre1"), titre2=req.get("titre2"))
+    except livres.LivreErreur as erreur:
+        raise HTTPException(400, str(erreur))
+    if not projet:
+        raise HTTPException(404, "chapitre inconnu")
+    return projet
+
+
+@app.post("/api/livres/{lid}/renommer")
+def renommer_livre(lid: str, req: dict = Body(...)):
+    if not any(k in req for k in ("titre", "auteur")):
+        raise HTTPException(400, "rien à renommer")
+    try:
+        projet = livres.renommer_livre(
+            LIVRES, _id_livre(lid), titre=req.get("titre"), auteur=req.get("auteur"))
+    except livres.LivreErreur as erreur:
+        raise HTTPException(400, str(erreur))
+    if not projet:
+        raise HTTPException(404, "livre inconnu")
+    return projet
 
 
 @app.delete("/api/livres/{lid}")

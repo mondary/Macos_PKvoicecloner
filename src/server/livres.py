@@ -317,6 +317,24 @@ def _projet(racine: Path, ident: str) -> Path:
     return racine / ident / "projet.json"
 
 
+def _ecrire_chapitres(dossier: Path, projet: dict, entrees: list[dict]) -> None:
+    """(Ré)écrit tous les chapitres du livre — renumérotation propre (scission…)."""
+    repertoire = dossier / REPERTOIRE_CHAPITRES
+    if repertoire.exists():
+        shutil.rmtree(repertoire)
+    repertoire.mkdir(parents=True)
+    projet["chapitres"] = []
+    for numero, entree in enumerate(entrees, 1):
+        fichier = f"{REPERTOIRE_CHAPITRES}/{numero:03d}.md"
+        (dossier / fichier).write_text(
+            f"# {entree['titre']}\n\n{entree['texte']}\n", encoding="utf-8")
+        projet["chapitres"].append({
+            "num": numero, "titre": entree["titre"], "fichier": fichier,
+            "mots": _compte_mots(entree["texte"]),
+        })
+    projet["mots"] = sum(c["mots"] for c in projet["chapitres"])
+
+
 def importer_epub(nom: str, brut: bytes, racine: Path) -> dict:
     """Archive EPUB → projet de livre persisté ; renvoie le projet.json."""
     if len(brut) > TAILLE_MAX:
@@ -354,7 +372,7 @@ def importer_epub(nom: str, brut: bytes, racine: Path) -> dict:
     dossier = racine / ident
     if dossier.exists():
         shutil.rmtree(dossier)
-    (dossier / REPERTOIRE_CHAPITRES).mkdir(parents=True)
+    dossier.mkdir(parents=True)
     (dossier / "source.epub").write_bytes(brut)
 
     extension = Path(opf["couverture"]).suffix.lower() if image else ""
@@ -374,15 +392,7 @@ def importer_epub(nom: str, brut: bytes, racine: Path) -> dict:
         "mots": 0,
         "chapitres": [],
     }
-    for numero, chapitre in enumerate(chapitres, 1):
-        fichier = f"{REPERTOIRE_CHAPITRES}/{numero:03d}.md"
-        (dossier / fichier).write_text(
-            f"# {chapitre['titre']}\n\n{chapitre['texte']}\n", encoding="utf-8")
-        projet["chapitres"].append({
-            "num": numero, "titre": chapitre["titre"], "fichier": fichier,
-            "mots": _compte_mots(chapitre["texte"]),
-        })
-    projet["mots"] = sum(c["mots"] for c in projet["chapitres"])
+    _ecrire_chapitres(dossier, projet, chapitres)
     _projet(racine, ident).write_text(
         json.dumps(projet, ensure_ascii=False, indent=2), encoding="utf-8")
     return projet
@@ -421,12 +431,15 @@ def lire_chapitre(racine: Path, ident: str, numero: int) -> dict | None:
     return {**chapitre, "texte": texte.strip()}
 
 
-def enregistrer_chapitre(racine: Path, ident: str, numero: int, texte: str) -> dict | None:
-    """Réécrit le chapitre (édition manuelle) et actualise le décompte de mots."""
+def enregistrer_chapitre(racine: Path, ident: str, numero: int, texte: str,
+                         titre: str | None = None) -> dict | None:
+    """Réécrit le chapitre (édition manuelle, titre optionnel) et actualise les mots."""
     projet = lire(racine, ident)
     chapitre = next((c for c in projet["chapitres"] if c["num"] == numero), None) if projet else None
     if not chapitre:
         return None
+    if titre is not None:
+        chapitre["titre"] = titre.strip()[:120] or chapitre["titre"]
     (racine / ident / chapitre["fichier"]).write_text(
         f"# {chapitre['titre']}\n\n{texte.strip()}\n", encoding="utf-8")
     chapitre["mots"] = _compte_mots(texte)
@@ -434,6 +447,56 @@ def enregistrer_chapitre(racine: Path, ident: str, numero: int, texte: str) -> d
     _projet(racine, ident).write_text(
         json.dumps(projet, ensure_ascii=False, indent=2), encoding="utf-8")
     return chapitre
+
+
+def renommer_livre(racine: Path, ident: str, titre: str | None = None,
+                   auteur: str | None = None) -> dict | None:
+    """Renomme le livre et/ou rectifie l'auteur."""
+    projet = lire(racine, ident)
+    if not projet:
+        return None
+    if titre is not None:
+        titre = titre.strip()[:160]
+        if not titre:
+            raise LivreErreur("titre vide")
+        projet["titre"] = titre
+    if auteur is not None:
+        projet["auteur"] = auteur.strip()[:160]
+    _projet(racine, ident).write_text(
+        json.dumps(projet, ensure_ascii=False, indent=2), encoding="utf-8")
+    return projet
+
+
+def scinder_chapitre(racine: Path, ident: str, numero: int, texte: str, position: int,
+                     titre1: str | None = None, titre2: str | None = None) -> dict | None:
+    """Scinde un chapitre trop long à `position` (curseur dans l'éditeur).
+
+    Le texte fourni est celui de l'éditeur (modifications non enregistrées
+    comprises) : l'écriture et la coupure sont atomiques. `titre1`/`titre2`
+    renomment respectivement la première et la seconde partie. Les chapitres
+    suivants sont renumérotés. Renvoie le projet complet.
+    """
+    projet = lire(racine, ident)
+    if not projet or not any(c["num"] == numero for c in projet["chapitres"]):
+        return None
+    texte = texte.strip()
+    if not (0 < position < len(texte)) or not texte[:position].strip() or not texte[position:].strip():
+        raise LivreErreur("position de coupure invalide : place le curseur dans le texte")
+    entrees = []
+    for chapitre in projet["chapitres"]:
+        if chapitre["num"] == numero:
+            titre_premier = (titre1 or "").strip() or chapitre["titre"]
+            titre_suite = (titre2 or "").strip() or f"{chapitre['titre']} (suite)"
+            entrees.append({"titre": titre_premier, "texte": texte[:position].strip()})
+            entrees.append({"titre": titre_suite, "texte": texte[position:].strip()})
+        else:
+            contenu = (racine / ident / chapitre["fichier"]).read_text(encoding="utf-8")
+            entrees.append({"titre": chapitre["titre"],
+                            "texte": re.sub(r"^# .*\n+", "", contenu, count=1).strip()})
+    _ecrire_chapitres(racine / ident, projet, entrees)
+    _projet(racine, ident).write_text(
+        json.dumps(projet, ensure_ascii=False, indent=2), encoding="utf-8")
+    return projet
 
 
 def chemin_couverture(racine: Path, ident: str) -> Path | None:

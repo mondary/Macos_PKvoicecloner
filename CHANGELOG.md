@@ -1,6 +1,15 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.9] - 2026-10-02
+
+### Added
+
+- Jalon 2 des audiobooks : **éditeur de chapitres dans le studio** — ouverture d'un chapitre en édition pleine page (titre + texte), état « modifié / enregistré » en temps réel, raccourci ⌘S, garde de fermeture si des modifications ne sont pas enregistrées, brouillons préservés entre re-rendus.
+- **Scission de chapitre au curseur** (`POST /api/livres/{id}/chapitre/{n}/scinder`) : coupe un chapitre trop long en deux à la position du curseur, renomme chaque partie, renumérote les chapitres suivants — remède direct aux EPUB au sommaire cassé qui tombent en 2-3 gros blocs.
+- Renommage de livre (double-clic sur le titre) et renommage de chapitre via l'éditeur (`POST /api/livres/{id}/renommer`, `titre` optionnel du `PUT` chapitre).
+- Durée d'audio estimée (≈ 160 mots/min) affichée par chapitre et par livre.
+
 ## [2026.10.8] - 2026-10-02
 
 ### Added

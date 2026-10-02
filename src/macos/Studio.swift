@@ -22,6 +22,12 @@ struct Model: Codable, Identifiable {
 struct ModelResponse: Codable { let modeles: [Model] }
 struct GeneratedAudio: Codable, Identifiable { let nom: String; let duree: Double; let taille: Int; let transcript: String; var id: String { nom } }
 struct AudioResponse: Codable { let audios: [GeneratedAudio] }
+struct BookChapterSummary: Codable, Identifiable { let num: Int; let titre: String; let mots: Int; var id: Int { num } }
+struct BookProject: Codable, Identifiable {
+    let id: String; let titre: String; let auteur: String; let importe: String
+    let mots: Int; let chapitres: [BookChapterSummary]
+}
+struct BookResponse: Codable { let livres: [BookProject] }
 struct HFResult: Codable, Identifiable { let repo: String; let telechargements: Int?; let likes: Int?; let gated: Bool?; var id: String { repo } }
 struct HFResponse: Codable { let resultats: [HFResult] }
 struct GenerationJob: Decodable { let etat: String; let fichier: String?; let duree: Double?; let erreur: String?; let ecoule: Double? }
@@ -35,6 +41,7 @@ struct StudioError: LocalizedError {
     @Published var voices: [Voice] = []
     @Published var models: [Model] = []
     @Published var audios: [GeneratedAudio] = []
+    @Published var books: [BookProject] = []
     @Published var hfToken = ""
     @Published var hfResults: [HFResult] = []
     @Published var text = UserDefaults.standard.string(forKey: "studio.text") ?? "" {
@@ -134,6 +141,7 @@ struct StudioError: LocalizedError {
         voices = try JSONDecoder().decode(VoiceResponse.self, from: await request("api/voix")).voix
         models = try JSONDecoder().decode(ModelResponse.self, from: await request("api/modeles")).modeles
         audios = (try? JSONDecoder().decode(AudioResponse.self, from: await request("api/audios")).audios) ?? []
+        books = (try? JSONDecoder().decode(BookResponse.self, from: await request("api/livres")).livres) ?? []
         if let selectedVoiceID, !voices.contains(where: { $0.id == selectedVoiceID }) {
             self.selectedVoiceID = nil; transcript = ""
         }
@@ -448,6 +456,10 @@ struct StudioError: LocalizedError {
 
     func openLog() {
         if let root { NSWorkspace.shared.open(root.appendingPathComponent("data/logs/serveur.log")) }
+    }
+
+    func openWebStudio() {
+        NSWorkspace.shared.open(baseURL)
     }
 
     func openHuggingFace(_ url: URL = URL(string: "https://huggingface.co/settings/tokens")!) {

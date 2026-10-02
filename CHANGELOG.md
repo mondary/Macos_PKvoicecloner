@@ -1,6 +1,29 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.12] - 2026-10-02
+
+### Fixed
+
+- Build natif sans Xcode complet : `build.sh` teste les SDK disponibles et retombe automatiquement sur les SDK macOS 26 (où `@State` n'est pas une macro) — les Command Line Tools 27 ne livrent pas le plugin de macros `SwiftUIMacros`, ce qui cassait toute compilation SwiftUI.
+
+### Changed
+
+- Vue d’ensemble native recentrée sur les stats (voix, modèles, livres EPUB, confidentialité), l’état et les actions de diagnostic du serveur, la sélection rapide d’une voix, les derniers livres importés et les dernières prises générées ; les bibliothèques et l’éditeur restent uniquement dans leurs sections dédiées.
+- Chargement des projets de livres EPUB dans le client SwiftUI pour alimenter le compteur et l’activité récente.
+
+## [2026.10.11] - 2026-10-02
+
+### Changed
+
+- Versions APP et SERVEUR affichées dans la barre fixe supérieure, à côté de l’état du studio et des commandes Démarrer/Éteindre ; l’écart reste signalé en orange, visible sans faire défiler le contenu.
+
+## [2026.10.10] - 2026-10-02
+
+### Added
+
+- Bouton « Ouvrir le studio web » dans la barre de l’app native : ouvre le serveur local déjà démarré (`127.0.0.1:8809`) dans le navigateur par défaut. Désactivé tant que le serveur est éteint.
+
 ## [2026.10.9] - 2026-10-02
 
 ### Added

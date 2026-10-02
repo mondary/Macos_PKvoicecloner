@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.7** · macOS Apple Silicon · Apache-2.0
+version **2026.10.12** · macOS Apple Silicon · Apache-2.0
 
 🎙️ **Open source AI voice studio — 100 % local.** Your voice says any text. Powered by [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts) and [faster-whisper](https://github.com/SYSTRAN/faster-whisper) on Apple Silicon via MPS. **No data ever leaves the machine.**
 
@@ -31,10 +31,13 @@ The FTP-ready website is self-contained in [`store/website/`](store/website/): u
 - **Speed** 0.75×–1.5× — pure time-stretch, pitch stays untouched
 - **On-demand resident model** — loaded once for a session; **Power off** releases its memory when you are done
 - **Offline** — models cached locally, no network calls
-- **Always-visible version** — the running version shows in the native app footer and the web studio footer; app/server mismatch is flagged
+- **Always-visible versions** — app and server versions appear in the sticky top bar beside studio status, with a mismatch warning; the web studio version remains in its footer
 - **Roadmap** — the "digital double" plan (fast voice cloning, photo → lipsynced video avatar) lives in [TODO.md](TODO.md)
 - **`mavox`** — one-command cloning from the terminal, quoted or not
-- **Native macOS app** — embedded window (WKWebView), zero browser: the server starts and stops with the app, automatic Sparkle updates
+- **Native macOS app** — SwiftUI interface: the server starts and stops with the app, automatic Sparkle updates
+- **No-duplicate overview** — voice, model, book and privacy stats; server health, quick voice selection, logs, model installation, recent books and latest generated takes
+- **Web studio from the native app** — the “Open web studio” button launches the full web interface in your browser while the app's local server is running
+- **Audiobooks (web studio)** — import an EPUB and review or edit its chapters in the browser; audiobook editing is not yet part of the SwiftUI interface
 - **Automatic startup** — the server starts when the app opens; when off, a welcome panel explains it with a big Start button
 - **Install then activate in one go** — a model installed from the studio activates by itself once the download finishes
 - **Clean studio** — an ElevenLabs-style clear interface: voices on the left, text and **Generate** on the right, PK coral accent
@@ -46,6 +49,7 @@ The FTP-ready website is self-contained in [`store/website/`](store/website/): u
 3. Select a voice, type your text on the right, set the speed if needed, **Generate**
 4. Listen, download, repeat — clones stay available on next launch
 5. At the end of a session, click **Power off** at the top right: the Python server and VoxCPM stop and release their memory.
+6. Click **Open web studio** at the top of the window to open `http://127.0.0.1:8809` in your browser. The server must be running; the book library and EPUB editor are currently available in this web interface.
 
 ### Terminal
 

@@ -44,26 +44,19 @@ struct ContentView: View {
                         if let engine = studio.loadingEngine {
                             loadingDrawer(engine: engine)
                         }
-                        if studio.state == nil {
+                        if section == "Vue d’ensemble" {
+                            overview
+                        } else if studio.state == nil {
                             welcome
-                        } else {
-                            if section == "Vue d’ensemble" { stats }
-                            if section == "Vue d’ensemble" || section == "Bibliothèque de voix" || section == "Bibliothèque des textes" {
-                                HStack(alignment: .top, spacing: 16) {
-                                    if section != "Bibliothèque des textes" { voices.frame(maxWidth: section == "Vue d’ensemble" ? 310 : .infinity) }
-                                    if section != "Bibliothèque de voix" { editor }
-                                }
-                            }
-                            if section == "Vue d’ensemble" || section == "Bibliothèque des modèles" { models }
-                            if section == "Bibliothèque des textes" { texts }
+                        } else if section == "Bibliothèque de voix" {
+                            HStack(alignment: .top, spacing: 16) { voices; editor }
+                        } else if section == "Bibliothèque des modèles" {
+                            models
+                        } else if section == "Bibliothèque des textes" {
+                            texts
                         }
-                        HStack(spacing: 14) {
-                            Text("PK VOICE STUDIO · V\(studio.appVersion)")
-                            if let serveur = studio.ecartVersion {
-                                Text("APP \(studio.appVersion) ≠ SERVEUR \(serveur)").foregroundStyle(.orange)
-                                    .help("L'app et le serveur local viennent de versions différentes du dépôt. Relance l'app après une mise à jour du dépôt (./scripts/build.sh puis copie dans /Applications).")
-                            }
-                            Spacer()
+                        HStack(alignment: .center, spacing: 6) {
+                            Image(systemName: "lock.fill")
                             Text("AUCUN AUDIO ENVOYÉ DANS LE CLOUD")
                         }.font(.system(size: 9, design: .monospaced)).foregroundStyle(Dashboard.muted).padding(.top, 4)
                     }.padding(28).frame(maxWidth: 1360)
@@ -118,7 +111,7 @@ struct ContentView: View {
                 }.buttonStyle(.plain).padding(.bottom, 3)
             }
             Spacer()
-            Divider().padding(.bottom, 16)
+            Divider().padding(.bottom, 12)
             HStack(spacing: 10) {
                 Text("PK").font(.system(size: 10)).foregroundStyle(.white).frame(width: 30, height: 30).background(Dashboard.ink).clipShape(Circle())
                 VStack(alignment: .leading, spacing: 3) {
@@ -135,8 +128,23 @@ struct ContentView: View {
             Text("/").foregroundStyle(Dashboard.muted)
             Text(section)
             Spacer()
+            HStack(spacing: 4) {
+                Text("APP \(studio.appVersion)").foregroundStyle(studio.ecartVersion == nil ? Dashboard.muted : .orange)
+                Text("·").foregroundStyle(Dashboard.muted)
+                Text("SERVEUR \(studio.state?.version ?? "—")")
+                    .foregroundStyle(studio.ecartVersion == nil ? Dashboard.muted : .orange)
+            }
+            .font(.system(size: 9, design: .monospaced))
+            .lineLimit(1)
+            .help(studio.ecartVersion == nil
+                ? "Versions de l’app et du serveur local."
+                : "Versions différentes : APP \(studio.appVersion) · SERVEUR \(studio.ecartVersion ?? "—"). Reconstruis l’app pour les synchroniser.")
             Circle().fill(studio.state == nil ? Dashboard.muted : Color.green).frame(width: 6, height: 6)
             Text(studio.message).foregroundStyle(Dashboard.muted).lineLimit(1)
+            Button("Ouvrir le studio web", systemImage: "safari") { studio.openWebStudio() }
+                .buttonStyle(.bordered)
+                .disabled(studio.state == nil)
+                .help(studio.state == nil ? "Démarre le serveur local pour ouvrir le studio web." : "Ouvre le studio web complet dans ton navigateur.")
             if studio.state == nil {
                 Button(studio.powerBusy ? "Patiente…" : "Démarrer", systemImage: "power") { Task { await studio.toggle() } }
                     .buttonStyle(.borderedProminent).tint(Dashboard.ink)
@@ -193,14 +201,136 @@ struct ContentView: View {
         }.padding(.bottom, 6)
     }
 
+    private var overview: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            stats
+            HStack(alignment: .top, spacing: 16) {
+                diagnostics.frame(maxWidth: .infinity, alignment: .topLeading)
+                recentActivity.frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+        }
+    }
+
     private var stats: some View {
         HStack(spacing: 0) {
             stat("Voix enregistrées", value: studio.state == nil ? "—" : "\(studio.voices.count)", detail: "Dans ta bibliothèque", icon: "waveform")
             Rectangle().fill(Dashboard.line).frame(width: 1)
             stat("Modèles installés", value: studio.state == nil ? "—" : "\(studio.models.filter { $0.installe }.count)", detail: "Disponibles sur ce Mac", icon: "cpu")
             Rectangle().fill(Dashboard.line).frame(width: 1)
-            stat("Confidentialité", value: "100 %", detail: "Traitement local", icon: "lock")
+            stat("Livres préparés", value: studio.state == nil ? "—" : "\(studio.books.count)", detail: "EPUB dans le studio web", icon: "books.vertical")
+            Rectangle().fill(Dashboard.line).frame(width: 1)
+            stat("Confidentialité", value: "100 %", detail: "Traitement sur ce Mac", icon: "lock")
         }.fixedSize(horizontal: false, vertical: true).dashboardPanel()
+    }
+
+    private var diagnostics: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            panelTitle("État du studio", subtitle: "Démarrage, moteur et dépannage")
+            HStack(spacing: 8) {
+                Circle().fill(studio.state == nil ? Dashboard.muted : studio.state?.erreur == nil ? Color.green : .orange)
+                    .frame(width: 7, height: 7)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(studio.state == nil ? "Serveur arrêté" : studio.state?.erreur == nil ? studio.message : "Moteur indisponible")
+                        .font(.system(size: 12, weight: .medium))
+                    if let moteur = studio.state?.moteur {
+                        Text("Moteur : \(studio.models.first(where: { $0.moteur == moteur })?.label ?? moteur)")
+                            .font(.system(size: 10)).foregroundStyle(Dashboard.muted)
+                    }
+                }
+                Spacer()
+                if studio.state == nil {
+                    Button("Démarrer", systemImage: "power") { Task { await studio.toggle() } }
+                        .buttonStyle(.borderedProminent).tint(Dashboard.ink).disabled(studio.powerBusy)
+                } else if studio.state?.modele != true,
+                          let moteur = studio.state?.moteur,
+                          let model = studio.models.first(where: { $0.moteur == moteur }) {
+                    Button(model.installe ? "Activer le moteur" : "Installer le moteur") {
+                        Task { await studio.install(model) }
+                    }.buttonStyle(.borderedProminent).tint(Dashboard.ink).disabled(controlsLocked)
+                }
+            }.padding(12).background(Dashboard.soft).clipShape(RoundedRectangle(cornerRadius: 6))
+
+            HStack(spacing: 8) {
+                Button("Voir le journal", systemImage: "doc.text.magnifyingglass") { studio.openLog() }
+                    .buttonStyle(.bordered).disabled(studio.root == nil)
+                Button("Ouvrir le studio web", systemImage: "safari") { studio.openWebStudio() }
+                    .buttonStyle(.bordered).disabled(studio.state == nil)
+            }.font(.system(size: 11))
+
+            Menu {
+                ForEach(studio.voices) { voice in
+                    Button(voice.nom, systemImage: studio.selectedVoiceID == voice.id ? "checkmark.circle.fill" : "waveform") {
+                        Task { await studio.selectVoice(voice) }
+                    }
+                }
+            } label: {
+                Label(studio.voices.first(where: { $0.id == studio.selectedVoiceID }).map { "Voix active : \($0.nom)" } ?? "Choisir une voix", systemImage: "waveform")
+                    .lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .menuStyle(.borderlessButton)
+            .disabled(studio.voices.isEmpty || controlsLocked)
+
+            if let missing = studio.models.first(where: { !$0.installe && $0.etat != "en_cours" }) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Modèle optionnel à installer").font(.system(size: 11, weight: .medium))
+                        Text("\(missing.label) · \(missing.taille)").font(.system(size: 10)).foregroundStyle(Dashboard.muted)
+                    }
+                    Spacer()
+                    Button("Installer") { Task { await studio.install(missing) } }
+                        .buttonStyle(.bordered).disabled(controlsLocked)
+                }
+            }
+        }.padding(16).frame(maxWidth: .infinity, alignment: .leading).dashboardPanel()
+    }
+
+    private var recentActivity: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            panelTitle("Activité récente", subtitle: "Livres importés et dernières prises générées")
+
+            Text("DERNIERS LIVRES EPUB").font(.system(size: 9, weight: .medium, design: .monospaced))
+                .tracking(0.6).foregroundStyle(Dashboard.muted)
+            if studio.books.isEmpty {
+                Text(studio.state == nil ? "Démarre le studio pour voir tes livres." : "Aucun livre préparé pour le moment.")
+                    .font(.system(size: 11)).foregroundStyle(Dashboard.muted)
+            } else {
+                ForEach(studio.books.prefix(3)) { book in
+                    HStack(spacing: 8) {
+                        Image(systemName: "book.closed").foregroundStyle(Dashboard.muted)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(book.titre).font(.system(size: 11, weight: .medium)).lineLimit(1)
+                            Text("\(book.chapitres.count) chapitres · \(book.mots.formatted()) mots")
+                                .font(.system(size: 10)).foregroundStyle(Dashboard.muted)
+                        }
+                        Spacer(minLength: 4)
+                        Button { studio.openWebStudio() } label: { Image(systemName: "arrow.up.right.square") }
+                            .buttonStyle(.borderless).help("Ouvrir les livres dans le studio web")
+                    }.padding(.vertical, 3)
+                }
+            }
+
+            Divider()
+            Text("DERNIÈRES PRISES").font(.system(size: 9, weight: .medium, design: .monospaced))
+                .tracking(0.6).foregroundStyle(Dashboard.muted)
+            if studio.audios.isEmpty {
+                Text("Aucune prise générée pour le moment.").font(.system(size: 11)).foregroundStyle(Dashboard.muted)
+            } else {
+                ForEach(studio.audios.prefix(3)) { audio in
+                    HStack(spacing: 8) {
+                        Image(systemName: "waveform").foregroundStyle(Dashboard.muted)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(audio.nom).font(.system(size: 11, weight: .medium)).lineLimit(1)
+                            Text("\(Int(audio.duree)) s · \(audio.transcript.isEmpty ? "Transcript absent" : String(audio.transcript.prefix(75)))")
+                                .font(.system(size: 10)).foregroundStyle(Dashboard.muted).lineLimit(1)
+                        }
+                        Spacer(minLength: 4)
+                        Button { Task { await studio.play(studio.baseURL.appendingPathComponent("api/audio/\(audio.nom)")) } }
+                            label: { Image(systemName: "play.fill") }
+                            .buttonStyle(.borderless).help("Écouter cette prise")
+                    }.padding(.vertical, 3)
+                }
+            }
+        }.padding(16).frame(maxWidth: .infinity, alignment: .leading).dashboardPanel()
     }
 
     private func stat(_ title: String, value: String, detail: String, icon: String) -> some View {

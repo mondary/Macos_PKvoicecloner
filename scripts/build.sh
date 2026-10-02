@@ -28,7 +28,27 @@ fi
 echo "🔨 Compilation (${VERSION})…"
 mkdir -p "${CONTENTS}/MacOS" "${CONTENTS}/Resources" "${CONTENTS}/Frameworks"
 
-swiftc "${DIR}"/src/macos/*.swift \
+# Les CLT récents (27) ne livrent pas le plugin de macros SwiftUI (SwiftUIMacros) :
+# @State y est une macro impossible à expanser sans Xcode complet. Les SDK macOS 26
+# déclarent encore @State comme property wrapper classique — on les utilise alors.
+detecter_sdk() {
+  local probe; probe="$(mktemp -d)/probe.swift"
+  printf 'import SwiftUI\nstruct P: View { @State var x = 1\n var body: some View { Text("x\\(x)") } }\n' > "${probe}"
+  if swiftc -typecheck "${probe}" 2>/dev/null; then SDK_ARGS=(); return; fi
+  local sdk
+  for sdk in /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk /Library/Developer/CommandLineTools/SDKs/MacOSX26.sdk; do
+    if [[ -d "${sdk}" ]] && swiftc -typecheck -sdk "${sdk}" "${probe}" 2>/dev/null; then
+      SDK_ARGS=(-sdk "${sdk}" -target arm64-apple-macos14.0)
+      echo "🧩 SDK sans macros SwiftUI : ${sdk}"
+      return
+    fi
+  done
+  echo "❌ Aucun SDK utilisable pour SwiftUI (@State) : installe Xcode ou les SDK macOS 26." >&2
+  exit 1
+}
+detecter_sdk
+
+swiftc "${SDK_ARGS[@]}" "${DIR}"/src/macos/*.swift \
   -F "${SPARKLE_DIR}" \
   -parse-as-library \
   -o "${CONTENTS}/MacOS/PKVoiceCloner" \

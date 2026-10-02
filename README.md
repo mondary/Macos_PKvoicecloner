@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.7** · macOS Apple Silicon · Apache-2.0
+version **2026.10.12** · macOS Apple Silicon · Apache-2.0
 
 🎙️ **Studio vocal IA open source — 100 % local.** Ta voix dit n'importe quel texte. Basé sur [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts) et [faster-whisper](https://github.com/SYSTRAN/faster-whisper), sur la puce Apple via MPS. **Aucune donnée ne quitte la machine.**
 
@@ -31,10 +31,13 @@ Le site publiable prêt pour FTP est autonome dans [`store/website/`](store/webs
 - **Vitesse** 0,75×–1,5× — étirement temporel pur, le pitch reste intact
 - **Modèle résident, à la demande** — chargé une fois pendant la session ; **Éteindre** libère sa mémoire dès que tu as fini
 - **Offline** — modèles en cache local, aucun appel réseau
-- **Version toujours visible** — le numéro de version exécuté s'affiche en pied d'app native et du studio web ; un écart app ↔ serveur est signalé
+- **Versions toujours visibles** — versions de l'app et du serveur affichées dans la barre fixe du haut, à côté de l'état du studio ; un écart est signalé. Le studio web affiche sa version en pied de page
 - **Feuille de route** — le plan « double numérique » (clonage rapide, avatar photo → vidéo lipsyncé) se lit dans [TODO.md](TODO.md)
 - **`mavox`** — clone en une commande depuis le terminal, texte quoté ou non
 - **App native macOS** — interface native SwiftUI, zéro navigateur : le serveur démarre et s'arrête avec l'app, mises à jour automatiques via Sparkle
+- **Vue d’ensemble sans doublons** — stats des voix, modèles, livres et confidentialité ; état du serveur, activation rapide d’une voix, journal, installation de modèle, livres récents et dernières prises générées
+- **Studio web depuis l'app native** — bouton « Ouvrir le studio web » : lance l'interface web complète dans le navigateur, pendant que le serveur local de l'app tourne
+- **Livres audio (studio web)** — importe un EPUB, consulte et corrige ses chapitres dans le navigateur ; l'éditeur audiobook n'est pas encore intégré à l'interface SwiftUI
 - **Studio épuré** — tableau de bord monochrome : bibliothèque de voix, éditeur et catalogue de modèles
 
 ### Interface native
@@ -45,6 +48,7 @@ Le site publiable prêt pour FTP est autonome dans [`store/website/`](store/webs
 - **Bibliothèque de voix** : importer un audio, enregistrer au micro, sélectionner une voix, l’écouter ; menu **…** pour renommer ou supprimer.
 - **Modèles** : installer un moteur du catalogue pris en charge, l’activer ; menu **…** pour renommer ou supprimer ses poids locaux. Les installations et erreurs sont visibles.
 - **Texte vers voix** : éditer le transcript, régler la vitesse, générer, puis écouter ou exporter le WAV.
+- **Ouvrir le studio web** : le bouton en haut de la fenêtre ouvre `http://127.0.0.1:8809` dans le navigateur ; le serveur doit être démarré. La bibliothèque de livres et l'éditeur EPUB sont actuellement disponibles dans cette interface web.
 - Les erreurs apparaissent dans la page avec un accès au journal du serveur.
 
 ## 🧠 Utilisation

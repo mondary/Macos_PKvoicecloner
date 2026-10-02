@@ -6,6 +6,10 @@
 - `-pk-COMMIT` — synchronisation des README FR/EN, captures, Ko-fi, notes dans `CHANGELOG.md` et contrôle des canaux de distribution.
 - `pk-app-release` / `pkhomebrew` — audit en lecture seule de la release GitHub `v0.6.0`, de ses assets et du cask Homebrew existant ; aucune publication ni modification distante effectuée.
 - `macos-build` — vérification de la compilation native après ajout du lien Ko-fi au menu Aide.
+- `macos-patterns` — bouton SwiftUI ouvrant le serveur local du studio web dans le navigateur par défaut.
+- `app-presence-sync` / `-pk-COMMIT` — README FR/EN, version CalVer et changelog synchronisés pour l’accès au studio web depuis l’app native.
+- `macos-build` — build tenté ; bloqué par l’absence de Xcode complet et du plugin de macros SwiftUI dans les Command Line Tools.
+- `macos-patterns` — réorganisation native de la Vue d’ensemble : indicateurs de santé/actions, stats et activité récente, sans panneaux de bibliothèque dupliqués.
 
 ## Limites constatées
 

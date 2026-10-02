@@ -20,6 +20,7 @@ final class MockHTTP: URLProtocol {
         else if path == "/api/voix" && request.httpMethod == "POST" { json = "{\"id\":\"sample\",\"transcript\":\"Bonjour\"}" }
         else if path == "/api/voix" { json = "{\"voix\":[{\"id\":\"sample\",\"nom\":\"Test\",\"duree\":1,\"transcript\":\"Bonjour\"}]}" }
         else if path == "/api/modeles" { json = "{\"modeles\":[]}" }
+        else if path == "/api/livres" { json = "{\"livres\":[{\"id\":\"book-1\",\"titre\":\"Livre test\",\"auteur\":\"Auteur\",\"importe\":\"2026-10-02T12:00:00\",\"mots\":42,\"chapitres\":[{\"num\":1,\"titre\":\"Chapitre 1\",\"mots\":42}]}]}" }
         else if path == "/api/generer" { json = "{\"job\":\"sample-job\"}" }
         else if path == "/api/job/sample-job" { json = "{\"etat\":\"pret\",\"fichier\":\"sample.wav\",\"duree\":1}" }
         let response = HTTPURLResponse(url: request.url!, statusCode: Self.reject ? 409 : 200, httpVersion: nil, headerFields: nil)!
@@ -42,6 +43,7 @@ final class MockHTTP: URLProtocol {
         FileManager.default.changeCurrentDirectoryPath(originalCWD)
         await studio.refresh()
         precondition(studio.state?.modele == true && studio.voices.count == 1)
+        precondition(studio.books.count == 1 && studio.books[0].titre == "Livre test")
         await studio.selectVoice(studio.voices[0])
         precondition(studio.selectedVoiceID == "sample" && studio.transcript == "Bonjour")
         await studio.rename("api/voix/sample", name: "Renommée")

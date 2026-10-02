@@ -21,6 +21,7 @@ import json
 import posixpath
 import re
 import shutil
+import unicodedata
 import urllib.parse
 import zipfile
 from datetime import datetime
@@ -28,9 +29,14 @@ from html.parser import HTMLParser
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
+import ia
+
 TAILLE_MAX = 300 * 1024 * 1024      # 300 Mo : un EPUB de livre courant
 MIN_MOTS_CHAPITRE = 40              # en dessous : page de partie, pas un chapitre
+TAILLE_MORCEAU = 2500               # caractères par appel de tagage IA
 REPERTOIRE_CHAPITRES = "chapitres"
+
+TAG_LIGNE = re.compile(r"^\[([a-zA-Z0-9_-]+)\]\s*", re.MULTILINE)
 
 
 class LivreErreur(Exception):
@@ -237,7 +243,7 @@ _TITRES_ECARTES = re.compile(
 
 
 def _compte_mots(texte: str) -> int:
-    return len(re.findall(r"\S+", texte))
+    return len(re.findall(r"\S+", TAG_LIGNE.sub("", texte)))   # les tags ne comptent pas
 
 
 def _decouper(archive: zipfile.ZipFile, opf: dict) -> list[dict]:
@@ -315,6 +321,11 @@ def _decouper(archive: zipfile.ZipFile, opf: dict) -> list[dict]:
 
 def _projet(racine: Path, ident: str) -> Path:
     return racine / ident / "projet.json"
+
+
+def _ecrire_projet(racine: Path, ident: str, projet: dict) -> None:
+    _projet(racine, ident).write_text(
+        json.dumps(projet, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def _ecrire_chapitres(dossier: Path, projet: dict, entrees: list[dict]) -> None:
@@ -513,3 +524,253 @@ def supprimer(racine: Path, ident: str) -> bool:
         return False
     shutil.rmtree(dossier)
     return True
+
+
+# ------------------------------------------------- analyse IA (voix du livre)
+
+def _slug(texte: str) -> str:
+    """Identifiant de voix court : minuscules, sans accent ni espace."""
+    decompose = unicodedata.normalize("NFKD", str(texte or "")).encode("ascii", "ignore").decode()
+    nettoye = re.sub(r"[^a-zA-Z0-9_-]+", "-", decompose).strip("-").lower()
+    return nettoye or "voix"
+
+
+def _sans_tags(texte: str) -> str:
+    return TAG_LIGNE.sub("", texte)
+
+
+def voix_du_texte(texte: str) -> list[str]:
+    """Voix présentes dans un texte taggé, narrateur d'abord, ordre d'apparition."""
+    ids: list[str] = []
+    for trouve in TAG_LIGNE.finditer(texte):
+        identifiant = _slug(trouve.group(1))
+        if identifiant not in ids:
+            ids.append(identifiant)
+    if "narrateur" in ids:
+        ids.remove("narrateur")
+        ids.insert(0, "narrateur")
+    return ids
+
+
+def _lire_texte_chapitre(dossier: Path, chapitre: dict) -> str:
+    """Texte d'un chapitre sans sa ligne de titre ni ses éventuels tags."""
+    try:
+        contenu = (dossier / chapitre["fichier"]).read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    return _sans_tags(re.sub(r"^# .*\n+", "", contenu, count=1)).strip()
+
+
+def _decouper_analyse(texte: str, taille: int = TAILLE_MORCEAU) -> list[str]:
+    """Découpe alignée sur les paragraphes (~taille max par morceau)."""
+    morceaux: list[str] = []
+    courant = ""
+    for paragraphe in texte.split("\n\n"):
+        if courant and len(courant) + len(paragraphe) + 2 > taille:
+            morceaux.append(courant)
+            courant = paragraphe
+        else:
+            courant = f"{courant}\n\n{paragraphe}" if courant else paragraphe
+    if courant.strip():
+        morceaux.append(courant)
+    propres = []
+    for morceau in morceaux:
+        while len(morceau) > taille * 2:      # paragraphe unique géant : coupe franche
+            propres.append(morceau[:taille])
+            morceau = morceau[taille:]
+        propres.append(morceau)
+    return propres
+
+
+def _echantillon(dossier: Path, projet: dict, taille: int = 9000) -> str:
+    """Extraits représentatifs du livre pour détecter la distribution des voix."""
+    chapitres = projet["chapitres"]
+    if not chapitres:
+        return ""
+    milieux = [chapitres[0], chapitres[len(chapitres) // 2], chapitres[-1]]
+    vus, pris = set(), []
+    for chapitre in milieux:
+        if chapitre["num"] in vus:
+            continue
+        vus.add(chapitre["num"])
+        texte = _lire_texte_chapitre(dossier, chapitre)
+        if texte:
+            pris.append(texte[:3000])
+    return "\n\n[…]\n\n".join(pris)[:taille]
+
+
+def _detecter_cast(cfg: dict, titre: str, echantillon: str) -> list[dict]:
+    """Passe 1 : la distribution des voix — narrateur + personnages, avec genre."""
+    message = (
+        "TÂCHE: CAST.\n"
+        "Tu prépares un audiobook. Identifie les VOIX nécessaires à la lecture du livre :\n"
+        "- le narrateur (récit, descriptions, tout ce qui n'est pas une réplique) ;\n"
+        "- chaque personnage qui parle, avec le genre de sa voix.\n\n"
+        f"Titre : {titre}\n\nExtraits :\n<<<\n{echantillon}\n>>>\n\n"
+        "Réponds UNIQUEMENT en JSON :\n"
+        '{"cast": [{"id": "narrateur", "nom": "Narrateur", "genre": "femme", '
+        '"role": "narrateur", "description": "…", "importance": "principal"}]}\n'
+        "Règles :\n"
+        '- "id" : identifiant court en minuscules, sans accent ni espace ("narrateur" pour le narrateur, sinon le prénom).\n'
+        '- "genre" : "homme", "femme" ou "indetermine" — c\'est le genre de la VOIX à utiliser pour ce rôle.\n'
+        '- "importance" : "principal" (nombreuses répliques), "secondaire", "figurant".\n'
+        "- Narrateur d'abord, puis personnages par importance décroissante ; 15 entrées maximum (regroupe les figurants)."
+    )
+    reponse = ia.completer(cfg, [{"role": "user", "content": message}], json_mode=True)
+    donnees = ia.extraire_json(reponse)
+    cast, vus = [], set()
+    for entree in donnees.get("cast", []):
+        if not isinstance(entree, dict):
+            continue
+        identifiant = _slug(entree.get("id") or entree.get("nom") or "")
+        if not identifiant or identifiant in vus:
+            continue
+        vus.add(identifiant)
+        genre = entree.get("genre") if entree.get("genre") in ("homme", "femme", "indetermine") else "indetermine"
+        cast.append({
+            "id": identifiant,
+            "nom": str(entree.get("nom") or identifiant)[:80],
+            "genre": genre,
+            "role": "narrateur" if entree.get("role") == "narrateur" or identifiant == "narrateur" else "personnage",
+            "description": str(entree.get("description") or "")[:200],
+            "importance": entree.get("importance") if entree.get("importance") in ("principal", "secondaire", "figurant") else "secondaire",
+        })
+    if not any(voice["role"] == "narrateur" for voice in cast):
+        cast.insert(0, {"id": "narrateur", "nom": "Narrateur", "genre": "indetermine",
+                        "role": "narrateur", "description": "", "importance": "principal"})
+    if not cast:
+        raise ia.IaErreur("l'IA n'a identifié aucune voix dans ce livre")
+    return cast[:15]
+
+
+def _tagger_morceau(cfg: dict, titre: str, numero: int, index: int, total: int,
+                    morceau: str, cast: list[dict]) -> list[str]:
+    """Passe 2 : un extrait du chapitre réécrit en lignes [voix] attribuées."""
+    distribution = "\n".join(
+        f"- {voice['id']} ({voice['nom']}, {'voix ' + voice['genre']}{', narrateur' if voice['role'] == 'narrateur' else ''})"
+        for voice in cast)
+    message = (
+        f"TÂCHE: TAGAGE.\n"
+        f"Livre : « {titre} » — chapitre {numero}, extrait {index}/{total}.\n"
+        f"Voix disponibles :\n{distribution}\n\n"
+        "Réécris l'extrait ci-dessous en lignes taggées : chaque ligne commence par "
+        "[id] du locuteur puis son propos exact.\n"
+        f"<<<\n{morceau}\n>>>\n\n"
+        "Règles strictes :\n"
+        "- CONSERVE le texte à l'identique : aucun mot ajouté, retiré ni reformulé.\n"
+        "- Découpe un paragraphe en plusieurs lignes dès que le locuteur change.\n"
+        "- Chaque réplique (« … » ou — …) sur sa propre ligne, attribuée à son personnage : déduis le locuteur du contexte (verbes de parole, noms, accords, style d'élocution).\n"
+        "- Le récit hors dialogue revient au narrateur.\n"
+        "- Un locuteur absent de la liste : nouvel id court (np1, np2…) réutilisé ensuite.\n"
+        "- Réponds UNIQUEMENT par les lignes taggées, sans commentaire."
+    )
+    reponse = ia.completer(cfg, [{"role": "user", "content": message}])
+    connus = {voice["id"] for voice in cast}
+    lignes: list[str] = []
+    for ligne in reponse.splitlines():
+        ligne = ligne.strip()
+        if not ligne or ligne.startswith("<<<"):
+            continue
+        trouve = re.match(r"^\[([a-zA-Z0-9_-]+)\]\s*(.+)$", ligne)
+        if trouve and trouve.group(2).strip():
+            identifiant = _slug(trouve.group(1))
+            if identifiant not in connus:        # nouveau locuteur : collecté plus tard
+                connus.add(identifiant)
+            lignes.append(f"[{identifiant}] {trouve.group(2).strip()}")
+        elif trouve:
+            continue
+        else:
+            lignes.append(f"[narrateur] {ligne}")
+    return lignes
+
+
+def _classer_genres(cfg: dict, titre: str, repliques: dict[str, list[str]]) -> dict[str, str]:
+    """Genre des locuteurs découverts pendant le tagage (np1, np2…)."""
+    extraits = "\n\n".join(
+        f"{identifiant} :\n" + "\n".join(lignes[:6]) for identifiant, lignes in repliques.items())
+    message = (
+        f"TÂCHE: GENRES.\nLivre : « {titre} ». Voici des répliques de personnages rencontrés "
+        "en cours de lecture :\n"
+        f"{extraits}\n\n"
+        'Pour chacun, déduis le genre de sa VOIX ("homme", "femme" ou "indetermine") '
+        "à partir de ce qui est dit d'eux dans le texte (accords, mentions, contexte).\n"
+        'Réponds UNIQUEMENT en JSON, ex. : {"np1": "homme", "np2": "femme"}'
+    )
+    try:
+        return {str(cle): val for cle, val in
+                ia.extraire_json(ia.completer(cfg, [{"role": "user", "content": message}], json_mode=True)).items()
+                if val in ("homme", "femme", "indetermine")}
+    except ia.IaErreur:
+        return {identifiant: "indetermine" for identifiant in repliques}
+
+
+def analyser_livre(racine: Path, ident: str, cfg: dict,
+                   numeros: list[int] | None = None, forcer: bool = False) -> dict:
+    """Analyse IA complète : distribution des voix puis tagage des chapitres.
+
+    Le projet.json est réécrit après chaque chapitre : l'état survit à une
+    interruption, l'UI suit la progression et la reprise ne refait que ce qui
+    manque.
+    """
+    projet = lire(racine, ident)
+    if not projet:
+        raise LivreErreur("livre inconnu")
+    dossier = racine / ident
+
+    try:
+        if forcer or not projet.get("cast"):
+            projet["cast"] = _detecter_cast(cfg, projet["titre"], _echantillon(dossier, projet))
+            projet["analyse"] = {"etat": "en_cours", "courant": 0, "total": 0}
+            _ecrire_projet(racine, ident, projet)
+
+        cibles = [c for c in projet["chapitres"]
+                  if (numeros is None or c["num"] in numeros)
+                  and (forcer or c.get("analyse") != "faite")]
+        if not cibles:
+            projet["analyse"] = {"etat": "faite",
+                                 "chapitres": sum(1 for c in projet["chapitres"] if c.get("analyse") == "faite")}
+            _ecrire_projet(racine, ident, projet)
+            return projet
+
+        projet["analyse"] = {"etat": "en_cours", "courant": 0, "total": len(cibles)}
+        _ecrire_projet(racine, ident, projet)
+        connus = {voice["id"] for voice in projet["cast"]}
+        repliques_nouvelles: dict[str, list[str]] = {}
+
+        for avance, chapitre in enumerate(cibles, 1):
+            texte = _lire_texte_chapitre(dossier, chapitre)
+            morceaux = _decouper_analyse(texte)
+            lignes: list[str] = []
+            for index, morceau in enumerate(morceaux, 1):
+                lignes.extend(_tagger_morceau(
+                    cfg, projet["titre"], chapitre["num"], index, len(morceaux), morceau, projet["cast"]))
+            tagge = "\n".join(lignes)
+            (dossier / chapitre["fichier"]).write_text(
+                f"# {chapitre['titre']}\n\n{tagge}\n", encoding="utf-8")
+            chapitre["analyse"] = "faite"
+            chapitre["voix"] = voix_du_texte(tagge)
+            for ligne in lignes:
+                trouve = re.match(r"^\[([a-zA-Z0-9_-]+)\]", ligne)
+                if trouve and _slug(trouve.group(1)) not in connus:
+                    repliques_nouvelles.setdefault(_slug(trouve.group(1)), []).append(ligne)
+            projet["analyse"]["courant"] = avance
+            _ecrire_projet(racine, ident, projet)
+
+        if repliques_nouvelles:
+            genres = _classer_genres(cfg, projet["titre"], repliques_nouvelles)
+            for nouveau, lignes in repliques_nouvelles.items():
+                projet["cast"].append({
+                    "id": nouveau, "nom": nouveau.capitalize(),
+                    "genre": genres.get(nouveau, "indetermine"),
+                    "role": "personnage",
+                    "description": "détecté pendant le tagage",
+                    "importance": "secondaire",
+                })
+        projet["analyse"] = {"etat": "faite",
+                             "chapitres": sum(1 for c in projet["chapitres"] if c.get("analyse") == "faite")}
+        _ecrire_projet(racine, ident, projet)
+        return projet
+    except ia.IaErreur as erreur:
+        projet["analyse"] = {"etat": "erreur", "erreur": str(erreur)[:300]}
+        _ecrire_projet(racine, ident, projet)
+        return projet

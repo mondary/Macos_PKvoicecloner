@@ -1,6 +1,16 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.13] - 2026-10-02
+
+### Added
+
+- Jalon 3 des audiobooks : **analyse IA des voix** — panneau Réglages IA du studio (endpoint OpenAI-compatible + clé API + modèle, bouton « Tester la connexion », clé masquée en lecture, stockée dans `data/ia.json`) : GLM, DeepSeek, OpenAI, Ollama local…
+- Analyse en deux passes : détection de la **distribution** (narrateur + personnages, genre de voix homme/femme, importance), puis **tagage ligne par ligne** des chapitres (`[voix] texte`) par morceaux d'environ 2 500 caractères.
+- **Voix requises par chapitre** et pour tout le livre ; personnages rencontrés en cours de tagage détectés puis classés homme/femme par un appel dédié ; analyse à la demande (livre entier, continuation, ou chapitre seul depuis l'éditeur) et ré-analyse forcée.
+- Progression crash-safe (`projet.json` réécrit après chaque chapitre, reprise « Continuer l'analyse (N chap.) ») ; le studio suit en direct : chips ♂/♀ par voix, barre de progression, compteur de voix par chapitre et légende des voix dans l'éditeur.
+- Client LLM `src/server/ia.py` en bibliothèque standard (urllib), zéro dépendance pip ; 21 tests avec faux LLM local, aucun appel réseau.
+
 ## [2026.10.12] - 2026-10-02
 
 ### Fixed

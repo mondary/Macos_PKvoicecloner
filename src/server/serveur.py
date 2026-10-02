@@ -12,9 +12,12 @@ Endpoints :
   GET  /api/livres/{id}          détail d'un livre (projet.json)
   GET|PUT /api/livres/{id}/chapitre/{n}  lecture / édition du texte d'un chapitre
   POST /api/livres/{id}/chapitre/{n}/scinder  coupe un chapitre au curseur
+  POST /api/livres/{id}/analyser analyse IA : cast + tagage des voix (202, suivi via projet)
   POST /api/livres/{id}/renommer renomme le livre / rectifie l'auteur
   DELETE /api/livres/{id}        supprime le projet de livre
   GET  /api/livres/{id}/couverture       image de couverture
+  GET|POST /api/ia/config        configuration LLM OpenAI-compatible (clé masquée en lecture)
+  POST /api/ia/tester            vérifie l'endpoint et la clé
   POST /api/generer     {texte, vitesse, transcript} -> job id
   POST /api/moteur      {moteur: voxcpm2|dots|qwen3|pocket} changement de moteur TTS
   GET  /api/modeles     modèles téléchargeables + état installé
@@ -48,8 +51,9 @@ from fastapi import Body, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-if str(Path(__file__).resolve().parent) not in sys.path:      # livres.py importable
+if str(Path(__file__).resolve().parent) not in sys.path:      # livres.py / ia.py importables
     sys.path.insert(0, str(Path(__file__).resolve().parent))  # quel que soit le mode de lancement
+import ia
 import livres
 
 SRC = Path(__file__).resolve().parent
@@ -58,6 +62,7 @@ WEB = PROJET / "src" / "web"
 SORTIES = PROJET / "data" / "sorties"
 VOIX = PROJET / "data" / "voix"
 LIVRES = PROJET / "data" / "livres"
+FICHIER_IA = PROJET / "data" / "ia.json"
 PID_FILE = PROJET / "data" / "run" / "serveur.pid"
 for _d in (SORTIES, VOIX, LIVRES, PID_FILE.parent):
     _d.mkdir(parents=True, exist_ok=True)
@@ -794,7 +799,10 @@ def renommer_livre(lid: str, req: dict = Body(...)):
 
 @app.delete("/api/livres/{lid}")
 def supprimer_livre(lid: str):
-    if not livres.supprimer(LIVRES, _id_livre(lid)):
+    lid = _id_livre(lid)
+    if lid in analyses_en_cours:
+        raise HTTPException(409, "une analyse est en cours : attends sa fin avant de supprimer")
+    if not livres.supprimer(LIVRES, lid):
         raise HTTPException(404, "livre inconnu")
     return {"ok": True}
 
@@ -805,6 +813,91 @@ def couverture_livre(lid: str):
     if not chemin:
         raise HTTPException(404, "aucune couverture")
     return FileResponse(chemin)
+
+
+# ------------------------------------------------------------------ analyse IA
+
+analyses_en_cours: set[str] = set()
+
+
+def _lire_ia() -> dict:
+    try:
+        return json.loads(FICHIER_IA.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+@app.get("/api/ia/config")
+def lire_config_ia():
+    cfg = _lire_ia()
+    cle = cfg.get("cle", "")
+    return {
+        "base_url": cfg.get("base_url", ""),
+        "modele": cfg.get("modele", ""),
+        "cle_masquee": f"…{cle[-4:]}" if len(cle) > 4 else ("•••" if cle else ""),
+        "configuree": bool(cfg.get("base_url") and cfg.get("cle") and cfg.get("modele")),
+    }
+
+
+@app.post("/api/ia/config")
+def enregistrer_config_ia(req: dict = Body(...)):
+    existante = _lire_ia()
+    try:
+        cfg = ia.valider_config(
+            (req.get("base_url") or existante.get("base_url") or ""),
+            (req.get("cle") or existante.get("cle") or ""),
+            (req.get("modele") or existante.get("modele") or ""),
+        )
+    except ia.IaErreur as erreur:
+        raise HTTPException(400, str(erreur))
+    FICHIER_IA.write_text(json.dumps(cfg, ensure_ascii=False), encoding="utf-8")
+    return {"ok": True, "configuree": True}
+
+
+@app.post("/api/ia/tester")
+def tester_config_ia():
+    cfg = _lire_ia()
+    if not (cfg.get("base_url") and cfg.get("cle") and cfg.get("modele")):
+        raise HTTPException(400, "configuration IA absente : renseigne l'endpoint, la clé et le modèle")
+    try:
+        reponse = ia.completer(cfg, [{"role": "user", "content": "Réponds exactement : ok"}], timeout=30)
+    except ia.IaErreur as erreur:
+        raise HTTPException(400, str(erreur))
+    return {"ok": True, "reponse": reponse.strip()[:60]}
+
+
+@app.post("/api/livres/{lid}/analyser", status_code=202)
+def lancer_analyse(lid: str, req: dict = Body(default=None)):
+    lid = _id_livre(lid)
+    req = req or {}
+    projet = livres.lire(LIVRES, lid)
+    if not projet:
+        raise HTTPException(404, "livre inconnu")
+    cfg = _lire_ia()
+    if not (cfg.get("base_url") and cfg.get("cle") and cfg.get("modele")):
+        raise HTTPException(400, "configuration IA absente : renseigne l'endpoint, la clé et le modèle dans Réglages IA")
+    if lid in analyses_en_cours:
+        raise HTTPException(409, "une analyse est déjà en cours pour ce livre")
+    if projet.get("analyse", {}).get("etat") == "en_cours":
+        raise HTTPException(409, "une analyse est déjà en cours pour ce livre")
+    numero = req.get("chapitre")
+    numeros = [int(numero)] if numero else None
+    if numeros and not any(c["num"] in numeros for c in projet["chapitres"]):
+        raise HTTPException(404, "chapitre inconnu")
+    forcer = bool(req.get("forcer"))
+
+    def tache():
+        analyses_en_cours.add(lid)
+        try:
+            livres.analyser_livre(LIVRES, lid, cfg, numeros=numeros, forcer=forcer)
+        except Exception as erreur:  # noqa: BLE001 — l'état d'erreur doit rester visible dans le projet
+            projet["analyse"] = {"etat": "erreur", "erreur": str(erreur)[:300]}
+            livres._ecrire_projet(LIVRES, lid, projet)
+        finally:
+            analyses_en_cours.discard(lid)
+
+    threading.Thread(target=tache, daemon=True).start()
+    return {"ok": True, "etat": "en_cours"}
 
 
 def lancer_serveur():

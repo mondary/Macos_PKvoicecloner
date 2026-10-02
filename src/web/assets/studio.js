@@ -33,6 +33,54 @@
 
   const PANNEAU_AIDE = "Choisis un clone à gauche, écris à droite, génère la prise";
 
+  /* ---------------------- Navigation par sections ---------------------- */
+  const VUES = {
+    studio: "Vue d’ensemble",
+    voices: "Bibliothèque de voix",
+    editor: "Texte vers voix",
+    books: "Livres",
+    models: "Modèles",
+  };
+  let vueActive = "studio";
+
+  function appliquerVue(id, { pousserAncre = true } = {}) {
+    if (!VUES[id]) id = "studio";
+    vueActive = id;
+    const accueil = id === "studio";
+    const panneau = document.querySelector(".demo-panel");
+    document.querySelector(".hero").hidden = !accueil;
+    document.querySelector(".dashboard-stats").hidden = !accueil;
+    panneau.hidden = !(accueil || id === "voices" || id === "editor");
+    const stage = document.querySelector(".demo-stage");
+    stage.classList.toggle("only-voices", id === "voices");
+    stage.classList.toggle("only-editor", id === "editor");
+    $("books").hidden = id !== "books";
+    $("models").hidden = id !== "models";
+    document.querySelectorAll(".dashboard-nav a").forEach((lien) => {
+      const actif = lien.dataset.vue === id;
+      lien.classList.toggle("active", actif);
+      if (actif) lien.setAttribute("aria-current", "page");
+      else lien.removeAttribute("aria-current");
+    });
+    document.querySelector(".breadcrumbs strong").textContent = VUES[id];
+    document.title = `PK Voice Studio — ${VUES[id]}`;
+    if (pousserAncre) {
+      history.replaceState(null, "", `#${id}`);
+      window.scrollTo(0, 0);
+    }
+  }
+
+  function bindNavEvents() {
+    document.querySelectorAll("[data-vue]").forEach((lien) => {
+      lien.addEventListener("click", (event) => {
+        event.preventDefault();
+        appliquerVue(lien.dataset.vue);
+      });
+    });
+    // naviguer d'une ancre à l'autre ne recharge pas la page : suivre quand même
+    window.addEventListener("hashchange", () => appliquerVue(location.hash.slice(1)));
+  }
+
   /* ---------------------- Toast & états ---------------------- */
   function notify(message, tone = "") {
     const toast = $("toast");
@@ -600,6 +648,7 @@
   const chapterTexts = new Map();    // "id:num" -> texte servi par le serveur
   const chapterDrafts = new Map();   // "id:num" -> {texte, titre, dirty, savedAt}
   const chapterPainters = new Map(); // "id:num" -> rafraîchit l'éditeur affiché
+  const analysesVues = new Set();    // id des livres dont l'analyse terminée a purgé le cache
   const BOOKS_HINT = "Dépose un EPUB : découpé en chapitres sur ce Mac, prêt à être narré.";
   const MOTS_PAR_MINUTE = 160;       // débit de narration d'un audiobook français
 
@@ -664,6 +713,161 @@
     }
   }
 
+  /* ---------------------- Réglages IA (endpoint + clé + modèle) ---------------------- */
+  function setIaStatut(message, tone = "") {
+    $("iaStatut").textContent = message;
+    $("iaStatut").className = `chapter-status ${tone}`;
+  }
+
+  async function loadIaConfig() {
+    try {
+      const payload = await (await fetch("/api/ia/config")).json();
+      $("iaUrl").value = payload.base_url || "";
+      $("iaModele").value = payload.modele || "";
+      if (payload.configuree) {
+        $("iaCle").placeholder = `${payload.cle_masquee || "•••"} — laisse vide pour conserver`;
+        setIaStatut("IA configurée.", "saved");
+      }
+    } catch (_) { /* serveur absent : silencieux */ }
+  }
+
+  async function saveIaConfig() {
+    const corps = { base_url: $("iaUrl").value.trim(), modele: $("iaModele").value.trim() };
+    const cle = $("iaCle").value.trim();
+    if (cle) corps.cle = cle;
+    setIaStatut("Enregistrement…");
+    $("iaEnregistrer").disabled = true;
+    try {
+      const response = await fetch("/api/ia/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(corps),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "enregistrement impossible");
+      $("iaCle").value = "";
+      setIaStatut("Configuration enregistrée.", "saved");
+      notify("Configuration IA enregistrée.");
+    } catch (error) {
+      setIaStatut(error.message, "dirty");
+    } finally {
+      $("iaEnregistrer").disabled = false;
+    }
+  }
+
+  async function testIa() {
+    $("iaTester").disabled = true;
+    setIaStatut("Test de la connexion…");
+    try {
+      const response = await fetch("/api/ia/tester", { method: "POST" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "test impossible");
+      setIaStatut(`Connexion OK (« ${payload.reponse} »).`, "saved");
+    } catch (error) {
+      setIaStatut(error.message, "dirty");
+    } finally {
+      $("iaTester").disabled = false;
+    }
+  }
+
+  /* ---------------------- Analyse IA d'un livre ---------------------- */
+  let analyseTimer = null;
+
+  function surveillerAnalyses() {
+    if (analyseTimer) return;
+    analyseTimer = setInterval(async () => {
+      if (!books.some((b) => b.analyse?.etat === "en_cours")) {
+        clearInterval(analyseTimer);
+        analyseTimer = null;
+        return;
+      }
+      await refreshBooks();
+    }, 3000);
+  }
+
+  async function analyzeBook(book, options = {}) {
+    if (shuttingDown) return;
+    const corps = {};
+    if (options.chapitre) corps.chapitre = options.chapitre;
+    if (options.forcer) corps.forcer = true;
+    try {
+      const response = await fetch(`/api/livres/${book.id}/analyser`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(corps),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "lancement impossible");
+      const cibles = corps.chapitre
+        ? [corps.chapitre]
+        : book.chapitres.map((c) => c.num);
+      cibles.forEach((num) => {
+        const ancienne = `${book.id}:${num}`;
+        chapterTexts.delete(ancienne);
+        chapterDrafts.delete(ancienne);
+      });
+      notify(`Analyse IA lancée sur « ${book.titre} » — progression sur la carte.`);
+      await refreshBooks();
+      surveillerAnalyses();
+    } catch (error) {
+      notify(`Analyse impossible : ${error.message}`, "error");
+    }
+  }
+
+  function castChips(book, limit = 0) {
+    const div = document.createElement("div");
+    div.className = "cast-chips";
+    const cast = limit ? book.cast.slice(0, limit) : book.cast;
+    cast.forEach((voice) => {
+      const chip = document.createElement("span");
+      chip.className = `cast-chip ${voice.genre}`;
+      const symbole = voice.genre === "homme" ? "♂" : voice.genre === "femme" ? "♀" : "·";
+      chip.title = `${voice.nom} — ${voice.role === "narrateur" ? "narration" : "personnage"}` +
+                   `${voice.description ? ` · ${voice.description}` : ""} · ${voice.importance}`;
+      const icone = document.createElement("i");
+      icone.textContent = symbole;
+      icone.setAttribute("aria-hidden", "true");
+      chip.append(icone, document.createTextNode(voice.nom));
+      div.appendChild(chip);
+    });
+    if (limit && book.cast.length > limit) {
+      const reste = document.createElement("span");
+      reste.className = "cast-chip indetermine";
+      reste.textContent = `+${book.cast.length - limit}`;
+      div.appendChild(reste);
+    }
+    return div;
+  }
+
+  function analyseZone(book) {
+    const zone = document.createElement("div");
+    const analyse = book.analyse || {};
+    if (analyse.etat === "en_cours") {
+      const barre = document.createElement("div");
+      barre.className = "analyse-barre";
+      const remplissage = document.createElement("i");
+      const total = analyse.total || 1;
+      remplissage.style.width = `${Math.round(((analyse.courant || 0) / total) * 100)}%`;
+      barre.appendChild(remplissage);
+      const texte = document.createElement("div");
+      texte.className = "chapter-stats";
+      texte.textContent = `Analyse IA en cours · chapitre ${analyse.courant || 0}/${total}`;
+      zone.append(texte, barre);
+    } else if (analyse.etat === "erreur") {
+      const erreur = document.createElement("div");
+      erreur.className = "analyse-erreur";
+      erreur.textContent = `Analyse interrompue : ${analyse.erreur || "erreur inconnue"}`;
+      zone.appendChild(erreur);
+    } else if (analyse.etat === "faite") {
+      const fait = document.createElement("div");
+      fait.className = "chapter-stats";
+      const analysees = book.chapitres.filter((c) => c.analyse === "faite").length;
+      fait.textContent = `${book.cast.length} voix · ${analysees}/${book.chapitres.length} chapitres analysés`;
+      zone.appendChild(fait);
+    }
+    return zone;
+  }
+
   function renameBook(book, titleEl) {
     if (titleEl.querySelector("input")) return;
     const input = document.createElement("input");
@@ -706,7 +910,18 @@
     chapterPainters.clear();
     const list = $("bookList");
     list.textContent = "";
-    books.forEach((book) => list.appendChild(bookCard(book)));
+    books.forEach((book) => {
+      // une analyse qui vient de se terminer : les textes servis ont changé (tags)
+      if (book.analyse?.etat === "faite" && !analysesVues.has(book.id)) {
+        analysesVues.add(book.id);
+        book.chapitres.forEach((c) => {
+          chapterTexts.delete(`${book.id}:${c.num}`);
+          chapterDrafts.delete(`${book.id}:${c.num}`);
+        });
+      }
+      list.appendChild(bookCard(book));
+    });
+    if (books.some((b) => b.analyse?.etat === "en_cours")) surveillerAnalyses();
   }
 
   /* Ramasse les éditeurs ouverts avant un re-rendu : rien ne se perd. */
@@ -752,9 +967,34 @@
     meta.textContent = `${book.chapitres.length} chapitres · ${book.mots.toLocaleString("fr-FR")} mots · ` +
                        `${dureeEstimee(book.mots)} d'audio${date ? ` · ${date}` : ""}`;
     info.append(title, author, meta);
+    if (book.cast?.length) info.append(castChips(book, 8));
+    info.appendChild(analyseZone(book));
 
     const actions = document.createElement("div");
     actions.className = "book-actions";
+    const analyse = book.analyse || {};
+    const restants = book.chapitres.filter((c) => c.analyse !== "faite").length;
+    const analyseBtn = document.createElement("button");
+    analyseBtn.className = "pill-light";
+    analyseBtn.type = "button";
+    if (analyse.etat === "en_cours") {
+      analyseBtn.textContent = "Analyse…";
+      analyseBtn.disabled = true;
+    } else if (!book.cast?.length) {
+      analyseBtn.textContent = "Analyser les voix (IA)";
+      analyseBtn.addEventListener("click", () => analyzeBook(book));
+    } else if (restants > 0) {
+      analyseBtn.textContent = `Continuer l'analyse (${restants} chap.)`;
+      analyseBtn.addEventListener("click", () => analyzeBook(book));
+    } else {
+      analyseBtn.textContent = "Réanalyser (IA)";
+      analyseBtn.title = "Refait la distribution des voix et le tagage complet";
+      analyseBtn.addEventListener("click", () => {
+        if (window.confirm("Refaire toute l'analyse IA du livre (coût API complet) ?")) {
+          analyzeBook(book, { forcer: true });
+        }
+      });
+    }
     const chaptersBtn = document.createElement("button");
     chaptersBtn.className = "pill-light";
     chaptersBtn.type = "button";
@@ -769,7 +1009,7 @@
     del.setAttribute("aria-label", `Supprimer « ${book.titre} »`);
     del.innerHTML = ICON_TRASH;
     del.addEventListener("click", () => deleteBook(book));
-    actions.append(chaptersBtn, del);
+    actions.append(analyseBtn, chaptersBtn, del);
 
     card.append(cover, info, actions);
     if (openBook === book.id) {
@@ -798,7 +1038,8 @@
     row.innerHTML =
       `<span class="chapter-num">${String(chapter.num).padStart(2, "0")}</span>` +
       `<span class="chapter-title"></span>` +
-      `<span class="chapter-words">${chapter.mots.toLocaleString("fr-FR")} mots · ${dureeEstimee(chapter.mots)}</span>`;
+      `<span class="chapter-words">${chapter.mots.toLocaleString("fr-FR")} mots · ${dureeEstimee(chapter.mots)}` +
+      `${chapter.voix?.length ? ` · ${chapter.voix.length} voix` : ""}</span>`;
     row.querySelector(".chapter-title").textContent = chapter.titre;
     const toggle = () => {
       if (openChapters.has(cle)) {
@@ -842,6 +1083,10 @@
     stats.className = "chapter-stats";
     head.append(input, stats);
 
+    const legende = document.createElement("div");
+    legende.className = "chapter-voices";
+    legende.hidden = true;
+
     const textarea = document.createElement("textarea");
     textarea.className = "chapter-textarea";
     textarea.spellcheck = false;
@@ -850,6 +1095,14 @@
 
     const foot = document.createElement("div");
     foot.className = "chapter-edit-foot";
+    const analyseBtn = document.createElement("button");
+    analyseBtn.className = "pill-light";
+    analyseBtn.type = "button";
+    analyseBtn.textContent = chapter.analyse === "faite" ? "Réanalyser ce chapitre" : "Analyser ce chapitre";
+    analyseBtn.title = "Envoie ce chapitre à l'IA pour attribuer les voix ligne par ligne";
+    analyseBtn.addEventListener("click", () => analyzeBook(book, {
+      chapitre: chapter.num, forcer: chapter.analyse === "faite",
+    }));
     const saveBtn = document.createElement("button");
     saveBtn.className = "pill-light";
     saveBtn.type = "button";
@@ -861,14 +1114,28 @@
     splitBtn.title = "Coupe le chapitre en deux à la position du curseur (utile pour les EPUB au sommaire cassé)";
     const status = document.createElement("span");
     status.className = "chapter-status";
-    foot.append(saveBtn, splitBtn, status);
+    foot.append(analyseBtn, saveBtn, splitBtn, status);
 
-    edit.append(head, textarea, foot);
+    edit.append(head, legende, textarea, foot);
 
     let saving = false;
     const updateStats = () => {
       const mots = (textarea.value.match(/\S+/g) || []).length;
       stats.textContent = `${mots.toLocaleString("fr-FR")} mots · ${dureeEstimee(mots)}`;
+      const ids = [...new Set([...textarea.value.matchAll(/^\[([a-z0-9_-]+)\]/gm)].map((m) => m[1].toLowerCase()))];
+      legende.textContent = "";
+      legende.hidden = ids.length === 0;
+      ids.forEach((id) => {
+        const voice = (book.cast || []).find((v) => v.id === id);
+        const chip = document.createElement("span");
+        chip.className = `cast-chip ${voice?.genre || "indetermine"}`;
+        const symbole = voice?.genre === "homme" ? "♂" : voice?.genre === "femme" ? "♀" : "·";
+        const icone = document.createElement("i");
+        icone.textContent = symbole;
+        icone.setAttribute("aria-hidden", "true");
+        chip.append(icone, document.createTextNode(voice?.nom || id));
+        legende.appendChild(chip);
+      });
     };
     const paintDirty = () => {
       const served = chapterTexts.get(cle);
@@ -1000,6 +1267,8 @@
       if (file) importBook(file);
       event.target.value = "";
     });
+    $("iaEnregistrer").addEventListener("click", saveIaConfig);
+    $("iaTester").addEventListener("click", testIa);
     const drop = $("bookDrop");
     ["dragenter", "dragover"].forEach((name) => drop.addEventListener(name, (event) => {
       event.preventDefault();
@@ -1149,10 +1418,13 @@
     updatePace();
     bindEvents();
     bindBooksEvents();
+    bindNavEvents();
+    appliquerVue((location.hash || "#studio").slice(1), { pousserAncre: false });
     refreshVoices();
     refreshSystem();
     refreshModeles();
     refreshBooks();
+    loadIaConfig();
     systemTimer = setInterval(refreshSystem, 5000);
   }
 

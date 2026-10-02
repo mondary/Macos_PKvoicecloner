@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.12** · macOS Apple Silicon · Apache-2.0
+version **2026.10.13** · macOS Apple Silicon · Apache-2.0
 
 🎙️ **Studio vocal IA open source — 100 % local.** Ta voix dit n'importe quel texte. Basé sur [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts) et [faster-whisper](https://github.com/SYSTRAN/faster-whisper), sur la puce Apple via MPS. **Aucune donnée ne quitte la machine.**
 
@@ -38,6 +38,7 @@ Le site publiable prêt pour FTP est autonome dans [`store/website/`](store/webs
 - **Vue d’ensemble sans doublons** — stats des voix, modèles, livres et confidentialité ; état du serveur, activation rapide d’une voix, journal, installation de modèle, livres récents et dernières prises générées
 - **Studio web depuis l'app native** — bouton « Ouvrir le studio web » : lance l'interface web complète dans le navigateur, pendant que le serveur local de l'app tourne
 - **Livres audio (studio web)** — importe un EPUB, consulte et corrige ses chapitres dans le navigateur ; l'éditeur audiobook n'est pas encore intégré à l'interface SwiftUI
+- **Analyse IA des livres** — configure un endpoint OpenAI-compatible (GLM, DeepSeek, OpenAI…) : le studio détecte narrateur et personnages avec le genre de chaque voix, tague chaque ligne des chapitres et liste les voix requises par chapitre
 - **Studio épuré** — tableau de bord monochrome : bibliothèque de voix, éditeur et catalogue de modèles
 
 ### Interface native

@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.12** · macOS Apple Silicon · Apache-2.0
+version **2026.10.13** · macOS Apple Silicon · Apache-2.0
 
 🎙️ **Open source AI voice studio — 100 % local.** Your voice says any text. Powered by [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts) and [faster-whisper](https://github.com/SYSTRAN/faster-whisper) on Apple Silicon via MPS. **No data ever leaves the machine.**
 
@@ -38,6 +38,7 @@ The FTP-ready website is self-contained in [`store/website/`](store/website/): u
 - **No-duplicate overview** — voice, model, book and privacy stats; server health, quick voice selection, logs, model installation, recent books and latest generated takes
 - **Web studio from the native app** — the “Open web studio” button launches the full web interface in your browser while the app's local server is running
 - **Audiobooks (web studio)** — import an EPUB and review or edit its chapters in the browser; audiobook editing is not yet part of the SwiftUI interface
+- **AI book analysis** — configure an OpenAI-compatible endpoint (GLM, DeepSeek, OpenAI…): the studio detects narrator and characters with each voice's gender, tags every chapter line and lists the voices required per chapter
 - **Automatic startup** — the server starts when the app opens; when off, a welcome panel explains it with a big Start button
 - **Install then activate in one go** — a model installed from the studio activates by itself once the download finishes
 - **Clean studio** — an ElevenLabs-style clear interface: voices on the left, text and **Generate** on the right, PK coral accent

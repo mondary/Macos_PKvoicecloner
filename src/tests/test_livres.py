@@ -1,9 +1,9 @@
-"""Projets de livres : import EPUB → chapitres (découpage, ancres, replis, HTTP).
-
-Les EPUB de test sont fabriqués en mémoire (zipfile) — aucun fichier réel requis.
+"""Projets de livres : import EPUB → chapitres (découpage, ancres, replis, HTTP)
+et analyse IA (cast, tagage des voix) via un faux LLM — aucun appel réseau.
 """
 import importlib.util
 import io
+import json
 import os
 import sys
 import tempfile
@@ -19,6 +19,9 @@ spec = importlib.util.spec_from_file_location(
 server = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(server)
 from fastapi.testclient import TestClient  # noqa: E402
+
+import ia  # noqa: E402
+import livres  # noqa: E402
 
 CHAPITRES = [
     ("Premier chapitre", [" ".join(f"mot{i}" for i in range(30)), " ".join(f"suite{i}" for i in range(30))]),
@@ -122,7 +125,8 @@ class LivresContracts(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
-        self.patches = [patch.object(server, "LIVRES", self.root)]
+        self.patches = [patch.object(server, "LIVRES", self.root),
+                        patch.object(server, "FICHIER_IA", self.root / "ia.json")]
         for p in self.patches:
             p.start()
         self.client = TestClient(server.app)
@@ -263,6 +267,155 @@ class LivresContracts(unittest.TestCase):
                        "/api/livres/ZZZ0ZZZ0ZZZ0/couverture",
                        "/api/livres/1234567890ab/chapitre/1"):
             self.assertIn(self.client.get(chemin).status_code, (404, 422), chemin)
+
+
+# --------------------------------------------------------------- analyse IA
+
+def faux_llm(cfg, messages, **kwargs):
+    """Faux LLM : répond selon la TÂCHE marquée dans le prompt."""
+    prompt = messages[-1]["content"]
+    if "TÂCHE: CAST" in prompt:
+        return json.dumps({"cast": [
+            {"id": "narrateur", "nom": "Narrateur", "genre": "femme", "role": "narrateur",
+             "description": "", "importance": "principal"},
+            {"id": "marc", "nom": "Marc", "genre": "homme", "role": "personnage",
+             "description": "Capitaine", "importance": "principal"},
+            {"id": "lea", "nom": "Léa", "genre": "femme", "role": "personnage",
+             "description": "", "importance": "secondaire"},
+        ]})
+    if "TÂCHE: TAGAGE" in prompt:
+        morceau = prompt.split("<<<\n", 1)[1].split("\n>>>", 1)[0]
+        lignes = []
+        for index, ligne in enumerate(morceau.splitlines()):
+            if ligne.strip():
+                lignes.append(("[narrateur] " if index == 0 else "[marc] ") + ligne.strip())
+        lignes.append("[np1] Attendez-moi !")
+        return "\n".join(lignes)
+    if "TÂCHE: GENRES" in prompt:
+        return json.dumps({"np1": "homme"})
+    raise AssertionError(f"prompt inattendu : {prompt[:80]}")
+
+
+class AnalyseContracts(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.patches = [
+            patch.object(server, "LIVRES", self.root),
+            patch.object(server, "FICHIER_IA", self.root / "ia.json"),
+            patch.object(livres.ia, "completer", faux_llm),
+        ]
+        for p in self.patches:
+            p.start()
+        self.client = TestClient(server.app)
+        self.cfg = {"base_url": "https://exemple.test/v1", "cle": "sk-test", "modele": "faux"}
+
+    def tearDown(self):
+        self.client.close()
+        for p in reversed(self.patches):
+            p.stop()
+        self.tmp.cleanup()
+
+    def livre(self, chapitres=CHAPITRES[:2]):
+        reponse = self.client.post("/api/livres", files={
+            "epub": ("livre.epub", epub_par_fichiers(chapitres), "application/epub+zip")})
+        self.assertEqual(reponse.status_code, 200, reponse.text)
+        return reponse.json()
+
+    def test_config_ia_masque_la_cle(self):
+        self.assertEqual(self.client.get("/api/ia/config").json()["configuree"], False)
+        reponse = self.client.post("/api/ia/config", json={
+            "base_url": "https://open.bigmodel.cn/api/paas/v4/", "cle": "abcd1234efgh", "modele": "glm-4.7"})
+        self.assertEqual(reponse.status_code, 200, reponse.text)
+        relue = self.client.get("/api/ia/config").json()
+        self.assertEqual(relue["configuree"], True)
+        self.assertEqual(relue["base_url"], "https://open.bigmodel.cn/api/paas/v4")
+        self.assertEqual(relue["modele"], "glm-4.7")
+        self.assertNotIn("abcd1234efgh", json.dumps(relue))
+        self.assertEqual(relue["cle_masquee"], "…efgh")
+        self.assertEqual(self.client.post("/api/ia/config", json={"base_url": "ftp://non"}).status_code, 400)
+
+    def test_tester_ia(self):
+        self.assertEqual(self.client.post("/api/ia/tester").status_code, 400)
+        self.client.post("/api/ia/config", json={
+            "base_url": "https://exemple.test/v1", "cle": "sk-x", "modele": "faux"})
+        with patch.object(server.ia, "completer", return_value=" ok "):
+            reponse = self.client.post("/api/ia/tester")
+        self.assertEqual(reponse.status_code, 200, reponse.text)
+        self.assertEqual(reponse.json()["reponse"], "ok")
+
+    def test_analyse_complete_cast_et_voix_par_chapitre(self):
+        livre = self.livre()
+        projet = livres.analyser_livre(self.root, livre["id"], self.cfg)
+        self.assertEqual(projet["analyse"]["etat"], "faite")
+        cast = {v["id"]: v for v in projet["cast"]}
+        self.assertIn("narrateur", cast)
+        self.assertEqual(cast["marc"]["genre"], "homme")
+        self.assertEqual(cast["lea"]["genre"], "femme")
+        self.assertEqual(cast["np1"]["genre"], "homme")           # découvert puis classé
+        for chapitre in projet["chapitres"]:
+            self.assertEqual(chapitre["analyse"], "faite")
+            self.assertEqual(chapitre["voix"], ["narrateur", "marc", "np1"])
+        texte = self.client.get(f"/api/livres/{livre['id']}/chapitre/1").json()["texte"]
+        self.assertTrue(texte.startswith("[narrateur]"))
+        self.assertIn("[marc] mot0 mot1", texte)                # texte original préservé
+        # le tagage ne change pas le décompte de mots (les tags ne comptent pas)
+        mots_avant = next(c["mots"] for c in livre["chapitres"] if c["num"] == 1)
+        mots_apres = next(c["mots"] for c in projet["chapitres"] if c["num"] == 1)
+        self.assertEqual(mots_avant, mots_apres)
+        self.assertEqual(mots_apres, livres._compte_mots(texte.rsplit("\n[np1]", 1)[0]))
+
+    def test_reanalyse_retagge_sans_cumuler_les_tags(self):
+        livre = self.livre(CHAPITRES[:1])
+        livres.analyser_livre(self.root, livre["id"], self.cfg)
+        livres.analyser_livre(self.root, livre["id"], self.cfg, forcer=True)
+        texte = self.client.get(f"/api/livres/{livre['id']}/chapitre/1").json()["texte"]
+        self.assertNotIn("[narrateur] [", texte)
+        self.assertEqual(len([l for l in texte.splitlines() if l.startswith("[narrateur] [")]), 0)
+
+    def test_analyse_un_seul_chapitre_puis_reprise(self):
+        livre = self.livre()
+        projet = livres.analyser_livre(self.root, livre["id"], self.cfg, numeros=[1])
+        self.assertEqual([c.get("analyse") for c in projet["chapitres"]], ["faite", None])
+        projet = livres.analyser_livre(self.root, livre["id"], self.cfg)      # reprise : ch2 seul
+        self.assertEqual([c.get("analyse") for c in projet["chapitres"]], ["faite", "faite"])
+
+    def test_erreur_ia_visible_dans_le_projet(self):
+        livre = self.livre(CHAPITRES[:1])
+        avec_erreur = patch.object(livres.ia, "completer",
+                                   side_effect=ia.IaErreur("quota dépassé"))
+        with avec_erreur:
+            projet = livres.analyser_livre(self.root, livre["id"], self.cfg)
+        self.assertEqual(projet["analyse"]["etat"], "erreur")
+        self.assertIn("quota", projet["analyse"]["erreur"])
+        relu = self.client.get(f"/api/livres/{livre['id']}").json()
+        self.assertEqual(relu["analyse"]["etat"], "erreur")
+
+    def test_endpoint_analyse_sans_config_refuse(self):
+        livre = self.livre(CHAPITRES[:1])
+        self.assertEqual(self.client.post(f"/api/livres/{livre['id']}/analyser", json={}).status_code, 400)
+
+    def test_endpoint_analyse_tache_de_fond_et_409(self):
+        livre = self.livre(CHAPITRES[:1])
+        self.client.post("/api/ia/config", json={
+            "base_url": "https://exemple.test/v1", "cle": "sk-x", "modele": "faux"})
+        with patch.object(server.threading, "Thread") as thread:
+            reponse = self.client.post(f"/api/livres/{livre['id']}/analyser", json={})
+            self.assertEqual(reponse.status_code, 202, reponse.text)
+            thread.return_value.start.assert_called_once()
+        server.analyses_en_cours.add(livre["id"])
+        self.assertEqual(self.client.post(f"/api/livres/{livre['id']}/analyser", json={}).status_code, 409)
+        self.assertEqual(self.client.delete(f"/api/livres/{livre['id']}").status_code, 409)
+        server.analyses_en_cours.discard(livre["id"])
+
+    def test_decoupage_et_comptage(self):
+        self.assertEqual(livres._compte_mots("[marc] un deux trois"), 3)
+        decoupe = livres._decouper_analyse("p1 " * 400 + "\n\n" + "p2 " * 400, taille=1000)
+        self.assertGreaterEqual(len(decoupe), 2)
+        self.assertTrue(all(len(m) <= 2000 for m in decoupe))
+        self.assertEqual(livres.voix_du_texte("[marc] a\n[narrateur] b\n[marc] c"),
+                         ["narrateur", "marc"])
+        self.assertEqual(livres._slug("Léa-Marie Östër"), "lea-marie-oster")
 
 
 if __name__ == "__main__":

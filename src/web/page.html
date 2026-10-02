@@ -352,11 +352,11 @@
   <a class="sidebar-brand" href="#studio"><span class="brand-square">pk</span>Voice Studio</a>
   <div class="section-label">Espace de travail</div>
   <nav class="dashboard-nav" aria-label="Navigation du studio">
-    <a href="#studio" aria-current="page"><span aria-hidden="true">▦</span>Vue d’ensemble</a>
-    <a href="#voices"><span aria-hidden="true">◉</span>Bibliothèque de voix</a>
-    <a href="#editor"><span aria-hidden="true">≋</span>Texte vers voix</a>
-    <a href="#books"><span aria-hidden="true">▤</span>Livres</a>
-    <a href="#models"><span aria-hidden="true">□</span>Modèles</a>
+    <a href="#studio" data-vue="studio" aria-current="page"><span aria-hidden="true">▦</span>Vue d’ensemble</a>
+    <a href="#voices" data-vue="voices"><span aria-hidden="true">◉</span>Bibliothèque de voix</a>
+    <a href="#editor" data-vue="editor"><span aria-hidden="true">≋</span>Texte vers voix</a>
+    <a href="#books" data-vue="books"><span aria-hidden="true">▤</span>Livres</a>
+    <a href="#models" data-vue="models"><span aria-hidden="true">□</span>Modèles</a>
   </nav>
   <div class="sidebar-bottom"><span class="local-avatar">PK</span><div><strong>Studio personnel</strong><small>Sur ce Mac · 100 % local</small></div></div>
 </aside>
@@ -376,7 +376,7 @@
   <section class="hero" aria-labelledby="titre-studio">
     <div><div class="eyebrow">Ton espace de création</div><h1 id="titre-studio">Le studio vocal.</h1>
     <p class="hero-copy">Tes voix, tes mots. Crée un nouvel audio, entièrement sur ce Mac.</p></div>
-    <a class="new-take" href="#editor">+ Nouvelle prise</a>
+    <a class="new-take" href="#editor" data-vue="editor">+ Nouvelle prise</a>
   </section>
   <section class="dashboard-stats" aria-label="Le studio en un regard">
     <article><span>Confidentialité</span><strong>100 % local</strong><small>Aucun audio envoyé dans le cloud</small></article>
@@ -456,9 +456,31 @@
         <strong>Livres → Audiobooks</strong>
         <span id="booksSub">Dépose un EPUB : découpé en chapitres sur ce Mac, prêt à être narré.</span>
       </div>
-      <button class="pill-light" id="ajouterLivre" type="button">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M12 3v12m0-12 4 4m-4-4-4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Importer un EPUB
-      </button>
+      <div class="books-head-actions">
+        <details class="ia-config" id="iaConfig">
+          <summary>⚙ Réglages IA</summary>
+          <div class="ia-fields">
+            <label>Endpoint
+              <input id="iaUrl" type="url" placeholder="https://open.bigmodel.cn/api/paas/v4" spellcheck="false">
+            </label>
+            <label>Modèle
+              <input id="iaModele" type="text" placeholder="glm-4.7 · deepseek-chat · gpt-4o-mini" spellcheck="false">
+            </label>
+            <label>Clé API
+              <input id="iaCle" type="password" placeholder="collée ici — reste sur ce Mac" autocomplete="off">
+            </label>
+            <div class="ia-actions">
+              <button class="pill-light" id="iaEnregistrer" type="button">Enregistrer</button>
+              <button class="pill-light" id="iaTester" type="button">Tester la connexion</button>
+              <span class="chapter-status" id="iaStatut"></span>
+            </div>
+            <p class="ia-note">Tout service compatible OpenAI : GLM, DeepSeek, OpenAI, Ollama local… La clé est stockée dans <code>data/ia.json</code>. L'analyse envoie le texte du livre à ce service.</p>
+          </div>
+        </details>
+        <button class="pill-light" id="ajouterLivre" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M12 3v12m0-12 4 4m-4-4-4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Importer un EPUB
+        </button>
+      </div>
     </div>
     <div class="book-drop" id="bookDrop" role="region" aria-label="Déposer un fichier EPUB">
       Glisse un fichier EPUB ici — découpage en chapitres 100 % local, DRM non prise en charge.

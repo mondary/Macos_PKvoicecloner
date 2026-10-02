@@ -112,4 +112,42 @@ body{font-size:13px;line-height:1.45}::selection{background:#e4e4e7}a{color:inhe
 .take-empty{padding:18px 4px;font-size:12px;color:var(--muted)}
 .takes-panel{margin-top:18px;border:1px solid var(--line);border-radius:8px;padding:18px;background:white}
 @media(max-width:940px){.overview-activity{grid-template-columns:1fr}}
+/* Page dédiée d'un livre */
+.book-page{display:grid;gap:16px}
+.bp-head{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:16px;align-items:start;border:1px solid var(--line);border-radius:8px;padding:16px;background:white}
+.bp-head .book-cover{width:56px;height:84px}
+.bp-title{font-size:19px;font-weight:650;letter-spacing:-.3px;white-space:normal}
+.bp-infos{display:grid;gap:6px;align-content:start}
+.bp-chapters{border:1px solid var(--line);border-radius:8px;padding:14px 16px;background:white}
+.bp-chapters-head{display:flex;align-items:baseline;gap:12px;padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.bp-chapters-head strong{font-size:13px}
+.chapter-row.actif{background:var(--wash);box-shadow:inset 2px 0 0 var(--ink)}
+.chapter-etat{font:10px var(--mono);color:var(--muted);flex:0 0 auto;min-width:52px;text-align:center}
+.chapter-etat.fait{color:#2e7d4f}
+.chapter-etat.attente{color:#9a6700;animation:breathe 1.5s ease-in-out infinite}
+/* Panneau d'un chapitre : modes coloré / brut / éditer */
+.chapter-panel{border:1px solid var(--line);border-radius:8px;padding:16px;background:white;display:grid;gap:12px}
+.cp-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.cp-title{margin:0;font-size:14.5px;font-weight:650;letter-spacing:-.2px}
+.cp-modes{display:inline-flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:999px;background:var(--soft)}
+.mode-btn{height:26px;padding:0 12px;border:0;border-radius:999px;background:transparent;color:var(--muted);font-size:11.5px;transition:background .15s ease,color .15s ease}
+.mode-btn:hover:not(.actif){color:var(--ink)}
+.mode-btn.actif{background:var(--ink);color:white}
+.cp-actions{display:flex;gap:8px;align-items:center}
+.cp-actions .pill-light svg{width:11px;height:11px}
+/* Vue colorée par orateur : narrateur vert, homme bleu, femme rose */
+.cl-vue{display:grid;gap:4px;max-height:420px;overflow-y:auto;padding-right:4px}
+.cl-row{display:flex;gap:10px;align-items:flex-start;padding:7px 10px;border-radius:6px;border-left:3px solid var(--line)}
+.cl-row.narrateur{border-left-color:#2e7d4f;background:#f2f8f4}
+.cl-row.homme{border-left-color:#3b6db4;background:#f2f6fc}
+.cl-row.femme{border-left-color:#c24477;background:#fdf4f8}
+.cl-row.indetermine{border-left-color:var(--muted);background:var(--soft)}
+.cl-chip{flex:0 0 96px;font:600 10px var(--mono);text-transform:uppercase;letter-spacing:.04em;padding-top:2px}
+.cl-chip.narrateur{color:#2e7d4f}
+.cl-chip.homme{color:#3b6db4}
+.cl-chip.femme{color:#c24477}
+.cl-chip.indetermine{color:var(--muted)}
+.cl-text{flex:1;font-size:13px;line-height:1.55;color:var(--ink-2)}
+.cl-brut{white-space:pre-wrap;font:13px/1.6 var(--sans);color:var(--ink-2);max-height:420px;overflow-y:auto;padding-right:4px}
+@media(max-width:700px){.bp-head{grid-template-columns:auto minmax(0,1fr)}.book-actions{grid-column:1/-1;justify-content:flex-end}.cl-chip{flex-basis:72px;font-size:9px}}
 @media(max-width:700px){.book-card{grid-template-columns:auto minmax(0,1fr)}.book-actions{grid-column:1/-1;justify-content:flex-end}.book-drop{padding:10px}.books-head-actions{flex-direction:column-reverse;width:100%}.ia-fields{width:100%}}

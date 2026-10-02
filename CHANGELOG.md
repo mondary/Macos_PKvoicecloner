@@ -1,6 +1,18 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.18] - 2026-10-02
+
+### Changed
+
+- **Page dédiée par livre** : un clic sur la carte ouvre la page du livre (fil d'Ariane « Livres / titre », bouton retour) — cartouche avec couverture, stats, distribution complète des voix et actions d'analyse ; liste des chapitres avec **état par chapitre** (✓ N voix, en file…, —) et bouton ⚡ individuel ; la zone de dépôt EPUB n'apparaît que sur la liste.
+- **Panneau de chapitre à trois modes** : **Coloré** (une ligne par réplique, préfixée par l'orateur — narrateur en vert, hommes en bleu, femmes en rose), **Texte brut** (sans les préfixes) et **Éditer** (correction du texte et des tags, ⌘S, scission). La vue colorée est le mode par défaut d'un chapitre analysé.
+- La distribution (cast) s'affiche en entier sur la page du livre ; les liens « Derniers livres » du tableau de bord ouvrent directement la page du livre concerné.
+
+### Fixed
+
+- L'IA écrivant parfois « Narrator » au lieu de « narrateur » : l'identifiant est normalisé (côté serveur pour les prochaines analyses, côté interface pour les chapitres déjà taggés) afin que le narrateur reste un rôle unique, en vert.
+
 ## [2026.10.17] - 2026-10-02
 
 ### Fixed

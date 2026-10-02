@@ -206,12 +206,11 @@
         detail.textContent = `${book.chapitres.length} chapitres · ${book.mots.toLocaleString("fr-FR")} mots` +
                              (book.cast?.length ? ` · ${book.cast.length} voix${analysees ? ` · ${analysees} chap. analysés` : ""}` : "");
         info.append(nom, detail);
-        const ouvrir = document.createElement("a");
+        const ouvrir = document.createElement("button");
         ouvrir.className = "icon-btn";
-        ouvrir.href = "#books";
-        ouvrir.dataset.vue = "books";
         ouvrir.setAttribute("aria-label", `Ouvrir ${book.titre}`);
         ouvrir.innerHTML = ICON_ARROW;
+        ouvrir.addEventListener("click", () => ouvrirPageLivre(book.id));
         row.append(info, ouvrir);
         zoneLivres.appendChild(row);
       });
@@ -845,8 +844,9 @@
 
   /* ---------------------- Livres & audiobooks ---------------------- */
   let books = [];
-  let openBook = null;
-  const openChapters = new Set();
+  let pageLivre = null;             // id du livre dont la page dédiée est ouverte
+  let chapitreOuvert = null;        // numéro du chapitre consulté dans la page
+  const modesChapitre = new Map();  // "id:num" -> "colore" | "brut" | "editer"
   const chapterTexts = new Map();    // "id:num" -> texte servi par le serveur
   const chapterDrafts = new Map();   // "id:num" -> {texte, titre, dirty, savedAt}
   const chapterPainters = new Map(); // "id:num" -> rafraîchit l'éditeur affiché
@@ -902,12 +902,7 @@
     try {
       const response = await fetch(`/api/livres/${book.id}`, { method: "DELETE" });
       if (!response.ok) throw new Error((await response.json()).detail || "suppression impossible");
-      if (openBook === book.id) openBook = null;
-      [...openChapters].filter((cle) => cle.startsWith(`${book.id}:`)).forEach((cle) => {
-        openChapters.delete(cle);
-        chapterTexts.delete(cle);
-        chapterDrafts.delete(cle);
-      });
+      if (pageLivre === book.id) { pageLivre = null; chapitreOuvert = null; }
       notify("Livre supprimé.");
       refreshBooks();
     } catch (error) {
@@ -1130,8 +1125,17 @@
           chapterDrafts.delete(`${book.id}:${c.num}`);
         });
       }
-      list.appendChild(bookCard(book));
     });
+    const page = books.find((b) => b.id === pageLivre);
+    if (page) {
+      list.appendChild(renderBookPage(page));
+      $("bookDrop").hidden = true;
+      document.querySelector(".breadcrumbs strong").textContent = `Livres / ${page.titre}`;
+    } else {
+      books.forEach((book) => list.appendChild(bookCard(book)));
+      $("bookDrop").hidden = false;
+      document.querySelector(".breadcrumbs strong").textContent = "Livres";
+    }
     if (books.some((b) => b.analyse?.etat === "en_cours")) surveillerAnalyses();
     renderOverview();
   }
@@ -1156,6 +1160,9 @@
   function bookCard(book) {
     const card = document.createElement("article");
     card.className = "book-card";
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+    card.setAttribute("aria-label", `Ouvrir « ${book.titre} »`);
 
     const cover = document.createElement("img");
     cover.className = "book-cover";
@@ -1168,13 +1175,13 @@
     const title = document.createElement("div");
     title.className = "book-title";
     title.textContent = book.titre;
-    title.title = `${book.titre} — double-clic pour renommer`;
-    title.addEventListener("dblclick", () => renameBook(book, title));
+    title.title = book.titre;
     const author = document.createElement("div");
     author.className = "book-author";
     author.textContent = book.auteur || "Auteur inconnu";
     const meta = document.createElement("div");
     meta.className = "book-meta";
+    const faites = book.chapitres.filter((c) => c.analyse === "faite").length;
     const date = book.importe ? new Date(book.importe).toLocaleDateString("fr-FR") : "";
     meta.textContent = `${book.chapitres.length} chapitres · ${book.mots.toLocaleString("fr-FR")} mots · ` +
                        `${dureeEstimee(book.mots)} d'audio${date ? ` · ${date}` : ""}`;
@@ -1184,6 +1191,33 @@
 
     const actions = document.createElement("div");
     actions.className = "book-actions";
+    actions.append(boutonAnalyse(book), boutonSuppression(book));
+
+    card.append(cover, info, actions);
+    const ouvrir = () => ouvrirPageLivre(book.id);
+    card.addEventListener("click", ouvrir);
+    card.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); ouvrir(); }
+    });
+    return card;
+  }
+
+  function ouvrirPageLivre(id) {
+    pageLivre = id;
+    chapitreOuvert = null;
+    if (vueActive !== "books") appliquerVue("books");
+    else renderBooks();
+  }
+
+  function gardePropre(book) {
+    if (chapitreOuvert == null) return true;
+    const cle = `${book.id}:${chapitreOuvert}`;
+    if (chapterDrafts.get(cle)?.dirty &&
+        !window.confirm("Des modifications ne sont pas enregistrées. Continuer quand même ?")) return false;
+    return true;
+  }
+
+  function boutonAnalyse(book) {
     const analyse = book.analyse || {};
     const restants = book.chapitres.filter((c) => c.analyse !== "faite").length;
     const analyseBtn = document.createElement("button");
@@ -1210,52 +1244,118 @@
         }
       });
     }
-    const chaptersBtn = document.createElement("button");
-    chaptersBtn.className = "pill-light";
-    chaptersBtn.type = "button";
-    chaptersBtn.textContent = openBook === book.id ? "Replier" : "Chapitres";
-    chaptersBtn.addEventListener("click", () => {
-      openBook = openBook === book.id ? null : book.id;
-      renderBooks();
-    });
+    return analyseBtn;
+  }
+
+  function boutonSuppression(book) {
     const del = document.createElement("button");
     del.className = "icon-btn";
     del.type = "button";
     del.setAttribute("aria-label", `Supprimer « ${book.titre} »`);
     del.innerHTML = ICON_TRASH;
-    del.addEventListener("click", () => deleteBook(book));
-    actions.append(analyseBtn, chaptersBtn, del);
-
-    card.append(cover, info, actions);
-    if (openBook === book.id) {
-      const chapters = document.createElement("div");
-      chapters.className = "chapter-list";
-      book.chapitres.forEach((chapter) => chapters.appendChild(chapterBlock(book, chapter)));
-      const wrapper = document.createElement("div");
-      wrapper.className = "book-chapters";
-      wrapper.appendChild(chapters);
-      card.appendChild(wrapper);
-    }
-    return card;
+    del.addEventListener("click", (event) => {
+      event.stopPropagation();
+      deleteBook(book);
+    });
+    return del;
   }
 
-  function chapterBlock(book, chapter) {
-    const cle = `${book.id}:${chapter.num}`;
-    const block = document.createElement("div");
-    block.className = "chapter-bloc";
-    block.dataset.chapter = cle;
+  function renderBookPage(book) {
+    const page = document.createElement("div");
+    page.className = "book-page";
 
+    const retour = document.createElement("button");
+    retour.className = "pill-light";
+    retour.type = "button";
+    retour.textContent = "← Tous les livres";
+    retour.addEventListener("click", () => {
+      if (!gardePropre(book)) return;
+      pageLivre = null;
+      chapitreOuvert = null;
+      renderBooks();
+    });
+    page.appendChild(retour);
+
+    const head = document.createElement("div");
+    head.className = "bp-head";
+    const cover = document.createElement("img");
+    cover.className = "book-cover";
+    cover.src = `/api/livres/${book.id}/couverture`;
+    cover.alt = "";
+    cover.addEventListener("error", () => cover.remove());
+    const infos = document.createElement("div");
+    infos.className = "bp-infos";
+    const title = document.createElement("div");
+    title.className = "book-title bp-title";
+    title.textContent = book.titre;
+    title.title = "Double-clic pour renommer";
+    title.addEventListener("dblclick", () => renameBook(book, title));
+    const author = document.createElement("div");
+    author.className = "book-author";
+    author.textContent = book.auteur || "Auteur inconnu";
+    const meta = document.createElement("div");
+    meta.className = "book-meta";
+    meta.textContent = `${book.chapitres.length} chapitres · ${book.mots.toLocaleString("fr-FR")} mots · ` +
+                       `${dureeEstimee(book.mots)} d'audio`;
+    infos.append(title, author, meta, analyseZone(book));
+    if (book.cast?.length) infos.appendChild(castChips(book));
+    const actions = document.createElement("div");
+    actions.className = "book-actions";
+    actions.append(boutonAnalyse(book), boutonSuppression(book));
+    head.append(cover, infos, actions);
+    page.appendChild(head);
+
+    const liste = document.createElement("div");
+    liste.className = "bp-chapters";
+    const entete = document.createElement("div");
+    entete.className = "bp-chapters-head";
+    const titreListe = document.createElement("strong");
+    titreListe.textContent = "Chapitres";
+    const faites = book.chapitres.filter((c) => c.analyse === "faite").length;
+    const compte = document.createElement("span");
+    compte.className = "chapter-stats";
+    compte.textContent = faites
+      ? `${faites}/${book.chapitres.length} analysés · ${book.cast?.length || 0} voix`
+      : "aucun chapitre analysé — ouvre un chapitre ou lance l'analyse du livre";
+    entete.append(titreListe, compte);
+    liste.appendChild(entete);
+    book.chapitres.forEach((chapter) => liste.appendChild(chapterRow(book, chapter)));
+    page.appendChild(liste);
+
+    const chapter = book.chapitres.find((c) => c.num === chapitreOuvert);
+    if (chapter) page.appendChild(chapterPanel(book, chapter));
+    return page;
+  }
+
+  function chapterRow(book, chapter) {
     const row = document.createElement("div");
-    row.className = "chapter-row";
+    row.className = `chapter-row${chapitreOuvert === chapter.num ? " actif" : ""}`;
     row.tabIndex = 0;
     row.setAttribute("role", "button");
-    row.setAttribute("aria-expanded", String(openChapters.has(cle)));
-    row.innerHTML =
-      `<span class="chapter-num">${String(chapter.num).padStart(2, "0")}</span>` +
-      `<span class="chapter-title"></span>` +
-      `<span class="chapter-words">${chapter.mots.toLocaleString("fr-FR")} mots · ${dureeEstimee(chapter.mots)}` +
-      `${chapter.voix?.length ? ` · ${chapter.voix.length} voix` : ""}</span>`;
-    row.querySelector(".chapter-title").textContent = chapter.titre;
+    row.setAttribute("aria-expanded", String(chapitreOuvert === chapter.num));
+
+    const num = document.createElement("span");
+    num.className = "chapter-num";
+    num.textContent = String(chapter.num).padStart(2, "0");
+    const titre = document.createElement("span");
+    titre.className = "chapter-title";
+    titre.textContent = chapter.titre;
+    const etat = document.createElement("span");
+    if (chapter.analyse === "faite") {
+      etat.className = "chapter-etat fait";
+      etat.textContent = `✓ ${chapter.voix?.length || 0} voix`;
+      etat.title = "Chapitre analysé";
+    } else if (book.analyse?.etat === "en_cours") {
+      etat.className = "chapter-etat attente";
+      etat.textContent = "en file…";
+    } else {
+      etat.className = "chapter-etat";
+      etat.textContent = "—";
+      etat.title = "Pas encore analysé";
+    }
+    const mots = document.createElement("span");
+    mots.className = "chapter-words";
+    mots.textContent = `${chapter.mots.toLocaleString("fr-FR")} mots · ${dureeEstimee(chapter.mots)}`;
 
     const analyseIa = document.createElement("button");
     analyseIa.className = "icon-btn chapter-ia";
@@ -1271,29 +1371,142 @@
       event.stopPropagation();
       analyzeBook(book, { chapitre: chapter.num, forcer: dejaFait });
     });
-    row.appendChild(analyseIa);
-    const toggle = () => {
-      if (openChapters.has(cle)) {
-        if (chapterDrafts.get(cle)?.dirty &&
-            !window.confirm("Des modifications ne sont pas enregistrées. Fermer quand même le chapitre ?")) return;
-        openChapters.delete(cle);
-      } else {
-        openChapters.add(cle);
-      }
-      renderBooks();
-      if (openChapters.has(cle)) loadChapter(book, chapter.num);
-    };
-    row.addEventListener("click", toggle);
-    row.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); toggle(); }
-    });
-    block.appendChild(row);
 
-    if (openChapters.has(cle)) block.appendChild(chapterEditor(book, chapter, cle));
-    return block;
+    row.append(num, titre, etat, mots, analyseIa);
+    const ouvrir = () => {
+      if (chapitreOuvert === chapter.num) return;
+      if (!gardePropre(book)) return;
+      chapitreOuvert = chapter.num;
+      renderBooks();
+      loadChapter(book, chapter.num);
+    };
+    row.addEventListener("click", ouvrir);
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); ouvrir(); }
+    });
+    return row;
   }
 
-  function chapterEditor(book, chapter, cle) {
+  function chapterPanel(book, chapter) {
+    const cle = `${book.id}:${chapter.num}`;
+    const analyseFait = chapter.analyse === "faite";
+    const mode = analyseFait ? (modesChapitre.get(cle) || "colore") : "editer";
+    modesChapitre.set(cle, mode);
+
+    const panel = document.createElement("section");
+    panel.className = "chapter-panel";
+
+    const head = document.createElement("div");
+    head.className = "cp-head";
+    const titre = document.createElement("h3");
+    titre.className = "cp-title";
+    titre.textContent = `${String(chapter.num).padStart(2, "0")} · ${chapter.titre}`;
+    const modes = document.createElement("div");
+    modes.className = "cp-modes";
+    if (analyseFait) {
+      modes.append(boutonMode(cle, "colore", "Coloré"), boutonMode(cle, "brut", "Texte brut"));
+    }
+    modes.append(boutonMode(cle, "editer", "Éditer"));
+    head.append(titre, modes);
+
+    const corps = document.createElement("div");
+    corps.className = "cp-corps";
+    if (mode === "editer") {
+      corps.appendChild(modeEditeur(book, chapter, cle));
+    } else {
+      const texte = chapterTexts.get(cle);
+      if (texte == null) {
+        const vide = document.createElement("div");
+        vide.className = "take-empty";
+        vide.textContent = "Chargement du chapitre…";
+        corps.appendChild(vide);
+      } else if (mode === "colore") {
+        corps.appendChild(vueColoree(book, texte));
+      } else {
+        const pre = document.createElement("div");
+        pre.className = "cl-brut";
+        pre.textContent = texte.replace(/^\[[a-zA-Z0-9_-]+\]\s*/gm, "");
+        corps.appendChild(pre);
+      }
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "cp-actions";
+    const relance = document.createElement("button");
+    relance.className = "pill-light";
+    relance.type = "button";
+    relance.innerHTML = `${ICON_SPARK} ${analyseFait ? "Réanalyser ce chapitre" : "Analyser ce chapitre"}`;
+    relance.title = analyseFait
+      ? "Réattribue les voix de ce chapitre (la distribution du livre est conservée)"
+      : "Attribue les voix ligne par ligne via l'IA";
+    relance.disabled = book.analyse?.etat === "en_cours";
+    relance.addEventListener("click", () => analyzeBook(book, {
+      chapitre: chapter.num, forcer: analyseFait,
+    }));
+    actions.appendChild(relance);
+
+    chapterPainters.set(cle, () => renderBooks());
+    panel.append(head, corps, actions);
+    return panel;
+  }
+
+  function boutonMode(cle, mode, label) {
+    const bouton = document.createElement("button");
+    bouton.type = "button";
+    bouton.className = `mode-btn${modesChapitre.get(cle) === mode ? " actif" : ""}`;
+    bouton.textContent = label;
+    if (mode === "colore") bouton.title = "Vue colorée par orateur : narrateur en vert, hommes en bleu, femmes en rose";
+    if (mode === "brut") bouton.title = "Le texte sans les préfixes de voix";
+    bouton.addEventListener("click", () => {
+      if (modesChapitre.get(cle) === mode) return;
+      if (chapterDrafts.get(cle)?.dirty &&
+          !window.confirm("Des modifications ne sont pas enregistrées. Changer de vue quand même ?")) return;
+      modesChapitre.set(cle, mode);
+      renderBooks();
+    });
+    return bouton;
+  }
+
+  function genreVoix(cast, id) {
+    const voice = cast.find((v) => v.id === id);
+    if (id === "narrateur" || id === "narrator" || voice?.role === "narrateur") return "narrateur";
+    return voice?.genre || "indetermine";
+  }
+
+  function vueColoree(book, texte) {
+    const vue = document.createElement("div");
+    vue.className = "cl-vue";
+    const cast = book.cast || [];
+    texte.split("\n").forEach((ligne) => {
+      const brut = ligne.trim();
+      if (!brut) return;
+      const trouve = brut.match(/^\[([a-zA-Z0-9_-]+)\]\s*(.*)$/);
+      const id = trouve ? trouve[1].toLowerCase() : "narrateur";
+      const reste = trouve ? trouve[2] : brut;
+      const role = genreVoix(cast, id);
+      const row = document.createElement("div");
+      row.className = `cl-row ${role}`;
+      const chip = document.createElement("span");
+      chip.className = `cl-chip ${role}`;
+      const voice = cast.find((v) => v.id === id);
+      chip.textContent = voice?.nom || id;
+      chip.title = `voix ${role}`;
+      const contenu = document.createElement("span");
+      contenu.className = "cl-text";
+      contenu.textContent = reste;
+      row.append(chip, contenu);
+      vue.appendChild(row);
+    });
+    if (!vue.children.length) {
+      const vide = document.createElement("div");
+      vide.className = "take-empty";
+      vide.textContent = "Chapitre vide.";
+      vue.appendChild(vide);
+    }
+    return vue;
+  }
+
+  function modeEditeur(book, chapter, cle) {
     const draft = chapterDrafts.get(cle) || { texte: null, titre: chapter.titre, dirty: false, savedAt: null };
     chapterDrafts.set(cle, draft);
 
@@ -1326,14 +1539,6 @@
 
     const foot = document.createElement("div");
     foot.className = "chapter-edit-foot";
-    const analyseBtn = document.createElement("button");
-    analyseBtn.className = "pill-light";
-    analyseBtn.type = "button";
-    analyseBtn.textContent = chapter.analyse === "faite" ? "Réanalyser ce chapitre" : "Analyser ce chapitre";
-    analyseBtn.title = "Envoie ce chapitre à l'IA pour attribuer les voix ligne par ligne";
-    analyseBtn.addEventListener("click", () => analyzeBook(book, {
-      chapitre: chapter.num, forcer: chapter.analyse === "faite",
-    }));
     const saveBtn = document.createElement("button");
     saveBtn.className = "pill-light";
     saveBtn.type = "button";
@@ -1345,7 +1550,7 @@
     splitBtn.title = "Coupe le chapitre en deux à la position du curseur (utile pour les EPUB au sommaire cassé)";
     const status = document.createElement("span");
     status.className = "chapter-status";
-    foot.append(analyseBtn, saveBtn, splitBtn, status);
+    foot.append(saveBtn, splitBtn, status);
 
     edit.append(head, legende, textarea, foot);
 
@@ -1359,8 +1564,9 @@
       ids.forEach((id) => {
         const voice = (book.cast || []).find((v) => v.id === id);
         const chip = document.createElement("span");
-        chip.className = `cast-chip ${voice?.genre || "indetermine"}`;
-        const symbole = voice?.genre === "homme" ? "♂" : voice?.genre === "femme" ? "♀" : "·";
+        chip.className = `cast-chip ${genreVoix(book.cast || [], id)}`;
+        const role = genreVoix(book.cast || [], id);
+        const symbole = role === "homme" ? "♂" : role === "femme" ? "♀" : role === "narrateur" ? "✓" : "·";
         const icone = document.createElement("i");
         icone.textContent = symbole;
         icone.setAttribute("aria-hidden", "true");
@@ -1444,9 +1650,9 @@
           const ancienne = `${book.id}:${num}`;
           chapterTexts.delete(ancienne);
           chapterDrafts.delete(ancienne);
-          openChapters.delete(ancienne);
+          modesChapitre.delete(ancienne);
         }
-        openChapters.add(`${book.id}:${chapter.num + 1}`);
+        chapitreOuvert = chapter.num + 1;
         notify("Chapitre scindé en deux.");
         await refreshBooks();
       } catch (error) {
@@ -1455,13 +1661,6 @@
       }
     }
 
-    chapterPainters.set(cle, () => {
-      textarea.value = chapterTexts.get(cle) ?? "";
-      textarea.disabled = false;
-      draft.texte = textarea.value;
-      updateStats();
-      paintDirty();
-    });
     updateStats();
     paintDirty();
     return edit;

@@ -556,6 +556,8 @@ def _slug(texte: str) -> str:
     """Identifiant de voix court : minuscules, sans accent ni espace."""
     decompose = unicodedata.normalize("NFKD", str(texte or "")).encode("ascii", "ignore").decode()
     nettoye = re.sub(r"[^a-zA-Z0-9_-]+", "-", decompose).strip("-").lower()
+    if nettoye == "narrator":        # l'IA glisse parfois l'anglais : un seul rôle narrateur
+        nettoye = "narrateur"
     return nettoye or "voix"
 
 

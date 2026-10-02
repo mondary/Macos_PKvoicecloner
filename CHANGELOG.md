@@ -1,6 +1,14 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.8] - 2026-10-02
+
+### Added
+
+- Jalon 1 des audiobooks : **import d'EPUB dans le studio** — dépôt par glisser-déposer ou bouton, découpage automatique chapitre par chapitre (sommaire EPUB3 `nav`, EPUB2 `toc.ncx`, ancres `fichier.xhtml#section`, repli par document du spine quand le sommaire est absent ou cassé), filtrage des pages trop courtes (page de titre, sommaire). Parsage 100 % bibliothèque standard (`zipfile`/`xml`/`html.parser`), zéro dépendance pip.
+- Nouveaux endpoints `/api/livres` : import, liste, détail, chapitre en lecture **et** édition (`PUT`), suppression, couverture ; chaque livre vit dans `data/livres/{id}/` (projet.json + `chapitres/NNN.md` + EPUB source conservé pour réanalyse).
+- Section « Livres » du studio web : cartes avec couverture, auteur, nombre de chapitres et de mots, lecture du texte de chaque chapitre.
+
 ## [2026.10.7] - 2026-10-01
 
 ### Changed

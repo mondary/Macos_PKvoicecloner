@@ -593,6 +593,210 @@
     }
   }
 
+  /* ---------------------- Livres & audiobooks ---------------------- */
+  let books = [];
+  let openBook = null;
+  const openChapters = new Set();
+  const chapterTexts = new Map();
+  const BOOKS_HINT = "Dépose un EPUB : découpé en chapitres sur ce Mac, prêt à être narré.";
+
+  async function refreshBooks() {
+    try {
+      const response = await fetch("/api/livres");
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "bibliothèque indisponible");
+      books = payload.livres || [];
+    } catch (_) {
+      return;   // serveur absent ou éteint : les cartes déjà affichées restent en place
+    }
+    renderBooks();
+  }
+
+  async function importBook(file) {
+    if (shuttingDown) return;
+    if (!/\.epub$/i.test(file.name || "")) {
+      notify("Seuls les fichiers EPUB sont acceptés.", "error");
+      return;
+    }
+    $("ajouterLivre").disabled = true;
+    $("booksSub").textContent = `Analyse de « ${file.name} » : découpage en chapitres…`;
+    try {
+      const form = new FormData();
+      form.append("epub", file);
+      const response = await fetch("/api/livres", { method: "POST", body: form });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "import impossible");
+      notify(`« ${payload.titre} » importé : ${payload.chapitres.length} chapitres, ` +
+             `${payload.mots.toLocaleString("fr-FR")} mots`);
+      await refreshBooks();
+    } catch (error) {
+      notify(`Import impossible : ${error.message}`, "error");
+    } finally {
+      $("ajouterLivre").disabled = false;
+      $("booksSub").textContent = BOOKS_HINT;
+    }
+  }
+
+  async function deleteBook(book) {
+    if (!window.confirm(`Supprimer « ${book.titre} » et ses ${book.chapitres.length} chapitres ?`)) return;
+    try {
+      const response = await fetch(`/api/livres/${book.id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error((await response.json()).detail || "suppression impossible");
+      if (openBook === book.id) openBook = null;
+      [...openChapters].filter((cle) => cle.startsWith(`${book.id}:`)).forEach((cle) => {
+        openChapters.delete(cle);
+        chapterTexts.delete(cle);
+      });
+      notify("Livre supprimé.");
+      refreshBooks();
+    } catch (error) {
+      notify(`Suppression impossible : ${error.message}`, "error");
+    }
+  }
+
+  function renderBooks() {
+    const list = $("bookList");
+    list.textContent = "";
+    books.forEach((book) => list.appendChild(bookCard(book)));
+  }
+
+  function bookCard(book) {
+    const card = document.createElement("article");
+    card.className = "book-card";
+
+    const cover = document.createElement("img");
+    cover.className = "book-cover";
+    cover.src = `/api/livres/${book.id}/couverture`;
+    cover.alt = "";
+    cover.addEventListener("error", () => cover.remove());
+
+    const info = document.createElement("div");
+    info.className = "book-info";
+    const title = document.createElement("div");
+    title.className = "book-title";
+    title.textContent = book.titre;
+    title.title = book.titre;
+    const author = document.createElement("div");
+    author.className = "book-author";
+    author.textContent = book.auteur || "Auteur inconnu";
+    const meta = document.createElement("div");
+    meta.className = "book-meta";
+    const date = book.importe ? new Date(book.importe).toLocaleDateString("fr-FR") : "";
+    meta.textContent = `${book.chapitres.length} chapitres · ${book.mots.toLocaleString("fr-FR")} mots` +
+                       `${date ? ` · ${date}` : ""}`;
+    info.append(title, author, meta);
+
+    const actions = document.createElement("div");
+    actions.className = "book-actions";
+    const chaptersBtn = document.createElement("button");
+    chaptersBtn.className = "pill-light";
+    chaptersBtn.type = "button";
+    chaptersBtn.textContent = openBook === book.id ? "Replier" : "Chapitres";
+    chaptersBtn.addEventListener("click", () => {
+      openBook = openBook === book.id ? null : book.id;
+      renderBooks();
+    });
+    const del = document.createElement("button");
+    del.className = "icon-btn";
+    del.type = "button";
+    del.setAttribute("aria-label", `Supprimer « ${book.titre} »`);
+    del.innerHTML = ICON_TRASH;
+    del.addEventListener("click", () => deleteBook(book));
+    actions.append(chaptersBtn, del);
+
+    card.append(cover, info, actions);
+    if (openBook === book.id) {
+      const chapters = document.createElement("div");
+      chapters.className = "chapter-list";
+      book.chapitres.forEach((chapter) => chapters.appendChild(chapterBlock(book, chapter)));
+      const wrapper = document.createElement("div");
+      wrapper.className = "book-chapters";
+      wrapper.appendChild(chapters);
+      card.appendChild(wrapper);
+    }
+    return card;
+  }
+
+  function chapterBlock(book, chapter) {
+    const cle = `${book.id}:${chapter.num}`;
+    const block = document.createElement("div");
+    block.className = "chapter-bloc";
+    block.dataset.chapter = cle;
+
+    const row = document.createElement("div");
+    row.className = "chapter-row";
+    row.tabIndex = 0;
+    row.setAttribute("role", "button");
+    row.setAttribute("aria-expanded", String(openChapters.has(cle)));
+    row.innerHTML =
+      `<span class="chapter-num">${String(chapter.num).padStart(2, "0")}</span>` +
+      `<span class="chapter-title"></span>` +
+      `<span class="chapter-words">${chapter.mots.toLocaleString("fr-FR")} mots</span>`;
+    row.querySelector(".chapter-title").textContent = chapter.titre;
+    const toggle = () => {
+      if (openChapters.has(cle)) openChapters.delete(cle);
+      else openChapters.add(cle);
+      renderBooks();
+      if (openChapters.has(cle)) loadChapter(book, chapter.num);
+    };
+    row.addEventListener("click", toggle);
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); toggle(); }
+    });
+    block.appendChild(row);
+
+    if (openChapters.has(cle)) {
+      const zone = document.createElement("div");
+      zone.className = "chapter-text";
+      zone.textContent = chapterTexts.get(cle) || "Chargement…";
+      block.appendChild(zone);
+    }
+    return block;
+  }
+
+  async function loadChapter(book, num) {
+    const cle = `${book.id}:${num}`;
+    if (chapterTexts.has(cle)) {
+      const zone = document.querySelector(`[data-chapter="${cle}"] .chapter-text`);
+      if (zone) zone.textContent = chapterTexts.get(cle);
+      return;
+    }
+    try {
+      const response = await fetch(`/api/livres/${book.id}/chapitre/${num}`);
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "chapitre indisponible");
+      chapterTexts.set(cle, payload.texte);
+      const zone = document.querySelector(`[data-chapter="${cle}"] .chapter-text`);
+      if (zone) zone.textContent = payload.texte;
+    } catch (error) {
+      const zone = document.querySelector(`[data-chapter="${cle}"] .chapter-text`);
+      if (zone) zone.textContent = `Chargement impossible : ${error.message}`;
+    }
+  }
+
+  function bindBooksEvents() {
+    $("ajouterLivre").addEventListener("click", () => $("fichierLivre").click());
+    $("fichierLivre").addEventListener("change", (event) => {
+      const [file] = event.target.files || [];
+      if (file) importBook(file);
+      event.target.value = "";
+    });
+    const drop = $("bookDrop");
+    ["dragenter", "dragover"].forEach((name) => drop.addEventListener(name, (event) => {
+      event.preventDefault();
+      drop.classList.add("drag");
+    }));
+    ["dragleave", "drop"].forEach((name) => drop.addEventListener(name, (event) => {
+      event.preventDefault();
+      drop.classList.remove("drag");
+    }));
+    drop.addEventListener("drop", (event) => {
+      const file = [...(event.dataTransfer?.files || [])].find((f) => /\.epub$/i.test(f.name));
+      if (file) importBook(file);
+      else notify("Dépose un fichier EPUB.", "error");
+    });
+  }
+
   /* ---------------------- État système & extinction ---------------------- */
   let engineLoading = false;
 
@@ -725,9 +929,11 @@
     $("texte").value = window.localStorage.getItem("pk-voice-studio-script") || "";
     updatePace();
     bindEvents();
+    bindBooksEvents();
     refreshVoices();
     refreshSystem();
     refreshModeles();
+    refreshBooks();
     systemTimer = setInterval(refreshSystem, 5000);
   }
 

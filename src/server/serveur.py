@@ -7,6 +7,12 @@ Endpoints :
   POST /api/voix/{id}/choisir  active une voix de la bibliothèque
   GET  /api/voix/{id}/wav      écoute du clip de référence
   DELETE /api/voix/{id} supprime une voix de la bibliothèque
+  POST /api/livres      upload EPUB -> projet de livre découpé en chapitres
+  GET  /api/livres      bibliothèque de livres (data/livres)
+  GET  /api/livres/{id}          détail d'un livre (projet.json)
+  GET|PUT /api/livres/{id}/chapitre/{n}  lecture / édition du texte d'un chapitre
+  DELETE /api/livres/{id}        supprime le projet de livre
+  GET  /api/livres/{id}/couverture       image de couverture
   POST /api/generer     {texte, vitesse, transcript} -> job id
   POST /api/moteur      {moteur: voxcpm2|dots|qwen3|pocket} changement de moteur TTS
   GET  /api/modeles     modèles téléchargeables + état installé
@@ -25,6 +31,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -39,13 +46,18 @@ from fastapi import Body, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
+if str(Path(__file__).resolve().parent) not in sys.path:      # livres.py importable
+    sys.path.insert(0, str(Path(__file__).resolve().parent))  # quel que soit le mode de lancement
+import livres
+
 SRC = Path(__file__).resolve().parent
 PROJET = SRC.parent.parent
 WEB = PROJET / "src" / "web"
 SORTIES = PROJET / "data" / "sorties"
 VOIX = PROJET / "data" / "voix"
+LIVRES = PROJET / "data" / "livres"
 PID_FILE = PROJET / "data" / "run" / "serveur.pid"
-for _d in (SORTIES, VOIX, PID_FILE.parent):
+for _d in (SORTIES, VOIX, LIVRES, PID_FILE.parent):
     _d.mkdir(parents=True, exist_ok=True)
 
 VITESSE_MIN, VITESSE_MAX = 0.75, 1.5
@@ -692,6 +704,73 @@ def audio(fichier: str):
     if not f.exists():
         raise HTTPException(404, "fichier introuvable")
     return FileResponse(f, media_type="audio/wav", filename=f.name)
+
+
+# --------------------------------------------------------------- livres/audiobooks
+
+def _id_livre(lid: str) -> str:
+    """Valide l'identifiant (empreinte md5) avant toute manipulation de chemin."""
+    if not re.fullmatch(r"[0-9a-f]{12}", lid):
+        raise HTTPException(404, "livre inconnu")
+    return lid
+
+
+@app.post("/api/livres")
+def creer_livre(epub: UploadFile = File(...)):
+    brut = epub.file.read()
+    if not brut:
+        raise HTTPException(400, "fichier vide")
+    try:
+        return livres.importer_epub(epub.filename or "livre.epub", brut, LIVRES)
+    except livres.LivreErreur as erreur:
+        raise HTTPException(400, str(erreur))
+
+
+@app.get("/api/livres")
+def liste_livres():
+    return {"livres": livres.lister(LIVRES)}
+
+
+@app.get("/api/livres/{lid}")
+def detail_livre(lid: str):
+    livre = livres.lire(LIVRES, _id_livre(lid))
+    if not livre:
+        raise HTTPException(404, "livre inconnu")
+    return livre
+
+
+@app.get("/api/livres/{lid}/chapitre/{num}")
+def chapitre_livre(lid: str, num: int):
+    chapitre = livres.lire_chapitre(LIVRES, _id_livre(lid), num)
+    if not chapitre:
+        raise HTTPException(404, "chapitre inconnu")
+    return chapitre
+
+
+@app.put("/api/livres/{lid}/chapitre/{num}")
+def modifier_chapitre(lid: str, num: int, req: dict = Body(...)):
+    texte = (req.get("texte") or "").strip()
+    if not texte:
+        raise HTTPException(400, "texte vide")
+    chapitre = livres.enregistrer_chapitre(LIVRES, _id_livre(lid), num, texte)
+    if not chapitre:
+        raise HTTPException(404, "chapitre inconnu")
+    return chapitre
+
+
+@app.delete("/api/livres/{lid}")
+def supprimer_livre(lid: str):
+    if not livres.supprimer(LIVRES, _id_livre(lid)):
+        raise HTTPException(404, "livre inconnu")
+    return {"ok": True}
+
+
+@app.get("/api/livres/{lid}/couverture")
+def couverture_livre(lid: str):
+    chemin = livres.chemin_couverture(LIVRES, _id_livre(lid))
+    if not chemin:
+        raise HTTPException(404, "aucune couverture")
+    return FileResponse(chemin)
 
 
 def lancer_serveur():

@@ -83,6 +83,7 @@ body{font-size:13px;line-height:1.45}::selection{background:#e4e4e7}a{color:inhe
 .analyse-barre{height:4px;border-radius:2px;background:var(--soft);overflow:hidden;margin-top:6px;width:100%;max-width:340px}
 .analyse-barre i{display:block;height:100%;background:var(--ink);transition:width .5s ease}
 .analyse-erreur{margin-top:8px;font-size:11px;color:#b91c1c;max-width:420px}
+.analyse-interrompue{margin-top:8px;font-size:11px;color:#9a6700;background:#fdf6e3;border:1px solid #f0ddb0;border-radius:6px;padding:7px 10px;max-width:460px;line-height:1.5}
 .chapter-voices{display:flex;flex-wrap:wrap;gap:5px}
 /* Token Hugging Face : guide et erreurs de modèles protégés */
 .hf-token{border:1px solid var(--line);border-radius:8px;background:white;margin-bottom:14px}

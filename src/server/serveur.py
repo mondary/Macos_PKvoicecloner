@@ -879,10 +879,11 @@ def lancer_analyse(lid: str, req: dict = Body(default=None)):
     cfg = _lire_ia()
     if not (cfg.get("base_url") and cfg.get("cle") and cfg.get("modele")):
         raise HTTPException(400, "configuration IA absente : renseigne l'endpoint, la clé et le modèle dans Réglages IA")
-    if lid in analyses_en_cours:
-        raise HTTPException(409, "une analyse est déjà en cours pour ce livre")
-    if projet.get("analyse", {}).get("etat") == "en_cours":
-        raise HTTPException(409, "une analyse est déjà en cours pour ce livre")
+    if lid in analyses_en_cours or projet.get("analyse", {}).get("etat") == "en_cours":
+        faites = sum(1 for c in projet["chapitres"] if c.get("analyse") == "faite")
+        raise HTTPException(
+            409, f"une analyse est déjà en cours pour ce livre ({faites}/{len(projet['chapitres'])} chapitres faits) — "
+                 "suis la progression sur la carte du livre ; après un arrêt du studio, elle devient reprise automatiquement")
     numero = req.get("chapitre")
     numeros = [int(numero)] if numero else None
     if numeros and not any(c["num"] in numeros for c in projet["chapitres"]):
@@ -905,6 +906,10 @@ def lancer_analyse(lid: str, req: dict = Body(default=None)):
 
 def lancer_serveur():
     global serveur_http
+    interrompues = livres.reparer_analyses_interrompues(LIVRES)
+    if interrompues:
+        print(f">> {interrompues} analyse(s) marquée(s) interrompue(s) "
+              "(arrêt du studio pendant l'analyse) : reprises possibles.", flush=True)
     PID_FILE.write_text(f"{os.getpid()}\n", encoding="utf-8")
     serveur_http = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=8809))
     try:

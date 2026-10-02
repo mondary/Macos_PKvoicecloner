@@ -1044,17 +1044,27 @@
   function analyseZone(book) {
     const zone = document.createElement("div");
     const analyse = book.analyse || {};
+    const faites = book.chapitres.filter((c) => c.analyse === "faite").length;
+    const total = book.chapitres.length;
     if (analyse.etat === "en_cours") {
       const barre = document.createElement("div");
       barre.className = "analyse-barre";
       const remplissage = document.createElement("i");
-      const total = analyse.total || 1;
-      remplissage.style.width = `${Math.round(((analyse.courant || 0) / total) * 100)}%`;
+      const cible = analyse.total || 1;
+      const pourcentage = Math.round(((analyse.courant || 0) / cible) * 100);
+      remplissage.style.width = `${pourcentage}%`;
       barre.appendChild(remplissage);
       const texte = document.createElement("div");
       texte.className = "chapter-stats";
-      texte.textContent = `Analyse IA en cours · chapitre ${analyse.courant || 0}/${total}`;
+      texte.textContent = `Analyse IA en cours · chapitre ${analyse.courant || 0}/${cible} · ${pourcentage} %`;
       zone.append(texte, barre);
+    } else if (analyse.etat === "interrompue") {
+      const message = document.createElement("div");
+      message.className = "analyse-interrompue";
+      const pourcentage = total ? Math.round((faites / total) * 100) : 0;
+      message.textContent = `Analyse interrompue (studio arrêté) · ${faites}/${total} chapitres · ${pourcentage} % — ` +
+                            "« Continuer l'analyse » reprend où elle s'était arrêtée.";
+      zone.appendChild(message);
     } else if (analyse.etat === "erreur") {
       const erreur = document.createElement("div");
       erreur.className = "analyse-erreur";
@@ -1063,8 +1073,7 @@
     } else if (analyse.etat === "faite") {
       const fait = document.createElement("div");
       fait.className = "chapter-stats";
-      const analysees = book.chapitres.filter((c) => c.analyse === "faite").length;
-      fait.textContent = `${book.cast.length} voix · ${analysees}/${book.chapitres.length} chapitres analysés`;
+      fait.textContent = `${book.cast.length} voix · ${faites}/${total} chapitres analysés`;
       zone.appendChild(fait);
     }
     return zone;
@@ -1188,6 +1197,9 @@
       analyseBtn.addEventListener("click", () => analyzeBook(book));
     } else if (restants > 0) {
       analyseBtn.textContent = `Continuer l'analyse (${restants} chap.)`;
+      analyseBtn.title = analyse.etat === "interrompue"
+        ? "L'analyse avait été interrompue : reprise à partir du premier chapitre non analysé"
+        : "Analyse les chapitres restants";
       analyseBtn.addEventListener("click", () => analyzeBook(book));
     } else {
       analyseBtn.textContent = "Réanalyser (IA)";

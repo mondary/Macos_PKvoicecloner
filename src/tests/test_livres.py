@@ -435,6 +435,27 @@ class AnalyseContracts(unittest.TestCase):
         self.assertEqual(self.client.delete(f"/api/livres/{livre['id']}").status_code, 409)
         server.analyses_en_cours.discard(livre["id"])
 
+    def test_analyses_en_cours_reparees_au_demarrage(self):
+        """Une analyse restée « en_cours » après un arrêt du serveur doit devenir
+        « interrompue » (reprise possible) au lieu de bloquer en 409 fantôme."""
+        livre = self.livre(CHAPITRES[:2])
+        projet = livres.lire(self.root, livre["id"])
+        projet["analyse"] = {"etat": "en_cours", "courant": 1, "total": 2}
+        projet["chapitres"][0]["analyse"] = "faite"
+        livres._ecrire_projet(self.root, livre["id"], projet)
+
+        nombre = livres.reparer_analyses_interrompues(self.root)
+        self.assertEqual(nombre, 1)
+        repris = livres.lire(self.root, livre["id"])
+        self.assertEqual(repris["analyse"]["etat"], "interrompue")
+        self.assertIn("1/2 chapitres", repris["analyse"]["erreur"])
+
+        # et l'endpoint n'oppose plus de 409 : l'analyse repart (chapitre 2 seul)
+        self.client.post("/api/ia/config", json={
+            "base_url": "https://exemple.test/v1", "cle": "sk-x", "modele": "faux"})
+        reponse = self.client.post(f"/api/livres/{livre['id']}/analyser", json={})
+        self.assertEqual(reponse.status_code, 202, reponse.text)
+
     def test_decoupage_et_comptage(self):
         self.assertEqual(livres._compte_mots("[marc] un deux trois"), 3)
         decoupe = livres._decouper_analyse("p1 " * 400 + "\n\n" + "p2 " * 400, taille=1000)

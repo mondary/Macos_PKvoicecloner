@@ -1,6 +1,13 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.17] - 2026-10-02
+
+### Fixed
+
+- **Analyse coincée « en cours » après un arrêt du studio** : au démarrage du serveur, toute analyse restée `en_cours` est marquée `interrompue` (le fil d'analyse meurt avec le processus) — plus de refus 409 fantôme ; la carte du livre affiche l'état, le pourcentage et un bouton « Continuer l'analyse » qui reprend au premier chapitre non analysé.
+- Progression de l'analyse affichée avec pourcentage (`chapitre X/Y · Z %`) et message 409 explicite quand une analyse tourne réellement.
+
 ## [2026.10.16] - 2026-10-02
 
 ### Added

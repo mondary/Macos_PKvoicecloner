@@ -526,6 +526,30 @@ def supprimer(racine: Path, ident: str) -> bool:
     return True
 
 
+def reparer_analyses_interrompues(racine: Path) -> int:
+    """Au démarrage du serveur : une analyse « en_cours » ne peut plus l'être
+    (le fil d'exécution meurt avec le processus). On la marque « interrompue »
+    pour que le studio propose de la reprendre au lieu de refuser (409 fantôme).
+    """
+    nombre = 0
+    for dossier in racine.glob("*/"):
+        try:
+            projet = json.loads((dossier / "projet.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        analyse = projet.get("analyse") or {}
+        if analyse.get("etat") == "en_cours":
+            faites = sum(1 for c in projet.get("chapitres", []) if c.get("analyse") == "faite")
+            analyse["etat"] = "interrompue"
+            analyse["erreur"] = ("interrompue par un arrêt ou un redémarrage du studio "
+                                 f"— {faites}/{len(projet.get('chapitres', []))} chapitres analysés, "
+                                 "reprends où elle s'était arrêtée")
+            (dossier / "projet.json").write_text(
+                json.dumps(projet, ensure_ascii=False, indent=2), encoding="utf-8")
+            nombre += 1
+    return nombre
+
+
 # ------------------------------------------------- analyse IA (voix du livre)
 
 def _slug(texte: str) -> str:

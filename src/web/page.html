@@ -379,10 +379,28 @@
     <a class="new-take" href="#editor" data-vue="editor">+ Nouvelle prise</a>
   </section>
   <section class="dashboard-stats" aria-label="Le studio en un regard">
-    <article><span>Confidentialité</span><strong>100 % local</strong><small>Aucun audio envoyé dans le cloud</small></article>
-    <article><span>Création vocale</span><strong>Ta voix</strong><small>Importe un clip ou utilise ton micro</small></article>
-    <article><span>Export audio</span><strong>WAV</strong><small>Prêt à écouter et à télécharger</small></article>
-    <article><span>Transcription</span><strong>Whisper</strong><small>Transcript de référence éditable</small></article>
+    <article><span>Voix</span><strong id="statVoix">—</strong><small>dans ta bibliothèque</small></article>
+    <article><span>Modèles installés</span><strong id="statModeles">—</strong><small>disponibles sur ce Mac</small></article>
+    <article><span>Livres</span><strong id="statLivres">—</strong><small>EPUB préparés</small></article>
+    <article><span>Prises générées</span><strong id="statPrises">—</strong><small>dans le studio</small></article>
+  </section>
+  <section class="overview-activity" id="overviewActivity" aria-label="Activité récente">
+    <div class="activity-panel">
+      <div class="demo-heading">
+        <strong>Derniers livres</strong>
+        <span id="overviewBooksSub">Tes EPUB importés et leur progression</span>
+      </div>
+      <div class="activity-actions"><a href="#books" data-vue="books">Tous les livres →</a></div>
+      <div id="overviewBooks"></div>
+    </div>
+    <div class="activity-panel">
+      <div class="demo-heading">
+        <strong>Dernières prises</strong>
+        <span id="overviewTakesSub">Audio générés par tes voix</span>
+      </div>
+      <div class="activity-actions"><a href="#editor" data-vue="editor">Tout voir →</a></div>
+      <div id="overviewTakes"></div>
+    </div>
   </section>
   <section class="demo-panel" aria-label="Studio texte vers voix">
     <div class="demo-top">
@@ -450,6 +468,15 @@
       </div>
     </div>
   </section>
+  <section class="takes-panel" id="takes" aria-label="Prises générées" hidden>
+    <div class="books-head">
+      <div class="demo-heading">
+        <strong>Prises générées</strong>
+        <span id="takesSub">Chaque audio synthétisé, avec son transcript</span>
+      </div>
+    </div>
+    <div id="prisesList"></div>
+  </section>
   <section class="books-panel" id="books" aria-label="Bibliothèque de livres">
     <div class="books-head">
       <div class="demo-heading">
@@ -461,7 +488,7 @@
           <summary>⚙ Réglages IA</summary>
           <div class="ia-fields">
             <label>Endpoint
-              <input id="iaUrl" type="url" placeholder="https://open.bigmodel.cn/api/paas/v4" spellcheck="false">
+              <input id="iaUrl" type="url" placeholder="https://api.z.ai/api/coding/paas/v4" spellcheck="false">
             </label>
             <label>Modèle
               <input id="iaModele" type="text" placeholder="glm-4.7 · deepseek-chat · gpt-4o-mini" spellcheck="false">
@@ -474,7 +501,7 @@
               <button class="pill-light" id="iaTester" type="button">Tester la connexion</button>
               <span class="chapter-status" id="iaStatut"></span>
             </div>
-            <p class="ia-note">Tout service compatible OpenAI : GLM, DeepSeek, OpenAI, Ollama local… La clé est stockée dans <code>data/ia.json</code>. L'analyse envoie le texte du livre à ce service.</p>
+            <p class="ia-note">Colle l'URL de <b>base</b> seulement — sans <code>/chat/completions</code> (ajouté automatiquement). Exemples : <code>https://api.z.ai/api/coding/paas/v4</code> (GLM Coding Plan), <code>https://api.deepseek.com/v1</code>, <code>https://api.openai.com/v1</code>. La clé reste sur ce Mac (<code>data/ia.json</code>) ; l'analyse envoie le texte du livre à ce service depuis le serveur local.</p>
           </div>
         </details>
         <button class="pill-light" id="ajouterLivre" type="button">

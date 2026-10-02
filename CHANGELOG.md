@@ -1,6 +1,17 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.15] - 2026-10-02
+
+### Changed
+
+- Vue d'ensemble web recentrée en tableau de bord : tuiles vivantes (voix, modèles installés, livres, prises générées) et panneaux « Derniers livres » / « Dernières prises » avec liens vers les sections — l'éditeur texte et la bibliothèque de voix ne sont plus dupliqués en page d'accueil.
+- Vue « Texte vers voix » : liste complète des **prises générées** (nom, durée, extrait du transcript, lecture, téléchargement), absente du studio web jusqu'ici ; rafraîchie automatiquement après chaque génération.
+
+### Fixed
+
+- Réglages IA : l'endpoint accepte désormais l'URL complète (`…/chat/completions`) comme l'URL de base — le suffixe est retiré automatiquement au lieu de produire une URL doublée ; exemples directement adaptés au GLM Coding Plan (`https://api.z.ai/api/coding/paas/v4`) et note explicite « sans /chat/completions ».
+
 ## [2026.10.14] - 2026-10-02
 
 ### Changed

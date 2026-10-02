@@ -18,8 +18,13 @@ class IaErreur(Exception):
 
 
 def valider_config(base_url: str, cle: str, modele: str) -> dict:
-    """Normalise et vérifie la configuration ; lève IaErreur si incomplète."""
+    """Normalise et vérifie la configuration ; lève IaErreur si incomplète.
+
+    Accepte l'URL de base (`…/v4`) comme l'URL complète (`…/v4/chat/completions`)
+    — le suffixe est retiré, il est rajouté automatiquement à chaque appel.
+    """
     base_url = (base_url or "").strip().rstrip("/")
+    base_url = re.sub(r"/chat/completions$", "", base_url, flags=re.IGNORECASE)
     cle = (cle or "").strip()
     modele = (modele or "").strip()
     if not base_url.startswith(("http://", "https://")):

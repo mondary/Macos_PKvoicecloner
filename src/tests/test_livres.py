@@ -325,12 +325,13 @@ class AnalyseContracts(unittest.TestCase):
     def test_config_ia_masque_la_cle(self):
         self.assertEqual(self.client.get("/api/ia/config").json()["configuree"], False)
         reponse = self.client.post("/api/ia/config", json={
-            "base_url": "https://open.bigmodel.cn/api/paas/v4/", "cle": "abcd1234efgh", "modele": "glm-4.7"})
+            "base_url": "https://api.z.ai/api/coding/paas/v4/chat/completions", "cle": "abcd1234efgh", "modele": "glm-5.3-flash"})
         self.assertEqual(reponse.status_code, 200, reponse.text)
         relue = self.client.get("/api/ia/config").json()
         self.assertEqual(relue["configuree"], True)
-        self.assertEqual(relue["base_url"], "https://open.bigmodel.cn/api/paas/v4")
-        self.assertEqual(relue["modele"], "glm-4.7")
+        # l'URL complète doit être normalisée en URL de base (le suffixe est rajouté aux appels)
+        self.assertEqual(relue["base_url"], "https://api.z.ai/api/coding/paas/v4")
+        self.assertEqual(relue["modele"], "glm-5.3-flash")
         self.assertNotIn("abcd1234efgh", json.dumps(relue))
         self.assertEqual(relue["cle_masquee"], "…efgh")
         self.assertEqual(self.client.post("/api/ia/config", json={"base_url": "ftp://non"}).status_code, 400)

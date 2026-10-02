@@ -10,6 +10,8 @@
   const ICON_PAUSE = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 3.2h2.4v9.6H4.5zM9.1 3.2h2.4v9.6H9.1z"/></svg>';
   const ICON_TRASH = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M2.5 4h11M6.5 4V2.8h3V4M4 4l.7 9h6.6L12 4M6.6 6.6v4M9.4 6.6v4"/></svg>';
   const ICON_MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+  const ICON_DOWNLOAD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M12 3v12m0-12 4 4m-4-4-4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>';
+  const ICON_ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M5 12h14m0 0-6-6m6 6-6 6"/></svg>';
 
   let speed = 1;
   let generating = false;
@@ -50,10 +52,12 @@
     const panneau = document.querySelector(".demo-panel");
     document.querySelector(".hero").hidden = !accueil;
     document.querySelector(".dashboard-stats").hidden = !accueil;
-    panneau.hidden = !(accueil || id === "voices" || id === "editor");
+    $("overviewActivity").hidden = !accueil;
+    panneau.hidden = !(id === "voices" || id === "editor");
     const stage = document.querySelector(".demo-stage");
     stage.classList.toggle("only-voices", id === "voices");
     stage.classList.toggle("only-editor", id === "editor");
+    $("takes").hidden = id !== "editor";
     $("books").hidden = id !== "books";
     $("models").hidden = id !== "models";
     document.querySelectorAll(".dashboard-nav a").forEach((lien) => {
@@ -79,6 +83,156 @@
     });
     // naviguer d'une ancre à l'autre ne recharge pas la page : suivre quand même
     window.addEventListener("hashchange", () => appliquerVue(location.hash.slice(1)));
+  }
+
+  /* ---------------------- Prises générées & tableau de bord ---------------------- */
+  let audios = [];
+  let takePlaying = null;
+
+  async function refreshAudios() {
+    try {
+      const response = await fetch("/api/audios");
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "prise indisponible");
+      audios = payload.audios || [];
+    } catch (_) {
+      return;
+    }
+    renderTakes();
+    renderOverview();
+  }
+
+  function dureeTexte(secondes) {
+    const s = Math.round(secondes || 0);
+    if (s < 60) return `${s} s`;
+    return `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, "0")}`;
+  }
+
+  function makeTakeRow(take) {
+    const row = document.createElement("div");
+    row.className = "take-row";
+    const info = document.createElement("div");
+    info.className = "take-info";
+    const nom = document.createElement("div");
+    nom.className = "take-name";
+    nom.textContent = take.nom;
+    const extrait = document.createElement("div");
+    extrait.className = "take-excerpt";
+    extrait.textContent = take.transcript ? take.transcript.slice(0, 110) : "Transcript non disponible";
+    info.append(nom, extrait);
+    const duree = document.createElement("span");
+    duree.className = "take-duration";
+    duree.textContent = dureeTexte(take.duree);
+    const play = document.createElement("button");
+    play.className = "icon-btn";
+    play.type = "button";
+    play.setAttribute("aria-label", `Écouter ${take.nom}`);
+    play.innerHTML = ICON_PLAY;
+    play.addEventListener("click", (event) => {
+      event.stopPropagation();
+      toggleTake(take.nom, play);
+    });
+    const download = document.createElement("a");
+    download.className = "icon-btn";
+    download.href = `/api/audio/${encodeURIComponent(take.nom)}`;
+    download.download = take.nom;
+    download.setAttribute("aria-label", `Télécharger ${take.nom}`);
+    download.innerHTML = ICON_DOWNLOAD;
+    row.append(info, duree, play, download);
+    return row;
+  }
+
+  function toggleTake(nom, bouton) {
+    if (takePlaying === nom && !previewAudio.paused) {
+      previewAudio.pause();
+      return;
+    }
+    if (!previewAudio.paused) previewAudio.pause();
+    takePlaying = nom;
+    previewAudio.src = `/api/audio/${encodeURIComponent(nom)}`;
+    previewAudio.play().catch(() => notify("Lecture impossible", "error"));
+  }
+
+  function paintTakeButtons() {
+    document.querySelectorAll(".take-row").forEach((row) => {
+      const bouton = row.querySelector(".icon-btn");
+      if (!bouton) return;
+      const nom = row.querySelector(".take-name")?.textContent;
+      bouton.innerHTML = nom === takePlaying && !previewAudio.paused ? ICON_PAUSE : ICON_PLAY;
+    });
+  }
+
+  function renderTakes() {
+    const list = $("prisesList");
+    list.textContent = "";
+    if (!audios.length) {
+      const vide = document.createElement("div");
+      vide.className = "take-empty";
+      vide.textContent = "Aucune prise pour le moment — écris un texte à droite et clique Générer.";
+      list.appendChild(vide);
+      return;
+    }
+    audios.forEach((take) => list.appendChild(makeTakeRow(take)));
+  }
+
+  function renderOverview() {
+    // tuiles
+    $("statVoix").textContent = voices.length || "—";
+    $("statModeles").textContent = modelesInstalles() || "—";
+    $("statLivres").textContent = books.length || "—";
+    $("statPrises").textContent = audios.length || "—";
+
+    // derniers livres
+    const zoneLivres = $("overviewBooks");
+    zoneLivres.textContent = "";
+    if (!books.length) {
+      const vide = document.createElement("div");
+      vide.className = "take-empty";
+      vide.textContent = "Aucun livre — importe un EPUB depuis la section Livres.";
+      zoneLivres.appendChild(vide);
+    } else {
+      books.slice(0, 3).forEach((book) => {
+        const row = document.createElement("div");
+        row.className = "take-row";
+        const info = document.createElement("div");
+        info.className = "take-info";
+        const nom = document.createElement("div");
+        nom.className = "take-name";
+        nom.textContent = book.titre;
+        const detail = document.createElement("div");
+        detail.className = "take-excerpt";
+        const analysees = book.chapitres.filter((c) => c.analyse === "faite").length;
+        detail.textContent = `${book.chapitres.length} chapitres · ${book.mots.toLocaleString("fr-FR")} mots` +
+                             (book.cast?.length ? ` · ${book.cast.length} voix${analysees ? ` · ${analysees} chap. analysés` : ""}` : "");
+        info.append(nom, detail);
+        const ouvrir = document.createElement("a");
+        ouvrir.className = "icon-btn";
+        ouvrir.href = "#books";
+        ouvrir.dataset.vue = "books";
+        ouvrir.setAttribute("aria-label", `Ouvrir ${book.titre}`);
+        ouvrir.innerHTML = ICON_ARROW;
+        row.append(info, ouvrir);
+        zoneLivres.appendChild(row);
+      });
+    }
+
+    // dernières prises
+    const zonePrises = $("overviewTakes");
+    zonePrises.textContent = "";
+    if (!audios.length) {
+      const vide = document.createElement("div");
+      vide.className = "take-empty";
+      vide.textContent = "Aucune prise générée pour le moment.";
+      zonePrises.appendChild(vide);
+    } else {
+      audios.slice(0, 3).forEach((take) => zonePrises.appendChild(makeTakeRow(take)));
+    }
+  }
+
+  let modelesCatalogue = [];
+
+  function modelesInstalles() {
+    return modelesCatalogue.filter((m) => m.installe).length || null;
   }
 
   /* ---------------------- Toast & états ---------------------- */
@@ -160,6 +314,7 @@
       return;
     }
     renderVoices();
+    renderOverview();
     const count = voices.length;
     $("voiceCount").textContent = count ? `${count} voix` : "0 voix";
     $("voiceFooterCount").textContent = count ? `${count} clone${count > 1 ? "s" : ""}` : "";
@@ -339,9 +494,9 @@
   }
 
   function bindPreviewEvents() {
-    previewAudio.addEventListener("play", () => { $("resultat").pause(); paintPlayButtons(); });
-    previewAudio.addEventListener("pause", paintPlayButtons);
-    previewAudio.addEventListener("ended", paintPlayButtons);
+    previewAudio.addEventListener("play", () => { $("resultat").pause(); paintPlayButtons(); paintTakeButtons(); });
+    previewAudio.addEventListener("pause", () => { paintPlayButtons(); paintTakeButtons(); });
+    previewAudio.addEventListener("ended", () => { paintPlayButtons(); paintTakeButtons(); });
     $("resultat").addEventListener("play", () => previewAudio.pause());
   }
 
@@ -541,6 +696,7 @@
         setTakeStatus(`Prise finalisée · ${job.duree} s`, "good");
         setPanelStatus(`Prise prête · ${job.duree} s d'audio`);
         notify("Prise finalisée, à l'écoute.");
+        refreshAudios();
         try { await $("resultat").play(); } catch (_) { /* autoplay bloqué : le lecteur reste là */ }
       } catch (error) {
         if (shuttingDown) { clearInterval(timer); return; }
@@ -562,6 +718,8 @@
     } catch (_) {
       return;
     }
+    modelesCatalogue = payload.modeles || [];
+    renderOverview();
     const list = $("modelesList");
     list.textContent = "";
     let enCours = false;
@@ -965,6 +1123,7 @@
       list.appendChild(bookCard(book));
     });
     if (books.some((b) => b.analyse?.etat === "en_cours")) surveillerAnalyses();
+    renderOverview();
   }
 
   /* Ramasse les éditeurs ouverts avant un re-rendu : rien ne se perd. */
@@ -1468,6 +1627,7 @@
     refreshSystem();
     refreshModeles();
     refreshBooks();
+    refreshAudios();
     loadIaConfig();
     systemTimer = setInterval(refreshSystem, 5000);
   }

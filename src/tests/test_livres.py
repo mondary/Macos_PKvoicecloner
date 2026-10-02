@@ -381,6 +381,32 @@ class AnalyseContracts(unittest.TestCase):
         projet = livres.analyser_livre(self.root, livre["id"], self.cfg)      # reprise : ch2 seul
         self.assertEqual([c.get("analyse") for c in projet["chapitres"]], ["faite", "faite"])
 
+    def test_reanalyse_un_chapitre_conserve_le_cast(self):
+        """Re-tagger un chapitre précis ne doit pas refaire la distribution :
+        les identifiants de voix resteraient sinon incohérents entre chapitres."""
+        livre = self.livre(CHAPITRES[:2])
+        livres.analyser_livre(self.root, livre["id"], self.cfg)
+        cast_initial = livres.lire(self.root, livre["id"])["cast"]
+        self.assertEqual(len(cast_initial), 4)          # narrateur + marc + lea + np1
+
+        appels = {"cast": 0}
+        dorigine = livres.ia.completer
+
+        def compteur(cfg, messages, **kwargs):
+            if "TÂCHE: CAST" in messages[-1]["content"]:
+                appels["cast"] += 1
+            return dorigine(cfg, messages, **kwargs)
+
+        with patch.object(livres.ia, "completer", compteur):
+            livres.analyser_livre(self.root, livre["id"], self.cfg, numeros=[1], forcer=True)
+        self.assertEqual(appels["cast"], 0)             # aucun nouvel appel de distribution
+        cast_conserve = livres.lire(self.root, livre["id"])["cast"]
+        self.assertEqual([v["id"] for v in cast_conserve], [v["id"] for v in cast_initial])
+
+        with patch.object(livres.ia, "completer", compteur):
+            livres.analyser_livre(self.root, livre["id"], self.cfg, forcer=True)   # livre entier
+        self.assertEqual(appels["cast"], 1)             # là, la distribution est refaite
+
     def test_erreur_ia_visible_dans_le_projet(self):
         livre = self.livre(CHAPITRES[:1])
         avec_erreur = patch.object(livres.ia, "completer",

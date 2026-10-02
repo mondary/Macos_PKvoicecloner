@@ -1,6 +1,16 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.16] - 2026-10-02
+
+### Added
+
+- **Analyse IA par chapitre, visible directement dans la liste** : chaque ligne de chapitre porte un bouton ⚡ qui lance (ou relance) l'analyse de ce seul chapitre, sans ouvrir l'éditeur.
+
+### Fixed
+
+- Ré-analyser un chapitre précis conserve désormais la distribution des voix existante : elle n'est refaite que lors d'une ré-analyse du livre entier, garantissant des identifiants de voix cohérents d'un chapitre à l'autre.
+
 ## [2026.10.15] - 2026-10-02
 
 ### Changed

@@ -12,6 +12,7 @@
   const ICON_MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
   const ICON_DOWNLOAD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M12 3v12m0-12 4 4m-4-4-4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>';
   const ICON_ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M5 12h14m0 0-6-6m6 6-6 6"/></svg>';
+  const ICON_SPARK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m8 1 .9 2.2L11 4l-2.1.8L8 7l-.9-2.2L5 4l2.1-.8L8 1Zm5 7 .6 1.4L15 10l-1.4.6L13 12l-.6-1.4L11 10l1.4-.6L13 8ZM3 9l.6 1.4L5 11l-1.4.6L3 13l-.6-1.4L1 11l1.4-.6L3 9Z"/></svg>';
 
   let speed = 1;
   let generating = false;
@@ -1243,6 +1244,22 @@
       `<span class="chapter-words">${chapter.mots.toLocaleString("fr-FR")} mots · ${dureeEstimee(chapter.mots)}` +
       `${chapter.voix?.length ? ` · ${chapter.voix.length} voix` : ""}</span>`;
     row.querySelector(".chapter-title").textContent = chapter.titre;
+
+    const analyseIa = document.createElement("button");
+    analyseIa.className = "icon-btn chapter-ia";
+    analyseIa.type = "button";
+    analyseIa.innerHTML = ICON_SPARK;
+    const dejaFait = chapter.analyse === "faite";
+    analyseIa.title = dejaFait
+      ? "Réanalyser ce chapitre avec l'IA (les voix actuelles sont conservées)"
+      : "Analyser ce chapitre avec l'IA : attribution des voix ligne par ligne";
+    analyseIa.setAttribute("aria-label", analyseIa.title);
+    analyseIa.disabled = book.analyse?.etat === "en_cours";
+    analyseIa.addEventListener("click", (event) => {
+      event.stopPropagation();
+      analyzeBook(book, { chapitre: chapter.num, forcer: dejaFait });
+    });
+    row.appendChild(analyseIa);
     const toggle = () => {
       if (openChapters.has(cle)) {
         if (chapterDrafts.get(cle)?.dirty &&

@@ -718,7 +718,9 @@ def analyser_livre(racine: Path, ident: str, cfg: dict,
     dossier = racine / ident
 
     try:
-        if forcer or not projet.get("cast"):
+        # la distribution n'est refaite que pour une ré-analyse du livre ENTIER :
+        # re-tagger un chapitre précis conserve le cast actuel (cohérence des voix entre chapitres)
+        if (forcer and numeros is None) or not projet.get("cast"):
             projet["cast"] = _detecter_cast(cfg, projet["titre"], _echantillon(dossier, projet))
             projet["analyse"] = {"etat": "en_cours", "courant": 0, "total": 0}
             _ecrire_projet(racine, ident, projet)

@@ -1,6 +1,12 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.31] - 2026-10-03
+
+### Fixed
+
+- Le panneau Modèles du studio web marque le moteur actif (« ● Actif ») dès le chargement, sans attendre une réinstallation.
+
 ## [2026.10.30] - 2026-10-03
 
 ### Changed

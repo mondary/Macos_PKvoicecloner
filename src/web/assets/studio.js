@@ -2328,7 +2328,9 @@
     const labels = { dots: "dots.tts", qwen3: "Qwen3-TTS 0,6B", pocket: "Pocket TTS", voxcpm2: "VoxCPM2" };
     try {
       const system = await (await fetch("/api/etat")).json();
+      const ancienMoteur = moteurActif;
       moteurActif = system.moteur || "";
+      if (moteurActif !== ancienMoteur) refreshModeles();
       if (system.version) {
         $("version").textContent = system.version;
         $("versionFooter").textContent = system.version;

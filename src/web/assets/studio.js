@@ -713,6 +713,7 @@
   }
 
   /* ---------------------- Modèles téléchargeables ---------------------- */
+  let moteurActif = "";
   async function refreshModeles() {
     if (shuttingDown) return;
     let payload;
@@ -727,7 +728,6 @@
     list.textContent = "";
     let enCours = false;
     (payload.modeles || []).forEach((m) => {
-      if (m.core) return; // moteurs de base : gérés hors du panneau « à tester »
       const item = document.createElement("div");
       item.className = "model-item";
       const link = document.createElement("a");
@@ -735,22 +735,48 @@
       link.target = "_blank";
       link.rel = "noopener";
       link.textContent = `${m.label} · ${m.taille}`;
-      const btn = document.createElement("button");
-      btn.className = "model-delete";
-      btn.type = "button";
+      const actions = document.createElement("div");
+      actions.className = "model-actions";
       if (m.etat === "en_cours") {
+        const btn = document.createElement("button");
+        btn.className = "model-delete";
+        btn.type = "button";
         btn.textContent = "Installation…";
         btn.disabled = true;
         enCours = true;
+        actions.appendChild(btn);
       } else if (m.installe) {
-        btn.textContent = "Supprimer";
-        btn.addEventListener("click", () => supprimerModele(m.id));
+        if (m.moteur === moteurActif) {
+          const actif = document.createElement("span");
+          actif.className = "model-actif";
+          actif.textContent = "● Actif";
+          actions.appendChild(actif);
+        } else {
+          const activer = document.createElement("button");
+          activer.className = "pill-light";
+          activer.type = "button";
+          activer.textContent = "Activer";
+          activer.addEventListener("click", () => switchEngine(m.moteur));
+          actions.appendChild(activer);
+        }
+        if (!m.core) {
+          const suppr = document.createElement("button");
+          suppr.className = "model-suppr";
+          suppr.type = "button";
+          suppr.textContent = "Supprimer";
+          suppr.addEventListener("click", () => supprimerModele(m.id));
+          actions.appendChild(suppr);
+        }
       } else {
+        const btn = document.createElement("button");
+        btn.className = "model-delete";
+        btn.type = "button";
         btn.textContent = m.etat === "erreur" ? "Réessayer" : "Installer";
         if (m.etat === "erreur") btn.title = `Échec : ${m.erreur || "erreur"} — clique pour réessayer`;
         btn.addEventListener("click", () => installerModele(m.id));
+        actions.appendChild(btn);
       }
-      item.append(link, btn);
+      item.append(link, actions);
       if (m.etat === "erreur") {
         const erreur = document.createElement("div");
         erreur.className = "model-erreur";
@@ -2302,6 +2328,7 @@
     const labels = { dots: "dots.tts", qwen3: "Qwen3-TTS 0,6B", pocket: "Pocket TTS", voxcpm2: "VoxCPM2" };
     try {
       const system = await (await fetch("/api/etat")).json();
+      moteurActif = system.moteur || "";
       if (system.version) {
         $("version").textContent = system.version;
         $("versionFooter").textContent = system.version;

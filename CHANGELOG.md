@@ -1,6 +1,15 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.30] - 2026-10-03
+
+### Changed
+
+- **Panneau Modèles du studio web aligné sur l'app** : les quatre moteurs (VoxCPM2, dots.tts, Qwen3-TTS, Pocket TTS) apparaissent avec leur état — « Actif », bouton Activer, suppression des modèles optionnels et installation.
+- **Réglages du studio web** : l'entrée est désormais collée en bas de la barre latérale, juste au-dessus de « Studio personnel ».
+- **Liens externes** du studio intégré (Hugging Face, Ko-fi, hub d'applications PK, GitHub) : ils s'ouvrent dans le navigateur par défaut au lieu de rester sans effet.
+- La section Livres de l'app affiche les **couvertures** des EPUB.
+
 ## [2026.10.29] - 2026-10-03
 
 ### Fixed

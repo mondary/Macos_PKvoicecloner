@@ -606,7 +606,17 @@ struct ContentView: View {
             }
             ForEach(studio.books) { book in
                 HStack(spacing: 10) {
-                    Image(systemName: "book.closed").foregroundStyle(Dashboard.muted)
+                    AsyncImage(url: studio.baseURL.appendingPathComponent("api/livres/\(book.id)/couverture")) { phase in
+                        if let image = phase.image {
+                            image.resizable().aspectRatio(contentMode: .fill)
+                        } else {
+                            Rectangle().fill(Dashboard.soft)
+                                .overlay(Image(systemName: "book.closed").foregroundStyle(Dashboard.muted))
+                        }
+                    }
+                    .frame(width: 34, height: 50)
+                    .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(Dashboard.line, lineWidth: 1))
                     VStack(alignment: .leading, spacing: 2) {
                         Text(book.titre).font(.system(size: 12, weight: .medium)).lineLimit(1)
                         Text("\(book.chapitres.count) chapitres · \(book.mots.formatted()) mots")
@@ -669,6 +679,28 @@ private final class StudioWebView: WKWebView, WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         tentatives = 0
+    }
+
+    /// Les liens externes (HF, Ko-fi, hub PK…) s'ouvrent dans le navigateur par
+    /// défaut, jamais dans la fenêtre du studio.
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+                 decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        if let url = navigationAction.request.url,
+           let hote = url.host,
+           !hote.hasPrefix("127.0.0.1"), !hote.hasPrefix("localhost") {
+            NSWorkspace.shared.open(url)
+            decisionHandler(.cancel)
+            return
+        }
+        decisionHandler(.allow)
+    }
+
+    func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
+                 for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        if let url = navigationAction.request.url, url.host != nil {
+            NSWorkspace.shared.open(url)
+        }
+        return nil
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {

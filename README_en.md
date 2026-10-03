@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.18** · macOS Apple Silicon · Apache-2.0
+version **2026.10.29** · macOS Apple Silicon · Apache-2.0
 
 🎙️ **Open source AI voice studio — 100 % local.** Your voice says any text. Powered by [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts) and [faster-whisper](https://github.com/SYSTRAN/faster-whisper) on Apple Silicon via MPS. **No data ever leaves the machine.**
 
@@ -36,9 +36,11 @@ The FTP-ready website is self-contained in [`store/website/`](store/website/): u
 - **`mavox`** — one-command cloning from the terminal, quoted or not
 - **Native macOS app** — SwiftUI interface: the server starts and stops with the app, automatic Sparkle updates
 - **No-duplicate overview** — voice, model, book and privacy stats; server health, quick voice selection, logs, model installation, recent books and latest generated takes
-- **Web studio from the native app** — the “Open web studio” button launches the full web interface in your browser while the app's local server is running
-- **Audiobooks (web studio)** — import an EPUB and review or edit its chapters in the browser; audiobook editing is not yet part of the SwiftUI interface
-- **AI book analysis** — configure an OpenAI-compatible endpoint (GLM, DeepSeek, OpenAI…): the studio detects narrator and characters with each voice's gender, tags every chapter line and lists the voices required per chapter
+- **Book studio inside the native app** — “Open web studio” opens the EPUB library and editor in a macOS app window (WKWebView) while the local server is running
+- **Settings inside the app window, pinned at the sidebar's bottom** — the “Réglages” section (above “Studio personnel”) groups, in both the native app and the web studio: AI providers and API keys (add, test, activate — keys stay on this Mac), the Hugging Face token for gated models, and an About page with version, Ko-fi, the PK app hub and GitHub
+- **Aligned navigation, app / web studio** — the same entries on both sides: Overview, Voice library, Text to voice, Books, Models, Settings; the app opens the dedicated book studio from its Books section
+- **Audiobooks (web studio)** — import an EPUB and compare its preserved original with the AI-structured text sentence by sentence, with color-coded voice assignments, segment generation, and continuous playback with punctuation-based breathing pauses; the audiobook editor is not yet part of SwiftUI
+- **Book analysis and voices** — save multiple OpenAI-compatible providers (GLM, DeepSeek, OpenAI or local Ollama), map each character to a library voice, and generate segments individually or sequentially in a batch; the book page tracks analysis, segments and generated audio
 - **Automatic startup** — the server starts when the app opens; when off, a welcome panel explains it with a big Start button
 - **Install then activate in one go** — a model installed from the studio activates by itself once the download finishes
 - **Clean studio** — an ElevenLabs-style clear interface: voices on the left, text and **Generate** on the right, PK coral accent

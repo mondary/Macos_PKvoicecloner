@@ -43,12 +43,14 @@
     editor: "Texte vers voix",
     books: "Livres",
     models: "Modèles",
+    settings: "Réglages",
   };
   let vueActive = "studio";
 
   function appliquerVue(id, { pousserAncre = true } = {}) {
     if (!VUES[id]) id = "studio";
     vueActive = id;
+    document.body.classList.toggle("book-focus", id === "books" && Boolean(pageLivre));
     const accueil = id === "studio";
     const panneau = document.querySelector(".demo-panel");
     document.querySelector(".hero").hidden = !accueil;
@@ -61,6 +63,7 @@
     $("takes").hidden = id !== "editor";
     $("books").hidden = id !== "books";
     $("models").hidden = id !== "models";
+    $("settings").hidden = id !== "settings";
     document.querySelectorAll(".dashboard-nav a").forEach((lien) => {
       const actif = lien.dataset.vue === id;
       lien.classList.toggle("active", actif);
@@ -844,15 +847,28 @@
 
   /* ---------------------- Livres & audiobooks ---------------------- */
   let books = [];
+  let libraryVoices = null;
   let pageLivre = null;             // id du livre dont la page dédiée est ouverte
   let chapitreOuvert = null;        // numéro du chapitre consulté dans la page
   const modesChapitre = new Map();  // "id:num" -> "colore" | "brut" | "editer"
   const chapterTexts = new Map();    // "id:num" -> texte servi par le serveur
+  const chapterSources = new Map();  // "id:num" -> texte d'origine conservé côté serveur
   const chapterDrafts = new Map();   // "id:num" -> {texte, titre, dirty, savedAt}
   const chapterPainters = new Map(); // "id:num" -> rafraîchit l'éditeur affiché
   const analysesVues = new Set();    // id des livres dont l'analyse terminée a purgé le cache
+  let premierRenduLivres = true;     // le premier rendu n'annonce pas les analyses déjà faites
   const BOOKS_HINT = "Dépose un EPUB : découpé en chapitres sur ce Mac, prêt à être narré.";
   const MOTS_PAR_MINUTE = 160;       // débit de narration d'un audiobook français
+  const MARQUEUR_VOIX = /^(?:\/\/\/\s*([a-zA-Z0-9_-]+)\s+|\[([a-zA-Z0-9_-]+)\]\s*)/;
+  let chapterPlaybackAudio = null;
+
+  function nomVoix(book, id) {
+    const voice = (book.cast || []).find((v) => v.id === id);
+    if (voice) return voice.nom;
+    const inconnu = id.match(/^np(\d+)$/i);
+    if (inconnu) return `Voix inconnue ${inconnu[1]}`;
+    return id;
+  }
 
   function dureeEstimee(mots) {
     const minutes = Math.max(1, Math.round(mots / MOTS_PAR_MINUTE));
@@ -916,35 +932,136 @@
     $("iaStatut").className = `chapter-status ${tone}`;
   }
 
+  let iaProfiles = [];
+  let activeIaProfile = "";
+
   async function loadIaConfig() {
     try {
-      const payload = await (await fetch("/api/ia/config")).json();
-      $("iaUrl").value = payload.base_url || "";
-      $("iaModele").value = payload.modele || "";
-      if (payload.configuree) {
-        $("iaCle").placeholder = `${payload.cle_masquee || "•••"} — laisse vide pour conserver`;
-        setIaStatut("IA configurée.", "saved");
+      const response = await fetch("/api/ia/profils");
+      const payload = await response.json();
+      if (!response.ok) throw new Error(response.status === 404
+        ? "Cette version du serveur ne gère pas encore les profils IA. Redémarre PK Voice Studio."
+        : (payload.detail || "impossible de lire les profils IA"));
+      iaProfiles = payload.profils || [];
+      activeIaProfile = payload.actif || "";
+      renderIaProfiles();
+      const actif = iaProfiles.find((profil) => profil.id === activeIaProfile);
+      if (actif) setIaStatut(`Provider actif : ${actif.nom}`, "saved");
+    } catch (error) {
+      setIaStatut(error.message || "API IA indisponible.", "dirty");
+    }
+  }
+
+  function renderIaProfiles() {
+    const list = $("iaProviders");
+    if (!list) return;
+    list.textContent = "";
+    if (!iaProfiles.length) {
+      const empty = document.createElement("p");
+      empty.className = "chapter-stats";
+      empty.textContent = "Aucun provider enregistré. Ajoute un service distant ou Ollama local.";
+      list.appendChild(empty);
+      return;
+    }
+    iaProfiles.forEach((profil) => {
+      const row = document.createElement("div");
+      row.className = `ia-provider${profil.id === activeIaProfile ? " actif" : ""}`;
+      const info = document.createElement("div");
+      const name = document.createElement("strong");
+      name.textContent = profil.nom + (profil.id === activeIaProfile ? " · actif" : "");
+      const detail = document.createElement("small");
+      detail.textContent = `${profil.modele} · ${profil.base_url} · ${profil.cle_masquee || "sans clé"}`;
+      info.append(name, detail);
+      const actions = document.createElement("div");
+      actions.className = "ia-provider-actions";
+      if (profil.id !== activeIaProfile) {
+        const use = document.createElement("button");
+        use.type = "button"; use.className = "ia-small-btn"; use.textContent = "Activer";
+        use.addEventListener("click", () => setActiveIaProfile(profil.id));
+        actions.appendChild(use);
       }
-    } catch (_) { /* serveur absent : silencieux */ }
+      const edit = document.createElement("button");
+      edit.type = "button"; edit.className = "ia-small-btn"; edit.textContent = "Modifier";
+      edit.addEventListener("click", () => {
+        $("iaProfileId").value = profil.id;
+        $("iaNom").value = profil.nom;
+        $("iaUrl").value = profil.base_url;
+        $("iaModele").value = profil.modele;
+        $("iaCle").value = "";
+        $("iaCle").placeholder = `${profil.cle_masquee || "clé locale"} — vide = conserver`;
+        $("iaSupprimerCle").checked = false;
+        $("iaEnregistrer").textContent = "Enregistrer les modifications";
+        $("iaNom").focus();
+      });
+      const remove = document.createElement("button");
+      remove.type = "button"; remove.className = "ia-small-btn danger"; remove.textContent = "Supprimer";
+      remove.addEventListener("click", () => deleteIaProfile(profil));
+      actions.append(edit, remove);
+      row.append(info, actions);
+      list.appendChild(row);
+    });
+  }
+
+  function nouveauProfilIa() {
+    $("iaProfileId").value = "";
+    $("iaNom").value = "";
+    $("iaUrl").value = "";
+    $("iaModele").value = "";
+    $("iaCle").value = "";
+    $("iaCle").placeholder = "clé distante — vide pour Ollama local";
+    $("iaSupprimerCle").checked = false;
+    $("iaEnregistrer").textContent = "Ajouter le provider";
+    setIaStatut("Nouveau profil IA.");
+    $("iaNom").focus();
+  }
+
+  async function setActiveIaProfile(id) {
+    try {
+      const response = await fetch(`/api/ia/profils/${id}/activer`, { method: "POST" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "activation impossible");
+      activeIaProfile = id;
+      renderIaProfiles();
+      const profile = iaProfiles.find((p) => p.id === id);
+      setIaStatut(`Provider actif : ${profile?.nom || id}`, "saved");
+      notify(`Provider IA actif : ${profile?.nom || id}`);
+    } catch (error) { setIaStatut(error.message, "dirty"); }
+  }
+
+  async function deleteIaProfile(profile) {
+    if (!window.confirm(`Supprimer le provider « ${profile.nom} » ? Sa clé sera retirée des réglages locaux.`)) return;
+    try {
+      const response = await fetch(`/api/ia/profils/${profile.id}`, { method: "DELETE" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "suppression impossible");
+      await loadIaConfig();
+      if ($("iaProfileId").value === profile.id) nouveauProfilIa();
+      setIaStatut("Provider supprimé.", "saved");
+    } catch (error) { setIaStatut(error.message, "dirty"); }
   }
 
   async function saveIaConfig() {
-    const corps = { base_url: $("iaUrl").value.trim(), modele: $("iaModele").value.trim() };
+    const corps = { nom: $("iaNom").value.trim(), base_url: $("iaUrl").value.trim(), modele: $("iaModele").value.trim() };
     const cle = $("iaCle").value.trim();
     if (cle) corps.cle = cle;
+    if ($("iaSupprimerCle").checked) corps.supprimer_cle = true;
     setIaStatut("Enregistrement…");
     $("iaEnregistrer").disabled = true;
     try {
-      const response = await fetch("/api/ia/config", {
-        method: "POST",
+      const profileId = $("iaProfileId").value;
+      const response = await fetch(profileId ? `/api/ia/profils/${profileId}` : "/api/ia/profils", {
+        method: profileId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(corps),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.detail || "enregistrement impossible");
       $("iaCle").value = "";
-      setIaStatut("Configuration enregistrée.", "saved");
-      notify("Configuration IA enregistrée.");
+      $("iaSupprimerCle").checked = false;
+      await loadIaConfig();
+      nouveauProfilIa();
+      setIaStatut("Provider enregistré. Active-le pour les prochaines analyses.", "saved");
+      notify("Provider IA enregistré.");
     } catch (error) {
       setIaStatut(error.message, "dirty");
     } finally {
@@ -956,7 +1073,10 @@
     $("iaTester").disabled = true;
     setIaStatut("Test de la connexion…");
     try {
-      const response = await fetch("/api/ia/tester", { method: "POST" });
+      const response = await fetch("/api/ia/tester", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profil_id: activeIaProfile }),
+      });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.detail || "test impossible");
       setIaStatut(`Connexion OK (« ${payload.reponse} »).`, "saved");
@@ -1046,12 +1166,13 @@
       barre.className = "analyse-barre";
       const remplissage = document.createElement("i");
       const cible = analyse.total || 1;
-      const pourcentage = Math.round(((analyse.courant || 0) / cible) * 100);
+      const pourcentage = Math.min(100, Math.round(((analyse.courant || 0) / cible) * 100));
       remplissage.style.width = `${pourcentage}%`;
       barre.appendChild(remplissage);
       const texte = document.createElement("div");
       texte.className = "chapter-stats";
-      texte.textContent = `Analyse IA en cours · chapitre ${analyse.courant || 0}/${cible} · ${pourcentage} %`;
+      texte.textContent = (analyse.phase || "Analyse IA en cours") + ` · ${pourcentage} %` +
+                          (analyse.tokens ? ` · ${analyse.tokens.toLocaleString("fr-FR")} tokens` : "");
       zone.append(texte, barre);
     } else if (analyse.etat === "interrompue") {
       const message = document.createElement("div");
@@ -1068,7 +1189,9 @@
     } else if (analyse.etat === "faite") {
       const fait = document.createElement("div");
       fait.className = "chapter-stats";
-      fait.textContent = `${book.cast.length} voix · ${faites}/${total} chapitres analysés`;
+      const tokens = book.tokens_ia || analyse.tokens;
+      fait.textContent = `${book.cast.length} voix · ${faites}/${total} chapitres analysés` +
+                         (tokens ? ` · ${tokens.toLocaleString("fr-FR")} tokens` : "");
       zone.appendChild(fait);
     }
     return zone;
@@ -1114,16 +1237,24 @@
   function renderBooks() {
     recolteEditeurs();
     chapterPainters.clear();
+    document.body.classList.toggle("book-focus", vueActive === "books" && Boolean(books.find((b) => b.id === pageLivre)));
     const list = $("bookList");
     list.textContent = "";
     books.forEach((book) => {
       // une analyse qui vient de se terminer : les textes servis ont changé (tags)
       if (book.analyse?.etat === "faite" && !analysesVues.has(book.id)) {
+        const silencieux = premierRenduLivres;   // au chargement : pas de toast rétroactif
         analysesVues.add(book.id);
         book.chapitres.forEach((c) => {
           chapterTexts.delete(`${book.id}:${c.num}`);
           chapterDrafts.delete(`${book.id}:${c.num}`);
         });
+        if (!silencieux) {
+          const faites = book.chapitres.filter((c) => c.analyse === "faite").length;
+          const tokens = book.tokens_ia || book.analyse?.tokens;
+          notify(`Analyse terminée : ${faites}/${book.chapitres.length} chapitres · ` +
+                 `${book.cast.length} voix${tokens ? ` · ${tokens.toLocaleString("fr-FR")} tokens` : ""}`);
+        }
       }
     });
     const page = books.find((b) => b.id === pageLivre);
@@ -1138,6 +1269,7 @@
     }
     if (books.some((b) => b.analyse?.etat === "en_cours")) surveillerAnalyses();
     renderOverview();
+    premierRenduLivres = false;
   }
 
   /* Ramasse les éditeurs ouverts avant un re-rendu : rien ne se perd. */
@@ -1204,9 +1336,11 @@
 
   function ouvrirPageLivre(id) {
     pageLivre = id;
-    chapitreOuvert = null;
+    const book = books.find((b) => b.id === id);
+    chapitreOuvert = book?.chapitres?.[0]?.num ?? null;
     if (vueActive !== "books") appliquerVue("books");
-    else renderBooks();
+    renderBooks();
+    if (chapitreOuvert != null && book) loadChapter(book, chapitreOuvert);
   }
 
   function gardePropre(book) {
@@ -1260,10 +1394,103 @@
     return del;
   }
 
+  let voicesLoad = null;
+  function voiceAssignments(book) {
+    const section = document.createElement("section");
+    section.className = "voice-assignment";
+    const heading = document.createElement("div");
+    heading.className = "voice-assignment-title";
+    heading.textContent = "Associer les personnages à la bibliothèque de voix";
+    const hint = document.createElement("p");
+    hint.className = "chapter-stats";
+    hint.textContent = "Ces associations serviront à générer chaque segment avec la bonne voix.";
+    section.append(heading, hint);
+    if (libraryVoices === null) {
+      const pending = document.createElement("div");
+      pending.className = "chapter-stats";
+      pending.textContent = "Chargement de la bibliothèque de voix…";
+      section.appendChild(pending);
+      if (!voicesLoad) {
+        voicesLoad = fetch("/api/voix").then((r) => r.json()).then((p) => {
+          libraryVoices = p.voix || [];
+          renderBooks();
+        }).catch(() => { libraryVoices = []; }).finally(() => { voicesLoad = null; });
+      }
+      return section;
+    }
+    const form = document.createElement("div");
+    form.className = "voice-assignment-grid";
+    const selects = new Map();
+    book.cast.forEach((role) => {
+      const label = document.createElement("label");
+      const genre = genreVoix(book.cast || [], role.id);
+      label.className = `voice-assignment-row ${genre}`;
+      const name = document.createElement("span");
+      name.className = `voice-assignment-name ${genre}`;
+      name.textContent = role.nom;
+      const select = document.createElement("select");
+      select.setAttribute("aria-label", `Voix de bibliothèque pour ${role.nom}`);
+      const empty = document.createElement("option");
+      empty.value = "";
+      empty.textContent = "Choisir une voix…";
+      select.appendChild(empty);
+      libraryVoices.forEach((voice) => {
+        const option = document.createElement("option");
+        option.value = voice.id;
+        option.textContent = voice.nom;
+        select.appendChild(option);
+      });
+      select.value = book.voix_assignees?.[role.id] || "";
+      selects.set(role.id, select);
+      label.append(name, select);
+      form.appendChild(label);
+    });
+    const save = document.createElement("button");
+    save.type = "button";
+    save.className = "voice-save-btn";
+    save.textContent = "Enregistrer les associations";
+    const status = document.createElement("span");
+    status.className = "chapter-status";
+    save.addEventListener("click", async () => {
+      save.disabled = true;
+      status.textContent = "Enregistrement…";
+      const voix_assignees = Object.fromEntries([...selects].map(([id, select]) => [id, select.value]).filter(([, value]) => value));
+      try {
+        const response = await fetch(`/api/livres/${book.id}/voix`, {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ voix_assignees }),
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          const detail = response.status === 404
+            ? "Cette API manque sur le serveur actuellement lancé. Redémarre PK Voice Studio pour charger la version récente."
+            : (payload.detail || "enregistrement impossible");
+          throw new Error(detail);
+        }
+        book.voix_assignees = payload.voix_assignees;
+        status.textContent = "Associations enregistrées";
+        status.className = "chapter-status saved";
+      } catch (error) {
+        status.textContent = error.message;
+        status.className = "chapter-status dirty";
+      } finally { save.disabled = false; }
+    });
+    section.append(form, save, status);
+    if (!libraryVoices.length) {
+      const empty = document.createElement("p");
+      empty.className = "chapter-stats";
+      empty.textContent = "Aucune voix dans la bibliothèque — ajoute d’abord des voix dans l’onglet Voix.";
+      section.appendChild(empty);
+    }
+    return section;
+  }
+
   function renderBookPage(book) {
     const page = document.createElement("div");
-    page.className = "book-page";
+    page.className = "book-page book-focus-layout";
 
+    const toolbar = document.createElement("div");
+    toolbar.className = "book-page-toolbar";
     const retour = document.createElement("button");
     retour.className = "pill-light";
     retour.type = "button";
@@ -1274,7 +1501,8 @@
       chapitreOuvert = null;
       renderBooks();
     });
-    page.appendChild(retour);
+    toolbar.append(retour);
+    page.appendChild(toolbar);
 
     const head = document.createElement("div");
     head.className = "bp-head";
@@ -1297,13 +1525,23 @@
     meta.className = "book-meta";
     meta.textContent = `${book.chapitres.length} chapitres · ${book.mots.toLocaleString("fr-FR")} mots · ` +
                        `${dureeEstimee(book.mots)} d'audio`;
-    infos.append(title, author, meta, analyseZone(book));
+    const analysisSummary = analyseZone(book);
+    analysisSummary.classList.add("book-analyse-zone");
+    infos.append(title, author, meta, analysisSummary);
     if (book.cast?.length) infos.appendChild(castChips(book));
     const actions = document.createElement("div");
     actions.className = "book-actions";
     actions.append(boutonAnalyse(book), boutonSuppression(book));
     head.append(cover, infos, actions);
     page.appendChild(head);
+    if (book.cast?.length) {
+      const castDetails = document.createElement("details");
+      castDetails.className = "book-voice-details";
+      const summary = document.createElement("summary");
+      summary.textContent = `Voix et attribution · ${book.cast.length} rôles`;
+      castDetails.append(summary, voiceAssignments(book));
+      page.appendChild(castDetails);
+    }
 
     const liste = document.createElement("div");
     liste.className = "bp-chapters";
@@ -1320,16 +1558,29 @@
     entete.append(titreListe, compte);
     liste.appendChild(entete);
     book.chapitres.forEach((chapter) => liste.appendChild(chapterRow(book, chapter)));
-    page.appendChild(liste);
-
+    liste.setAttribute("aria-label", "Liste des chapitres");
     const chapter = book.chapitres.find((c) => c.num === chapitreOuvert);
-    if (chapter) page.appendChild(chapterPanel(book, chapter));
+    const workspace = document.createElement("div");
+    workspace.className = "book-workspace";
+    workspace.appendChild(liste);
+    const reader = document.createElement("div");
+    reader.className = "book-reader";
+    if (chapter) reader.appendChild(chapterPanel(book, chapter));
+    else {
+      const empty = document.createElement("div");
+      empty.className = "book-reader-empty";
+      empty.textContent = "Choisis un chapitre dans la liste pour afficher sa lecture et son statut.";
+      reader.appendChild(empty);
+    }
+    workspace.appendChild(reader);
+    page.appendChild(workspace);
     return page;
   }
 
   function chapterRow(book, chapter) {
     const row = document.createElement("div");
     row.className = `chapter-row${chapitreOuvert === chapter.num ? " actif" : ""}`;
+    row.dataset.chapterNum = String(chapter.num);
     row.tabIndex = 0;
     row.setAttribute("role", "button");
     row.setAttribute("aria-expanded", String(chapitreOuvert === chapter.num));
@@ -1342,15 +1593,17 @@
     titre.textContent = chapter.titre;
     const etat = document.createElement("span");
     if (chapter.analyse === "faite") {
-      etat.className = "chapter-etat fait";
-      etat.textContent = `✓ ${chapter.voix?.length || 0} voix`;
-      etat.title = "Chapitre analysé";
+      const totalSegments = chapter.segments || 0;
+      const audioReady = chapter.audio_generes ?? Object.keys(chapter.audio_segments || {}).length;
+      etat.className = "chapter-etat fait chapter-state-stack";
+      etat.textContent = `✓ ${chapter.voix?.length || 0} voix · ${totalSegments} phrases\n${audioReady}/${totalSegments} audio`;
+      etat.title = `Analyse terminée · ${chapter.voix?.length || 0} voix · ${totalSegments} segments détectés · ${audioReady} segments générés`;
     } else if (book.analyse?.etat === "en_cours") {
       etat.className = "chapter-etat attente";
       etat.textContent = "en file…";
     } else {
       etat.className = "chapter-etat";
-      etat.textContent = "—";
+      etat.textContent = "à analyser";
       etat.title = "Pas encore analysé";
     }
     const mots = document.createElement("span");
@@ -1372,7 +1625,10 @@
       analyzeBook(book, { chapitre: chapter.num, forcer: dejaFait });
     });
 
-    row.append(num, titre, etat, mots, analyseIa);
+    const side = document.createElement("div");
+    side.className = "chapter-list-row-side";
+    side.append(etat, analyseIa);
+    row.append(num, titre, side);
     const ouvrir = () => {
       if (chapitreOuvert === chapter.num) return;
       if (!gardePropre(book)) return;
@@ -1390,7 +1646,7 @@
   function chapterPanel(book, chapter) {
     const cle = `${book.id}:${chapter.num}`;
     const analyseFait = chapter.analyse === "faite";
-    const mode = analyseFait ? (modesChapitre.get(cle) || "colore") : "editer";
+    const mode = analyseFait ? (modesChapitre.get(cle) || "compare") : "editer";
     modesChapitre.set(cle, mode);
 
     const panel = document.createElement("section");
@@ -1404,7 +1660,7 @@
     const modes = document.createElement("div");
     modes.className = "cp-modes";
     if (analyseFait) {
-      modes.append(boutonMode(cle, "colore", "Coloré"), boutonMode(cle, "brut", "Texte brut"));
+      modes.append(boutonMode(cle, "compare", "Comparer"), boutonMode(cle, "colore", "Coloré"), boutonMode(cle, "brut", "Texte brut"));
     }
     modes.append(boutonMode(cle, "editer", "Éditer"));
     head.append(titre, modes);
@@ -1420,12 +1676,14 @@
         vide.className = "take-empty";
         vide.textContent = "Chargement du chapitre…";
         corps.appendChild(vide);
+      } else if (mode === "compare") {
+        corps.appendChild(vueComparee(book, chapter, chapterSources.get(cle) ?? texte, texte));
       } else if (mode === "colore") {
         corps.appendChild(vueColoree(book, texte));
       } else {
         const pre = document.createElement("div");
         pre.className = "cl-brut";
-        pre.textContent = texte.replace(/^\[[a-zA-Z0-9_-]+\]\s*/gm, "");
+        pre.textContent = texte.replace(/^(?:\/\/\/\s*[a-zA-Z0-9_-]+\s+|\[[a-zA-Z0-9_-]+\]\s*)/gm, "");
         corps.appendChild(pre);
       }
     }
@@ -1444,6 +1702,95 @@
       chapitre: chapter.num, forcer: analyseFait,
     }));
     actions.appendChild(relance);
+    if (analyseFait) {
+      const batch = document.createElement("button");
+      batch.className = "pill-light";
+      batch.type = "button";
+      batch.textContent = "Générer les segments du chapitre";
+      const batchStatus = document.createElement("span");
+      batchStatus.className = "chapter-status";
+      batch.addEventListener("click", async () => {
+        const rows = [...panel.querySelectorAll(".cl-structured .cl-segment-row")];
+        if (!rows.length) {
+          modesChapitre.set(cle, "compare");
+          renderBooks();
+          notify("Vue comparaison activée. Relance le lot pour générer les segments.");
+          return;
+        }
+        const todo = rows.filter((row) => {
+          const index = Number(row.dataset.segmentIndex);
+          return !segmentFichier(book, chapter.num, index, row.querySelector(".cl-text")?.textContent || "",
+            book.voix_assignees?.[row.dataset.speaker] || "");
+        });
+        if (!todo.length) { batchStatus.textContent = "Tous les segments sont déjà générés."; return; }
+        batch.disabled = true;
+        for (let i = 0; i < todo.length; i += 1) {
+          const row = todo[i];
+          const index = Number(row.dataset.segmentIndex);
+          batchStatus.textContent = `Génération du segment ${i + 1}/${todo.length}…`;
+          await generateSegment(book, chapter.num, index, row.querySelector(".cl-text")?.textContent || "",
+            row.dataset.speaker, row.querySelector(".cl-segment-audio"), row.querySelector(".cl-segment-audio button"), batchStatus);
+          if (batchStatus.classList.contains("dirty")) break;
+        }
+        batch.disabled = false;
+        if (!batchStatus.classList.contains("dirty")) batchStatus.textContent = "Génération du lot terminée.";
+      });
+      actions.append(batch, batchStatus);
+
+      const listen = document.createElement("button");
+      listen.className = "pill-light";
+      listen.type = "button";
+      listen.textContent = "Écouter le chapitre";
+      listen.title = "Enchaîne les segments avec une respiration adaptée à la ponctuation";
+      listen.addEventListener("click", async () => {
+        if (chapterPlaybackAudio) {
+          chapterPlaybackAudio.pause();
+          chapterPlaybackAudio = null;
+          listen.textContent = "Écouter le chapitre";
+          return;
+        }
+        const rows = [...panel.querySelectorAll(".cl-structured .cl-segment-row")];
+        const segments = rows.map((row) => {
+          const text = row.querySelector(".cl-text")?.textContent || "";
+          const index = Number(row.dataset.segmentIndex);
+          const fichier = segmentFichier(book, chapter.num, index, text,
+            book.voix_assignees?.[row.dataset.speaker] || "");
+          return { text, fichier };
+        });
+        if (!segments.length || segments.some((segment) => !segment.fichier)) {
+          batchStatus.textContent = "Génère d’abord tous les segments du chapitre.";
+          batchStatus.className = "chapter-status dirty";
+          return;
+        }
+        listen.textContent = "Arrêter la lecture";
+        try {
+          for (let i = 0; i < segments.length; i += 1) {
+            if (listen.textContent !== "Arrêter la lecture") break;
+            const audio = new Audio(`/api/audio/${encodeURIComponent(segments[i].fichier)}`);
+            chapterPlaybackAudio = audio;
+            await new Promise((resolve, reject) => {
+              audio.addEventListener("ended", resolve, { once: true });
+              audio.addEventListener("pause", resolve, { once: true });
+              audio.addEventListener("error", () => reject(new Error("lecture audio impossible")), { once: true });
+              audio.play().catch(reject);
+            });
+            chapterPlaybackAudio = null;
+            if (listen.textContent !== "Arrêter la lecture") break;
+            const pause = /[,;:]$/.test(segments[i].text.trim()) ? 220
+              : /[.!?…»”\"]$/.test(segments[i].text.trim()) ? 520 : 300;
+            if (i < segments.length - 1) await new Promise((resolve) => setTimeout(resolve, pause));
+          }
+        } catch (error) {
+          batchStatus.textContent = error.message;
+          batchStatus.className = "chapter-status dirty";
+        } finally {
+          if (chapterPlaybackAudio) chapterPlaybackAudio.pause();
+          chapterPlaybackAudio = null;
+          listen.textContent = "Écouter le chapitre";
+        }
+      });
+      actions.appendChild(listen);
+    }
 
     chapterPainters.set(cle, () => renderBooks());
     panel.append(head, corps, actions);
@@ -1455,6 +1802,7 @@
     bouton.type = "button";
     bouton.className = `mode-btn${modesChapitre.get(cle) === mode ? " actif" : ""}`;
     bouton.textContent = label;
+    if (mode === "compare") bouton.title = "Texte d'origine à gauche, phrases attribuées et colorées à droite";
     if (mode === "colore") bouton.title = "Vue colorée par orateur : narrateur en vert, hommes en bleu, femmes en rose";
     if (mode === "brut") bouton.title = "Le texte sans les préfixes de voix";
     bouton.addEventListener("click", () => {
@@ -1480,16 +1828,15 @@
     texte.split("\n").forEach((ligne) => {
       const brut = ligne.trim();
       if (!brut) return;
-      const trouve = brut.match(/^\[([a-zA-Z0-9_-]+)\]\s*(.*)$/);
-      const id = trouve ? trouve[1].toLowerCase() : "narrateur";
-      const reste = trouve ? trouve[2] : brut;
+      const trouve = MARQUEUR_VOIX.exec(brut);
+      const id = trouve ? (trouve[1] || trouve[2]).toLowerCase() : "narrateur";
+      const reste = trouve ? brut.slice(trouve[0].length) : brut;
       const role = genreVoix(cast, id);
       const row = document.createElement("div");
       row.className = `cl-row ${role}`;
       const chip = document.createElement("span");
       chip.className = `cl-chip ${role}`;
-      const voice = cast.find((v) => v.id === id);
-      chip.textContent = voice?.nom || id;
+      chip.textContent = nomVoix(book, id);
       chip.title = `voix ${role}`;
       const contenu = document.createElement("span");
       contenu.className = "cl-text";
@@ -1504,6 +1851,223 @@
       vue.appendChild(vide);
     }
     return vue;
+  }
+
+  function empreinteSegment(text, voiceId) {
+    let hash = 2166136261;
+    for (const char of `${text}\0${voiceId}`) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+    return (hash >>> 0).toString(16).padStart(8, "0");
+  }
+
+  function segmentStorageKey(bookId, chapterNum, index, text = "", voiceId = "") {
+    return `pkvs-segment:${bookId}:${chapterNum}:${index}:${empreinteSegment(text, voiceId)}`;
+  }
+
+  function segmentFichier(book, chapterNum, index, text = "", voiceId = "") {
+    const empreinte = empreinteSegment(text, voiceId);
+    const stored = book.chapitres.find((c) => c.num === chapterNum)?.audio_segments?.[String(index)];
+    if (stored?.empreinte === empreinte) return stored.fichier;
+    try { return localStorage.getItem(segmentStorageKey(book.id, chapterNum, index, text, voiceId)); }
+    catch (_) { return null; }
+  }
+
+  function afficherAudioSegment(book, chapterNum, index, text, speakerId, actions, fichier) {
+    actions.replaceChildren();
+    if (!fichier) {
+      const generate = document.createElement("button");
+      generate.type = "button";
+      generate.className = "segment-control segment-generate";
+      generate.textContent = "Générer";
+      generate.title = `Générer l’ID ${index} avec ${nomVoix(book, speakerId)}`;
+      generate.addEventListener("click", () => generateSegment(book, chapterNum, index, text, speakerId, actions, generate));
+      actions.appendChild(generate);
+      return;
+    }
+    const player = document.createElement("audio");
+    player.controls = true;
+    player.preload = "none";
+    player.setAttribute("aria-label", `Écouter le segment ${index}`);
+    player.src = `/api/audio/${encodeURIComponent(fichier)}`;
+    const regenerate = document.createElement("button");
+    regenerate.type = "button";
+    regenerate.className = "segment-control segment-regenerate";
+    regenerate.textContent = "↻ Régénérer";
+    regenerate.title = `Créer un nouvel audio pour l’ID ${index} avec ${nomVoix(book, speakerId)}`;
+    regenerate.addEventListener("click", () => generateSegment(book, chapterNum, index, text, speakerId, actions, regenerate));
+    actions.append(player, regenerate);
+  }
+
+  async function generateSegment(book, chapterNum, index, text, speakerId, actions, button, status = null) {
+    if (!actions || !text.trim()) return false;
+    const referenceId = book.voix_assignees?.[speakerId];
+    if (!referenceId) {
+      if (status) { status.textContent = `Aucune voix associée à ${nomVoix(book, speakerId)}.`; status.className = "chapter-status dirty"; }
+      else notify(`Associe d'abord une voix à ${nomVoix(book, speakerId)}.`, "error");
+      return false;
+    }
+    if (button) { button.disabled = true; button.textContent = "…"; }
+    if (status) { status.textContent = `Préparation du segment ${index}…`; status.className = "chapter-status"; }
+    try {
+      const response = await fetch("/api/generer", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ texte: text, reference_id: referenceId }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "génération impossible");
+      let job;
+      for (;;) {
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        const stateResponse = await fetch(`/api/job/${payload.job}`);
+        job = await stateResponse.json();
+        if (!stateResponse.ok) throw new Error(job.detail || "suivi de génération indisponible");
+        if (["pret", "erreur"].includes(job.etat)) break;
+        if (status) status.textContent = `Génération du segment ${index} · ${job.etat}…`;
+      }
+      if (job.etat === "erreur") throw new Error(job.erreur || "erreur de synthèse");
+      const empreinte = empreinteSegment(text, referenceId);
+      const saved = await fetch(`/api/livres/${book.id}/chapitre/${chapterNum}/segment/${index}/audio`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fichier: job.fichier, empreinte }),
+      });
+      const savedPayload = await saved.json();
+      if (!saved.ok) throw new Error(savedPayload.detail || "impossible d'enregistrer l'état audio du segment");
+      const chapter = book.chapitres.find((c) => c.num === chapterNum);
+      if (chapter) {
+        chapter.audio_segments = chapter.audio_segments || {};
+        chapter.audio_segments[String(index)] = { fichier: job.fichier, empreinte };
+        chapter.audio_generes = Object.keys(chapter.audio_segments).length;
+        const row = document.querySelector(`.chapter-row[data-chapter-num="${chapterNum}"] .chapter-etat`);
+        if (row) row.textContent = `✓ ${chapter.voix?.length || 0} voix · ${chapter.segments || 0} phrases\n${chapter.audio_generes}/${chapter.segments || 0} audio`;
+      }
+      try { localStorage.setItem(segmentStorageKey(book.id, chapterNum, index, text, referenceId), job.fichier); } catch (_) { /* stockage navigateur désactivé */ }
+      afficherAudioSegment(book, chapterNum, index, text, speakerId, actions, job.fichier);
+      if (status) { status.textContent = `Segment ${index} prêt`; status.className = "chapter-status saved"; }
+      return true;
+    } catch (error) {
+      if (status) { status.textContent = error.message; status.className = "chapter-status dirty"; }
+      else notify(`Segment ${index} : ${error.message}`, "error");
+      if (button) {
+        button.disabled = false;
+        button.textContent = button.classList.contains("segment-regenerate") ? "↻ Régénérer" : "Générer";
+      }
+      return false;
+    }
+  }
+
+  function vueComparee(book, chapter, original, structure) {
+    const chapterNum = chapter.num;
+    const grid = document.createElement("div");
+    grid.className = "cl-compare";
+    const labels = document.createElement("div");
+    labels.className = "cl-compare-labels";
+    ["Texte d’origine", "Texte structuré · segments audio"].forEach((label) => {
+      const heading = document.createElement("strong");
+      heading.textContent = label;
+      labels.appendChild(heading);
+    });
+    const body = document.createElement("div");
+    body.className = "cl-compare-body";
+    const alignment = document.createElement("div");
+    alignment.className = "cl-compare-alignment cl-structured";
+
+    const sourceParts = original.split(/([.!?…]+[ \t]*[»”"']*\s+)/u);
+    const sourceSentences = [];
+    for (let i = 0; i < sourceParts.length; i += 2) {
+      const phrase = `${sourceParts[i] || ""}${sourceParts[i + 1] || ""}`.trim();
+      if (phrase) sourceSentences.push(phrase);
+    }
+    const normalize = (value) => value.toLocaleLowerCase("fr-FR").normalize("NFD")
+      .replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+    const words = (value) => normalize(value).split(/\s+/).filter(Boolean);
+    const similarity = (leftText, rightText) => {
+      const a = words(leftText); const b = words(rightText);
+      if (!a.length || !b.length) return 0;
+      let previous = new Uint16Array(b.length + 1);
+      for (const word of a) {
+        const current = new Uint16Array(b.length + 1);
+        for (let j = 1; j <= b.length; j += 1) {
+          current[j] = word === b[j - 1] ? previous[j - 1] + 1 : Math.max(previous[j], current[j - 1]);
+        }
+        previous = current;
+      }
+      return (2 * previous[b.length]) / (a.length + b.length);
+    };
+    const segments = structure.split("\n").map((raw) => {
+      const line = raw.trim();
+      if (!line) return null;
+      const match = MARQUEUR_VOIX.exec(line);
+      const id = match ? (match[1] || match[2]).toLowerCase() : "narrateur";
+      const text = (match ? line.slice(match[0].length) : line).trim();
+      return text ? { id, text } : null;
+    }).filter(Boolean);
+
+    let sourceAt = 0;
+    const correspondances = segments.map((segment) => {
+      let best = { end: sourceAt, score: 0, text: "" };
+      let candidate = "";
+      for (let end = sourceAt; end < Math.min(sourceSentences.length, sourceAt + 14); end += 1) {
+        candidate += `${sourceSentences[end]} `;
+        const score = similarity(candidate, segment.text);
+        if (score > best.score) best = { end: end + 1, score, text: sourceSentences.slice(sourceAt, end + 1).join(" ") };
+        if (normalize(candidate) === normalize(segment.text)) {
+          best = { end: end + 1, score: 1, text: sourceSentences.slice(sourceAt, end + 1).join(" ") };
+          break;
+        }
+      }
+      if (best.score < 0.38) return { ...segment, original: "", matched: false };
+      sourceAt = best.end;
+      return { ...segment, original: best.text, matched: true };
+    });
+
+    const addPair = (segment, index) => {
+      const pair = document.createElement("div");
+      pair.className = "cl-compare-pair";
+      const source = document.createElement("div");
+      source.className = `cl-source-cell${segment.matched === false ? " non-aligne" : ""}`;
+      source.textContent = segment.original || "Aucune correspondance exacte dans la source";
+      const role = genreVoix(book.cast || [], segment.id);
+      const right = document.createElement("div");
+      right.className = `cl-segment-row cl-row ${role}`;
+      right.dataset.speaker = segment.id;
+      right.dataset.segmentIndex = String(index + 1);
+      const head = document.createElement("div");
+      head.className = "cl-segment-head";
+      const number = document.createElement("span");
+      number.className = "cl-segment-num";
+      number.textContent = `ID ${String(index + 1).padStart(3, "0")}`;
+      const speaker = document.createElement("span");
+      speaker.className = `cl-chip ${role}`;
+      speaker.textContent = nomVoix(book, segment.id);
+      head.append(number, speaker);
+      const text = document.createElement("div");
+      text.className = "cl-text";
+      text.textContent = segment.text;
+      const audioActions = document.createElement("span");
+      audioActions.className = "cl-segment-audio";
+      const savedFile = segmentFichier(book, chapterNum, index + 1, segment.text, book.voix_assignees?.[segment.id] || "");
+      afficherAudioSegment(book, chapterNum, index + 1, segment.text, segment.id, audioActions, savedFile);
+      right.append(head, text, audioActions);
+      pair.append(source, right);
+      alignment.appendChild(pair);
+    };
+
+    correspondances.forEach(addPair);
+    const restants = sourceSentences.slice(sourceAt);
+    if (restants.length) {
+      const unmatched = document.createElement("div");
+      unmatched.className = "cl-compare-pair cl-unmatched";
+      const source = document.createElement("div");
+      source.className = "cl-source-cell";
+      source.textContent = restants.join(" ");
+      const note = document.createElement("div");
+      note.className = "cl-source-cell cl-unmatched-note";
+      note.textContent = "Texte source restant sans segment correspondant — à vérifier avant génération.";
+      unmatched.append(source, note);
+      alignment.appendChild(unmatched);
+    }
+    body.appendChild(alignment);
+    grid.append(labels, body);
+    return grid;
   }
 
   function modeEditeur(book, chapter, cle) {
@@ -1558,11 +2122,12 @@
     const updateStats = () => {
       const mots = (textarea.value.match(/\S+/g) || []).length;
       stats.textContent = `${mots.toLocaleString("fr-FR")} mots · ${dureeEstimee(mots)}`;
-      const ids = [...new Set([...textarea.value.matchAll(/^\[([a-z0-9_-]+)\]/gm)].map((m) => m[1].toLowerCase()))];
+      const ids = [...new Set([...textarea.value.matchAll(/^\/\/\/\s*([a-zA-Z0-9_-]+)\s+/gm)]
+        .concat([...textarea.value.matchAll(/^\[([a-zA-Z0-9_-]+)\]\s*/gm)])
+        .map((m) => m[1].toLowerCase()))];
       legende.textContent = "";
       legende.hidden = ids.length === 0;
       ids.forEach((id) => {
-        const voice = (book.cast || []).find((v) => v.id === id);
         const chip = document.createElement("span");
         chip.className = `cast-chip ${genreVoix(book.cast || [], id)}`;
         const role = genreVoix(book.cast || [], id);
@@ -1570,7 +2135,7 @@
         const icone = document.createElement("i");
         icone.textContent = symbole;
         icone.setAttribute("aria-hidden", "true");
-        chip.append(icone, document.createTextNode(voice?.nom || id));
+        chip.append(icone, document.createTextNode(nomVoix(book, id)));
         legende.appendChild(chip);
       });
     };
@@ -1682,6 +2247,7 @@
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.detail || "chapitre indisponible");
       chapterTexts.set(cle, payload.texte);
+      chapterSources.set(cle, payload.texte_source || payload.texte.replace(/^(?:\/\/\/\s*[a-zA-Z0-9_-]+\s+|\[[a-zA-Z0-9_-]+\]\s*)/gm, ""));
       chapterPainters.get(cle)?.();
     } catch (error) {
       const zone = document.querySelector(`.chapter-edit[data-chapter="${cle}"] textarea`);
@@ -1699,6 +2265,7 @@
     });
     $("iaEnregistrer").addEventListener("click", saveIaConfig);
     $("iaTester").addEventListener("click", testIa);
+    $("iaNouveau").addEventListener("click", nouveauProfilIa);
     const drop = $("bookDrop");
     ["dragenter", "dragover"].forEach((name) => drop.addEventListener(name, (event) => {
       event.preventDefault();
@@ -1735,7 +2302,11 @@
     const labels = { dots: "dots.tts", qwen3: "Qwen3-TTS 0,6B", pocket: "Pocket TTS", voxcpm2: "VoxCPM2" };
     try {
       const system = await (await fetch("/api/etat")).json();
-      if (system.version) $("version").textContent = system.version;
+      if (system.version) {
+        $("version").textContent = system.version;
+        $("versionFooter").textContent = system.version;
+        $("versionReglages").textContent = system.version;
+      }
       setPresence($("serverPresence"), "ready");
       setPresence($("modelPresence"), system.modele ? "ready" : "wait");
       setEngineUI(system);

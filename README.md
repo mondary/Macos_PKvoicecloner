@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.18** · macOS Apple Silicon · Apache-2.0
+version **2026.10.29** · macOS Apple Silicon · Apache-2.0
 
 🎙️ **Studio vocal IA open source — 100 % local.** Ta voix dit n'importe quel texte. Basé sur [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts) et [faster-whisper](https://github.com/SYSTRAN/faster-whisper), sur la puce Apple via MPS. **Aucune donnée ne quitte la machine.**
 
@@ -36,9 +36,11 @@ Le site publiable prêt pour FTP est autonome dans [`store/website/`](store/webs
 - **`mavox`** — clone en une commande depuis le terminal, texte quoté ou non
 - **App native macOS** — interface native SwiftUI, zéro navigateur : le serveur démarre et s'arrête avec l'app, mises à jour automatiques via Sparkle
 - **Vue d’ensemble sans doublons** — stats des voix, modèles, livres et confidentialité ; état du serveur, activation rapide d’une voix, journal, installation de modèle, livres récents et dernières prises générées
-- **Studio web depuis l'app native** — bouton « Ouvrir le studio web » : lance l'interface web complète dans le navigateur, pendant que le serveur local de l'app tourne
-- **Livres audio (studio web)** — importe un EPUB, consulte et corrige ses chapitres dans le navigateur ; l'éditeur audiobook n'est pas encore intégré à l'interface SwiftUI
-- **Analyse IA des livres** — configure un endpoint OpenAI-compatible (GLM, DeepSeek, OpenAI…) : le studio détecte narrateur et personnages avec le genre de chaque voix, tague chaque ligne des chapitres et liste les voix requises par chapitre
+- **Studio livre intégré à l'app native** — bouton « Ouvrir le studio web » : ouvre la bibliothèque EPUB et son éditeur dans une fenêtre de l'app macOS (WKWebView), pendant que le serveur local tourne
+- **Réglages dans la fenêtre de l'app, épinglés en bas de la barre latérale** — la section « Réglages » (au-dessus de « Studio personnel ») regroupe dans les deux interfaces, native et web : providers IA et clés API (ajout, test, activation — les clés restent sur ce Mac), clé Hugging Face pour les modèles protégés, et page À propos avec version, Ko-fi, hub d'applications PK et GitHub
+- **Navigation alignée app / studio web** — mêmes entrées des deux côtés : Vue d'ensemble, Bibliothèque de voix, Texte vers voix, Livres, Modèles, Réglages ; l'app ouvre le studio des livres depuis sa section Livres
+- **Livres audio (studio web)** — importe un EPUB, compare l'original au texte structuré phrase par phrase, avec attribution colorée des voix, génération des segments et écoute continue avec respirations selon la ponctuation ; l'éditeur audiobook n'est pas encore intégré à SwiftUI
+- **Analyse et voix des livres** — enregistre plusieurs providers OpenAI-compatibles (GLM, DeepSeek, OpenAI ou Ollama local), associe chaque personnage à une voix de la bibliothèque et génère les segments individuellement ou en lot séquentiel ; la page livre affiche l'état des analyses, segments et audios
 - **Studio épuré** — tableau de bord monochrome : bibliothèque de voix, éditeur et catalogue de modèles
 
 ### Interface native

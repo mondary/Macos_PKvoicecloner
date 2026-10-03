@@ -10,6 +10,17 @@
 - `app-presence-sync` / `-pk-COMMIT` — README FR/EN, version CalVer et changelog synchronisés pour l’accès au studio web depuis l’app native.
 - `macos-build` — build tenté ; bloqué par l’absence de Xcode complet et du plugin de macros SwiftUI dans les Command Line Tools.
 - `macos-patterns` — réorganisation native de la Vue d’ensemble : indicateurs de santé/actions, stats et activité récente, sans panneaux de bibliothèque dupliqués.
+- `app-presence-sync` / `-pk-COMMIT` — conservation de la source EPUB, comparaison synchronisée original/segments, association des rôles à la bibliothèque et génération de segments pour les audiobooks.
+- `design-taste-frontend` — espace livre plein écran avec rail chapitres compact et comparaison de phrases alignée ; réglages multi-provider et état par segment.
+- `-pk-COMMIT` — version web persistante dans l'en-tête sticky, synchronisée avec le pied de page.
+- `design-taste-frontend` — associations de voix codées par couleur, formulaire pleine largeur et contrôles audio explicites générer/lire/régénérer.
+- `-pk-COMMIT` — bump CalVer et changelog pour l'écoute continue des segments avec pauses de ponctuation.
+- `macos-patterns` / `macos-build` — accès au studio livre dans une fenêtre WKWebView de l'app macOS et reconstruction de l'app.
+- `macos-patterns` / `macos-build` — remplacement de la feuille modale par une fenêtre macOS indépendante, redimensionnable et fermable.
++- `macos-menu-and-settings` — fenêtre Réglages native (⚙ en en-tête, ⌘,) : providers IA/clés API, page À propos avec Ko-fi, hub PK et GitHub.
++- `macos-menu-and-settings` — retour des Réglages dans la fenêtre principale (section latérale + ⚙ du header, picker segmenté Clés API / À propos).
++- `macos-menu-and-settings` / `design-taste-frontend` — Réglages épinglés en bas de sidebar, sections empilées Providers IA + Clé Hugging Face + À propos, navigation alignée app/web (Vue d'ensemble → Réglages), section Livres native.
++- `macos-patterns` — WebView du studio sans cache (data store non persistant) + reconnexion automatique : plus d'écran blanc après un redémarrage du serveur local.
 
 ## Limites constatées
 

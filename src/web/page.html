@@ -358,12 +358,16 @@
     <a href="#books" data-vue="books"><span aria-hidden="true">▤</span>Livres</a>
     <a href="#models" data-vue="models"><span aria-hidden="true">□</span>Modèles</a>
   </nav>
+  <nav class="dashboard-nav sidebar-settings" aria-label="Réglages du studio">
+    <a href="#settings" data-vue="settings"><span aria-hidden="true">⚙</span>Réglages</a>
+  </nav>
   <div class="sidebar-bottom"><span class="local-avatar">PK</span><div><strong>Studio personnel</strong><small>Sur ce Mac · 100 % local</small></div></div>
 </aside>
 <div class="dashboard-main">
 <header class="site-header">
   <div class="breadcrumbs">Espace de travail <span>/</span> <strong>Vue d’ensemble</strong></div>
   <div class="top-actions">
+    <span class="chip version-chip" title="Version du serveur de ce studio web" aria-label="Version du studio web">v<span id="version">…</span></span>
     <span class="chip presence" id="serverPresence"><i></i>Studio local</span>
     <span class="chip presence" id="modelPresence"><i></i>VoxCPM2</span>
     <button class="power" id="stopStudio" type="button" aria-label="Éteindre le studio et libérer le modèle" title="Éteindre le studio et libérer le modèle">
@@ -484,26 +488,6 @@
         <span id="booksSub">Dépose un EPUB : découpé en chapitres sur ce Mac, prêt à être narré.</span>
       </div>
       <div class="books-head-actions">
-        <details class="ia-config" id="iaConfig">
-          <summary>⚙ Réglages IA</summary>
-          <div class="ia-fields">
-            <label>Endpoint
-              <input id="iaUrl" type="url" placeholder="https://api.z.ai/api/coding/paas/v4" spellcheck="false">
-            </label>
-            <label>Modèle
-              <input id="iaModele" type="text" placeholder="glm-4.7 · deepseek-chat · gpt-4o-mini" spellcheck="false">
-            </label>
-            <label>Clé API
-              <input id="iaCle" type="password" placeholder="collée ici — reste sur ce Mac" autocomplete="off">
-            </label>
-            <div class="ia-actions">
-              <button class="pill-light" id="iaEnregistrer" type="button">Enregistrer</button>
-              <button class="pill-light" id="iaTester" type="button">Tester la connexion</button>
-              <span class="chapter-status" id="iaStatut"></span>
-            </div>
-            <p class="ia-note">Colle l'URL de <b>base</b> seulement — sans <code>/chat/completions</code> (ajouté automatiquement). Exemples : <code>https://api.z.ai/api/coding/paas/v4</code> (GLM Coding Plan), <code>https://api.deepseek.com/v1</code>, <code>https://api.openai.com/v1</code>. La clé reste sur ce Mac (<code>data/ia.json</code>) ; l'analyse envoie le texte du livre à ce service depuis le serveur local.</p>
-          </div>
-        </details>
         <button class="pill-light" id="ajouterLivre" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M12 3v12m0-12 4 4m-4-4-4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Importer un EPUB
         </button>
@@ -516,12 +500,51 @@
     <input type="file" id="fichierLivre" accept=".epub,application/epub+zip" hidden>
   </section>
   <section class="model-downloads" id="models" aria-label="Installer ou supprimer des modèles">
-    <strong>Bibliothèque de modèles</strong><p>Gère les moteurs disponibles sur ce Mac.</p>
-    <details class="hf-token" id="hfTokenBox">
-      <summary>🔐 Token Hugging Face — guide pas à pas (modèles protégés)</summary>
+    <strong>Modèles</strong><p>Gère les moteurs disponibles sur ce Mac. Un modèle protégé (gated) se débloque avec le token Hugging Face, dans <a href="#settings" data-vue="settings">Réglages</a>.</p>
+    <div id="modelesList"></div>
+  </section>
+  <section class="settings-panel" id="settings" aria-label="Réglages du studio" hidden>
+    <div class="settings-card">
+      <h2>Providers IA</h2>
+      <p class="settings-sub">L'analyse des livres (cast, attribution des voix) utilise un service compatible OpenAI — GLM, DeepSeek, OpenAI ou Ollama local. Les clés restent sur ce Mac, dans le dossier de données du studio.</p>
+      <div class="ia-fields">
+        <strong>Providers enregistrés</strong>
+        <div id="iaProviders" class="ia-providers" aria-live="polite"></div>
+        <input id="iaProfileId" type="hidden">
+        <label>Nom du profil
+          <input id="iaNom" type="text" placeholder="GLM principal · Ollama local" maxlength="80">
+        </label>
+        <label>Endpoint
+          <input id="iaUrl" type="url" placeholder="https://api.z.ai/api/coding/paas/v4" spellcheck="false">
+        </label>
+        <label>Modèle
+          <input id="iaModele" type="text" placeholder="glm-5.3-flash · qwen3:4b · gpt-4o-mini" spellcheck="false">
+        </label>
+        <label>Clé API
+          <input id="iaCle" type="password" placeholder="clé distante — vide pour Ollama local" autocomplete="new-password">
+        </label>
+        <label class="ia-clear-key"><input id="iaSupprimerCle" type="checkbox"> Retirer la clé enregistrée (provider local sans authentification)</label>
+        <div class="ia-actions">
+          <button class="pill-light" id="iaEnregistrer" type="button">Ajouter le provider</button>
+          <button class="pill-light" id="iaNouveau" type="button">Nouveau</button>
+          <button class="pill-light" id="iaTester" type="button">Tester l’actif</button>
+          <span class="chapter-status" id="iaStatut"></span>
+        </div>
+        <details class="ia-local-tip">
+          <summary>Modèle local conseillé pour une petite machine</summary>
+          <p><b>Ollama + Qwen3 4B Q4</b> : environ 2,6 Go à télécharger, bon compromis multilingue pour repérer les personnages et baliser les phrases, sans coût par token. Sur 8 Go de mémoire, reste sur 4B ; avec 16 Go ou plus, Qwen3 8B Q4 devrait mieux suivre les dialogues ambigus.</p>
+          <code>ollama pull qwen3:4b</code>
+          <p>Crée un profil avec endpoint <code>http://localhost:11434/v1</code>, modèle <code>qwen3:4b</code>, clé vide. Dans Ollama, augmente le contexte à au moins 8K si nécessaire. Le modèle local sera plus lent qu’un service distant et la qualité d’attribution peut nécessiter une correction.</p>
+        </details>
+        <p class="ia-note">Ajoute, modifie, teste, active ou supprime plusieurs profils. La clé n’est jamais renvoyée à l’interface et le fichier local est limité aux permissions du compte. L’endpoint doit être l’URL de base, sans <code>/chat/completions</code>. L’analyse envoie le texte du livre au provider actif.</p>
+      </div>
+    </div>
+    <div class="settings-card">
+      <h2>Clé Hugging Face</h2>
+      <p class="settings-sub">Pour télécharger les modèles protégés (gated). Le token reste local à cette session du studio et ne sert qu'au téléchargement des poids.</p>
       <div class="ia-fields">
         <ol class="hf-etapes">
-          <li>Clique le <b>lien du modèle</b> dans la liste ci-dessous (ex. <code>kyutai/pocket-tts</code>) : sa page Hugging Face s'ouvre, connecte-toi puis clique <b>« Agree and access repository »</b>.</li>
+          <li>Clique le <b>lien du modèle</b> dans la section Modèles (ex. <code>kyutai/pocket-tts</code>) : sa page Hugging Face s'ouvre, connecte-toi puis clique <b>« Agree and access repository »</b>.</li>
           <li>Va sur <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">huggingface.co/settings/tokens</a> → bouton <b>« Create new token »</b>.</li>
           <li>Nomme-le (ex. <code>pk-voice-studio</code>), choisis le type <b>« Read »</b> → <b>« Create token »</b>.</li>
           <li><b>Copie immédiatement</b> le token affiché (il commence par <code>hf_</code> — il ne sera plus jamais montré).</li>
@@ -534,16 +557,24 @@
           <button class="pill-light" id="hfBouton" type="button">Enregistrer</button>
           <span class="chapter-status" id="hfStatut"></span>
         </div>
-        <p class="ia-note">Le token reste local à cette session du studio et ne sert qu'au téléchargement des poids.</p>
       </div>
-    </details>
-    <div id="modelesList"></div>
+    </div>
+    <div class="settings-card">
+      <h2>À propos</h2>
+      <p class="settings-sub">PK Voice Studio · v<span id="versionReglages">…</span> · Studio vocal 100 % local · Apple Silicon · macOS 14+. Clone une voix avec quelques secondes de référence, génère la narration d'un EPUB en multi-voix avec attribution automatique des personnages. Moteurs : VoxCPM2, dots.tts, Qwen3-TTS et Pocket TTS. Mises à jour automatiques via Sparkle.</p>
+      <div class="ia-actions about-links">
+        <a class="pill-light" href="https://ko-fi.com/pouark" target="_blank" rel="noopener">❤️ Soutenir sur Ko-fi</a>
+        <a class="pill-light" href="https://mondary.design/apps/" target="_blank" rel="noopener">Hub d'applications PK</a>
+        <a class="pill-light" href="https://github.com/mondary/Macos_PKvoicecloner" target="_blank" rel="noopener">GitHub</a>
+      </div>
+      <p class="ia-note">Utilise une voix avec consentement.</p>
+    </div>
   </section>
 </main>
 
 <footer class="site-footer">
   <span><b>100 % local</b> · la voix ne quitte pas ce Mac</span>
-  <span>PK Voice Studio · v<span id="version">…</span></span>
+  <span>PK Voice Studio · v<span id="versionFooter">…</span></span>
 </footer>
 
 </div></div>

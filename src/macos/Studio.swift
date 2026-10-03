@@ -31,6 +31,16 @@ struct BookResponse: Codable { let livres: [BookProject] }
 struct HFResult: Codable, Identifiable { let repo: String; let telechargements: Int?; let likes: Int?; let gated: Bool?; var id: String { repo } }
 struct HFResponse: Codable { let resultats: [HFResult] }
 struct GenerationJob: Decodable { let etat: String; let fichier: String?; let duree: Double?; let erreur: String?; let ecoule: Double? }
+struct IAProfil: Codable, Identifiable {
+    let id: String
+    let nom: String
+    let base_url: String
+    let modele: String
+    let cle_masquee: String?
+    let configure: Bool
+    let actif: Bool
+}
+struct IAProfilsResponse: Codable { let profils: [IAProfil]; let actif: String }
 struct StudioError: LocalizedError {
     let message: String
     var errorDescription: String? { message }
@@ -62,6 +72,7 @@ struct StudioError: LocalizedError {
     @Published var loadingEngine: String?
     @Published var playing = false
     @Published var playingVoiceID: String?
+    @Published var iaProfils: [IAProfil] = []
     private(set) var process: Process?
     private var failedRefreshes = 0
     private var activity: NSObjectProtocol?
@@ -264,6 +275,52 @@ struct StudioError: LocalizedError {
             _ = try await self.request(path, method: "DELETE")
             try await self.refreshLibrary()
         }
+    }
+
+    // MARK: Providers IA (clés API des analyses de livres)
+
+    func chargerProfilsIA() async {
+        do {
+            let data = try await request("api/ia/profils")
+            iaProfils = try JSONDecoder().decode(IAProfilsResponse.self, from: data).profils
+        } catch let err {
+            iaProfils = []
+            self.error = err.localizedDescription
+        }
+    }
+
+    func activerProfilIA(_ id: String) async {
+        await perform { _ = try await self.request("api/ia/profils/\(id)/activer", method: "POST", json: [:]) }
+        await chargerProfilsIA()
+    }
+
+    func supprimerProfilIA(_ id: String) async {
+        await perform { _ = try await self.request("api/ia/profils/\(id)", method: "DELETE") }
+        await chargerProfilsIA()
+    }
+
+    /// Ajoute (edition vide) ou modifie un provider. Renvoie un message d'erreur éventuel.
+    func enregistrerProfilIA(nom: String, endpoint: String, modele: String, cle: String, edition: String) async -> String? {
+        var corps: [String: Any] = ["nom": nom, "base_url": endpoint, "modele": modele]
+        if !cle.isEmpty { corps["cle"] = cle }
+        do {
+            if edition.isEmpty {
+                _ = try await request("api/ia/profils", method: "POST", json: corps)
+            } else {
+                _ = try await request("api/ia/profils/\(edition)", method: "PUT", json: corps)
+            }
+            await chargerProfilsIA()
+            return nil
+        } catch { return error.localizedDescription }
+    }
+
+    /// Teste un provider : renvoie la réponse du serveur, ou l'erreur via le second élément.
+    func testerProfilIA(_ id: String) async -> (reponse: String?, erreur: String?) {
+        do {
+            let data = try await request("api/ia/tester", method: "POST", json: ["profil_id": id])
+            let objet = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            return ((objet?["reponse"] as? String) ?? "ok", nil)
+        } catch { return (nil, error.localizedDescription) }
     }
 
     func install(_ model: Model) async {

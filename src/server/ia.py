@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+import urllib.parse
 import urllib.error
 import urllib.request
 
@@ -31,22 +32,24 @@ def valider_config(base_url: str, cle: str, modele: str) -> dict:
         raise IaErreur("endpoint invalide : il doit commencer par http:// ou https://")
     if not modele:
         raise IaErreur("nom de modèle requis (ex. glm-4.7, deepseek-chat, gpt-4o-mini…)")
-    if not cle:
+    hote = urllib.parse.urlparse(base_url).hostname or ""
+    service_local = hote in ("localhost", "127.0.0.1", "::1")
+    if not cle and not service_local:
         raise IaErreur("clé API requise")
     return {"base_url": base_url, "cle": cle, "modele": modele}
 
 
-def completer(cfg: dict, messages: list[dict], *, temperature: float = 0.1,
-              json_mode: bool = False, timeout: int = 300) -> str:
-    """Un appel chat/completions ; renvoie le texte de la réponse."""
+def appeler(cfg: dict, messages: list[dict], *, temperature: float = 0.1,
+            json_mode: bool = False, timeout: int = 300) -> dict:
+    """Un appel chat/completions ; renvoie le corps complet de la réponse."""
     url = f"{cfg['base_url'].rstrip('/')}/chat/completions"
     payload: dict = {"model": cfg["modele"], "messages": messages, "temperature": temperature}
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
-    requete = urllib.request.Request(
-        url, data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {cfg['cle']}"},
-    )
+    entetes = {"Content-Type": "application/json"}
+    if cfg.get("cle"):
+        entetes["Authorization"] = f"Bearer {cfg['cle']}"
+    requete = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=entetes)
     try:
         with urllib.request.urlopen(requete, timeout=timeout) as reponse:
             corps = json.loads(reponse.read().decode("utf-8", "replace"))
@@ -57,10 +60,28 @@ def completer(cfg: dict, messages: list[dict], *, temperature: float = 0.1,
         raise IaErreur(f"API IA injoignable : {erreur}") from erreur
     except ValueError as erreur:
         raise IaErreur(f"réponse de l'API illisible : {erreur}") from erreur
+    if not isinstance(corps, dict):
+        raise IaErreur(f"réponse de l'API inattendue : {str(corps)[:200]}")
+    return corps
+
+
+def _texte(corps: dict) -> str:
     try:
         return corps["choices"][0]["message"]["content"] or ""
     except (KeyError, IndexError, TypeError) as erreur:
         raise IaErreur(f"réponse de l'API inattendue : {str(corps)[:200]}") from erreur
+
+
+def completer(cfg: dict, messages: list[dict], **options) -> str:
+    """Un appel chat/completions ; renvoie le texte de la réponse."""
+    return _texte(appeler(cfg, messages, **options))
+
+
+def completer_detail(cfg: dict, messages: list[dict], **options) -> tuple[str, dict]:
+    """Comme completer, mais renvoie aussi l'usage (tokens consommés)."""
+    corps = appeler(cfg, messages, **options)
+    usage = corps.get("usage") or {}
+    return _texte(corps), usage if isinstance(usage, dict) else {}
 
 
 def extraire_json(texte: str) -> dict:

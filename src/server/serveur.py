@@ -43,6 +43,7 @@ import sys
 import threading
 import time
 import uuid
+from urllib.parse import urlparse
 from pathlib import Path
 
 import soundfile as sf
@@ -618,7 +619,20 @@ def lancer_generation(req: dict = Body(...)):
         raise HTTPException(400, "vitesse invalide")
     if not (VITESSE_MIN <= vitesse <= VITESSE_MAX):
         raise HTTPException(400, f"vitesse entre {VITESSE_MIN} et {VITESSE_MAX}")
-    if not voix_courante:
+    reference = None
+    reference_id = str(req.get("reference_id") or "")
+    if reference_id:
+        if not re.fullmatch(r"[a-f0-9]{12,64}", reference_id):
+            raise HTTPException(400, "identifiant de voix invalide")
+        fichier_ref = VOIX / f"ref_{reference_id}.wav"
+        if not fichier_ref.exists():
+            raise HTTPException(404, "voix de bibliothèque introuvable")
+        infos_ref = info_voix(reference_id, fichier_ref)
+        reference = {"id": reference_id, "wav": fichier_ref,
+                     "transcript": infos_ref["transcript"], "source": infos_ref["nom"]}
+    elif voix_courante:
+        reference = dict(voix_courante)
+    else:
         raise HTTPException(400, "aucune voix définie : choisis ou enregistre un audio d'abord")
     if erreur_modele:
         raise HTTPException(503, f"Le modèle n’a pas pu être chargé : {erreur_modele}")
@@ -628,7 +642,7 @@ def lancer_generation(req: dict = Body(...)):
     jobs[job] = {"etat": "attente", "debut": time.time()}
     threading.Thread(
         target=executer_generation,
-        args=(job, texte, vitesse, (req.get("transcript") or "").strip(), dict(voix_courante)),
+        args=(job, texte, vitesse, (req.get("transcript") or "").strip(), reference),
         daemon=True,
     ).start()
     return {"job": job}
@@ -769,6 +783,20 @@ def modifier_chapitre(lid: str, num: int, req: dict = Body(...)):
     return {**chapitre, "texte": texte}
 
 
+@app.put("/api/livres/{lid}/chapitre/{num}/segment/{segment}/audio")
+def sauvegarder_audio_segment(lid: str, num: int, segment: int, req: dict = Body(...)):
+    fichier = Path(str(req.get("fichier") or "")).name
+    empreinte = str(req.get("empreinte") or "")
+    if not fichier.endswith(".wav") or not re.fullmatch(r"[a-f0-9]{8,16}", empreinte):
+        raise HTTPException(400, "fichier ou empreinte de segment invalide")
+    if not (SORTIES / fichier).is_file():
+        raise HTTPException(404, "fichier audio introuvable")
+    chapitre = livres.enregistrer_audio_segment(LIVRES, _id_livre(lid), num, segment, fichier, empreinte)
+    if not chapitre:
+        raise HTTPException(404, "segment inconnu")
+    return {"ok": True, "audio_generes": len(chapitre.get("audio_segments", {}))}
+
+
 @app.post("/api/livres/{lid}/chapitre/{num}/scinder")
 def scinder_chapitre(lid: str, num: int, req: dict = Body(...)):
     try:
@@ -800,6 +828,20 @@ def renommer_livre(lid: str, req: dict = Body(...)):
     return projet
 
 
+@app.put("/api/livres/{lid}/voix")
+def associer_voix_livre(lid: str, req: dict = Body(...)):
+    correspondances = req.get("voix_assignees") or {}
+    if not isinstance(correspondances, dict):
+        raise HTTPException(400, "associations de voix invalides")
+    ids_bibliotheque = {v["id"] for v in liste_voix()["voix"]}
+    if any(voice not in ids_bibliotheque for voice in correspondances.values() if voice):
+        raise HTTPException(400, "une voix sélectionnée n'existe plus dans la bibliothèque")
+    projet = livres.enregistrer_correspondances_voix(LIVRES, _id_livre(lid), correspondances)
+    if not projet:
+        raise HTTPException(404, "livre inconnu")
+    return {"voix_assignees": projet.get("voix_assignees", {})}
+
+
 @app.delete("/api/livres/{lid}")
 def supprimer_livre(lid: str):
     lid = _id_livre(lid)
@@ -824,10 +866,112 @@ analyses_en_cours: set[str] = set()
 
 
 def _lire_ia() -> dict:
+    """Renvoie le profil IA actif, en lisant aussi l'ancien format simple."""
     try:
-        return json.loads(FICHIER_IA.read_text(encoding="utf-8"))
+        donnees = json.loads(FICHIER_IA.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
+    profils = donnees.get("profils")
+    if isinstance(profils, list):
+        return next((p for p in profils if p.get("id") == donnees.get("actif")), {})
+    return donnees
+
+
+def _lire_profils_ia() -> dict:
+    try:
+        donnees = json.loads(FICHIER_IA.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"profils": [], "actif": ""}
+    if isinstance(donnees.get("profils"), list):
+        return {"profils": donnees["profils"], "actif": donnees.get("actif", "")}
+    if donnees.get("base_url") and donnees.get("modele"):
+        ancien = {**donnees, "id": "profil-historique", "nom": donnees.get("modele", "Profil historique")}
+        return {"profils": [ancien], "actif": ancien["id"]}
+    return {"profils": [], "actif": ""}
+
+
+def _ecrire_profils_ia(donnees: dict) -> None:
+    FICHIER_IA.parent.mkdir(parents=True, exist_ok=True)
+    FICHIER_IA.write_text(json.dumps(donnees, ensure_ascii=False, indent=2), encoding="utf-8")
+    try:
+        os.chmod(FICHIER_IA, 0o600)
+    except OSError:
+        pass
+
+
+def _vue_profil_ia(profil: dict, actif: bool) -> dict:
+    cle = profil.get("cle", "")
+    hote = urlparse(profil.get("base_url", "")).hostname or ""
+    local = hote in ("localhost", "127.0.0.1", "::1")
+    return {"id": profil.get("id", ""), "nom": profil.get("nom", ""),
+            "base_url": profil.get("base_url", ""), "modele": profil.get("modele", ""),
+            "cle_masquee": f"…{cle[-4:]}" if len(cle) > 4 else ("clé locale" if not cle else "•••"),
+            "configure": bool(profil.get("base_url") and profil.get("modele") and (cle or local)),
+            "actif": actif}
+
+
+@app.get("/api/ia/profils")
+def lister_profils_ia():
+    donnees = _lire_profils_ia()
+    return {"profils": [_vue_profil_ia(p, p.get("id") == donnees["actif"]) for p in donnees["profils"]],
+            "actif": donnees["actif"]}
+
+
+@app.post("/api/ia/profils")
+def ajouter_profil_ia(req: dict = Body(...)):
+    try:
+        cfg = ia.valider_config(req.get("base_url", ""), req.get("cle", ""), req.get("modele", ""))
+    except ia.IaErreur as erreur:
+        raise HTTPException(400, str(erreur))
+    donnees = _lire_profils_ia()
+    profil = {"id": uuid.uuid4().hex[:12], "nom": (req.get("nom") or req.get("modele") or "Nouveau provider").strip()[:80], **cfg}
+    donnees["profils"].append(profil)
+    if not donnees.get("actif"):
+        donnees["actif"] = profil["id"]
+    _ecrire_profils_ia(donnees)
+    return _vue_profil_ia(profil, profil["id"] == donnees["actif"])
+
+
+@app.put("/api/ia/profils/{pid}")
+def modifier_profil_ia(pid: str, req: dict = Body(...)):
+    donnees = _lire_profils_ia()
+    profil = next((p for p in donnees["profils"] if p.get("id") == pid), None)
+    if not profil:
+        raise HTTPException(404, "profil IA inconnu")
+    try:
+        cle = "" if req.get("supprimer_cle") else (req.get("cle") or profil.get("cle", ""))
+        cfg = ia.valider_config(req.get("base_url", profil.get("base_url", "")),
+                                cle,
+                                req.get("modele", profil.get("modele", "")))
+    except ia.IaErreur as erreur:
+        raise HTTPException(400, str(erreur))
+    profil.update(cfg)
+    profil["nom"] = (req.get("nom") or profil.get("nom") or cfg["modele"]).strip()[:80]
+    _ecrire_profils_ia(donnees)
+    return _vue_profil_ia(profil, profil["id"] == donnees["actif"])
+
+
+@app.delete("/api/ia/profils/{pid}")
+def supprimer_profil_ia(pid: str):
+    donnees = _lire_profils_ia()
+    restants = [p for p in donnees["profils"] if p.get("id") != pid]
+    if len(restants) == len(donnees["profils"]):
+        raise HTTPException(404, "profil IA inconnu")
+    donnees["profils"] = restants
+    if donnees.get("actif") == pid:
+        donnees["actif"] = restants[0]["id"] if restants else ""
+    _ecrire_profils_ia(donnees)
+    return {"ok": True, "actif": donnees["actif"]}
+
+
+@app.post("/api/ia/profils/{pid}/activer")
+def activer_profil_ia(pid: str):
+    donnees = _lire_profils_ia()
+    if not any(p.get("id") == pid for p in donnees["profils"]):
+        raise HTTPException(404, "profil IA inconnu")
+    donnees["actif"] = pid
+    _ecrire_profils_ia(donnees)
+    return {"ok": True, "actif": pid}
 
 
 @app.get("/api/ia/config")
@@ -838,7 +982,7 @@ def lire_config_ia():
         "base_url": cfg.get("base_url", ""),
         "modele": cfg.get("modele", ""),
         "cle_masquee": f"…{cle[-4:]}" if len(cle) > 4 else ("•••" if cle else ""),
-        "configuree": bool(cfg.get("base_url") and cfg.get("cle") and cfg.get("modele")),
+        "configuree": _vue_profil_ia(cfg, True)["configure"],
     }
 
 
@@ -853,20 +997,36 @@ def enregistrer_config_ia(req: dict = Body(...)):
         )
     except ia.IaErreur as erreur:
         raise HTTPException(400, str(erreur))
-    FICHIER_IA.write_text(json.dumps(cfg, ensure_ascii=False), encoding="utf-8")
+    donnees = _lire_profils_ia()
+    if donnees["actif"] and any(p.get("id") == donnees["actif"] for p in donnees["profils"]):
+        profil = next(p for p in donnees["profils"] if p.get("id") == donnees["actif"])
+        profil.update(cfg)
+        profil["nom"] = req.get("nom") or profil.get("nom") or cfg["modele"]
+    else:
+        profil = {"id": uuid.uuid4().hex[:12], "nom": req.get("nom") or cfg["modele"], **cfg}
+        donnees["profils"].append(profil)
+        donnees["actif"] = profil["id"]
+    _ecrire_profils_ia(donnees)
     return {"ok": True, "configuree": True}
 
 
 @app.post("/api/ia/tester")
-def tester_config_ia():
-    cfg = _lire_ia()
-    if not (cfg.get("base_url") and cfg.get("cle") and cfg.get("modele")):
-        raise HTTPException(400, "configuration IA absente : renseigne l'endpoint, la clé et le modèle")
+def tester_config_ia(req: dict = Body(default=None)):
+    donnees = _lire_profils_ia()
+    pid = (req or {}).get("profil_id") or donnees["actif"]
+    cfg = next((p for p in donnees["profils"] if p.get("id") == pid), {})
+    if not (cfg.get("base_url") and cfg.get("modele")):
+        raise HTTPException(400, "configuration IA absente : ajoute un provider dans Réglages IA")
     try:
         reponse = ia.completer(cfg, [{"role": "user", "content": "Réponds exactement : ok"}], timeout=30)
     except ia.IaErreur as erreur:
         raise HTTPException(400, str(erreur))
     return {"ok": True, "reponse": reponse.strip()[:60]}
+
+
+@app.post("/api/ia/profils/{pid}/tester")
+def tester_profil_ia(pid: str):
+    return tester_config_ia({"profil_id": pid})
 
 
 @app.post("/api/livres/{lid}/analyser", status_code=202)

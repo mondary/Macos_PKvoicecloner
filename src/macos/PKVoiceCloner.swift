@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import WebKit
 
 private enum Dashboard {
     static let ink = Color(red: 0.035, green: 0.035, blue: 0.043)
@@ -10,12 +11,13 @@ private enum Dashboard {
 
 struct ContentView: View {
     @ObservedObject var studio: Studio
+    @Environment(\.openWindow) private var openWindow
     @State private var renamePath: String?
     @State private var renameValue = ""
     @State private var deletePath: String?
     @State private var deleteName = ""
     @State private var section = "Vue d’ensemble"
-    private let sections = [("Vue d’ensemble", "square.grid.2x2"), ("Bibliothèque des textes", "text.alignleft"), ("Bibliothèque de voix", "waveform"), ("Bibliothèque des modèles", "cpu")]
+    private let sections = [("Vue d’ensemble", "square.grid.2x2"), ("Bibliothèque de voix", "waveform"), ("Texte vers voix", "text.justify"), ("Livres", "books.vertical"), ("Modèles", "cpu")]
 
     var body: some View {
         HStack(spacing: 0) {
@@ -46,14 +48,18 @@ struct ContentView: View {
                         }
                         if section == "Vue d’ensemble" {
                             overview
+                        } else if section == "Réglages" {
+                            reglages
                         } else if studio.state == nil {
                             welcome
                         } else if section == "Bibliothèque de voix" {
-                            HStack(alignment: .top, spacing: 16) { voices; editor }
-                        } else if section == "Bibliothèque des modèles" {
+                            voices
+                        } else if section == "Texte vers voix" {
+                            VStack(alignment: .leading, spacing: 16) { editor; prises }
+                        } else if section == "Livres" {
+                            livres
+                        } else if section == "Modèles" {
                             models
-                        } else if section == "Bibliothèque des textes" {
-                            texts
                         }
                         HStack(alignment: .center, spacing: 6) {
                             Image(systemName: "lock.fill")
@@ -111,7 +117,17 @@ struct ContentView: View {
                 }.buttonStyle(.plain).padding(.bottom, 3)
             }
             Spacer()
-            Divider().padding(.bottom, 12)
+            Button { section = "Réglages" } label: {
+                HStack(spacing: 11) {
+                    Image(systemName: "gearshape").frame(width: 16).foregroundStyle(Dashboard.muted)
+                    Text("Réglages").font(.system(size: 12, weight: section == "Réglages" ? .semibold : .regular))
+                    Spacer()
+                }.padding(.horizontal, 12).padding(.vertical, 10)
+                    .background(section == "Réglages" ? Dashboard.soft : Color.clear)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .contentShape(Rectangle())
+            }.buttonStyle(.plain)
+            Divider().padding(.vertical, 12)
             HStack(spacing: 10) {
                 Text("PK").font(.system(size: 10)).foregroundStyle(.white).frame(width: 30, height: 30).background(Dashboard.ink).clipShape(Circle())
                 VStack(alignment: .leading, spacing: 3) {
@@ -141,7 +157,7 @@ struct ContentView: View {
                 : "Versions différentes : APP \(studio.appVersion) · SERVEUR \(studio.ecartVersion ?? "—"). Reconstruis l’app pour les synchroniser.")
             Circle().fill(studio.state == nil ? Dashboard.muted : Color.green).frame(width: 6, height: 6)
             Text(studio.message).foregroundStyle(Dashboard.muted).lineLimit(1)
-            Button("Ouvrir le studio web", systemImage: "safari") { studio.openWebStudio() }
+            Button("Ouvrir le studio web", systemImage: "book") { openWindow(id: "book-studio") }
                 .buttonStyle(.bordered)
                 .disabled(studio.state == nil)
                 .help(studio.state == nil ? "Démarre le serveur local pour ouvrir le studio web." : "Ouvre le studio web complet dans ton navigateur.")
@@ -253,7 +269,7 @@ struct ContentView: View {
             HStack(spacing: 8) {
                 Button("Voir le journal", systemImage: "doc.text.magnifyingglass") { studio.openLog() }
                     .buttonStyle(.bordered).disabled(studio.root == nil)
-                Button("Ouvrir le studio web", systemImage: "safari") { studio.openWebStudio() }
+                Button("Ouvrir le studio web", systemImage: "book") { openWindow(id: "book-studio") }
                     .buttonStyle(.bordered).disabled(studio.state == nil)
             }.font(.system(size: 11))
 
@@ -303,8 +319,8 @@ struct ContentView: View {
                                 .font(.system(size: 10)).foregroundStyle(Dashboard.muted)
                         }
                         Spacer(minLength: 4)
-                        Button { studio.openWebStudio() } label: { Image(systemName: "arrow.up.right.square") }
-                            .buttonStyle(.borderless).help("Ouvrir les livres dans le studio web")
+                        Button { openWindow(id: "book-studio") } label: { Image(systemName: "book") }
+                            .buttonStyle(.borderless).help("Ouvrir les livres dans PK Voice Studio")
                     }.padding(.vertical, 3)
                 }
             }
@@ -466,27 +482,7 @@ struct ContentView: View {
 
     private var models: some View {
         VStack(alignment: .leading, spacing: 14) {
-            panelTitle("Bibliothèque des modèles", subtitle: "Installe et active les moteurs disponibles localement")
-            VStack(alignment: .leading, spacing: 10) {
-                Label("Accès Hugging Face", systemImage: "info.circle").font(.system(size: 12, weight: .semibold))
-                Text("Certains modèles sont protégés (gated). Marche à suivre :")
-                    .font(.system(size: 11)).foregroundStyle(Dashboard.muted)
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("1. Ouvre la page du modèle (lien sous son nom) et accepte les conditions « Agree and access repository ».")
-                    Text("2. Sur huggingface.co/settings/tokens : « Create new token », nomme-le, type « Read », puis « Create token ».")
-                    Text("3. Copie tout de suite le token affiché (il commence par hf_ — montré une seule fois).")
-                    Text("4. Colle-le ici, Enregistrer, puis relance Installer sur le modèle.")
-                }.font(.system(size: 11)).foregroundStyle(Dashboard.muted)
-                HStack {
-                    SecureField("hf_…", text: $studio.hfToken).textFieldStyle(.roundedBorder)
-                    Button("Enregistrer le token") { Task { await studio.saveHFToken() } }
-                    Button("Ouvrir Hugging Face") { studio.openHuggingFace() }
-                }
-                HStack(spacing: 14) {
-                    Button("Voir les modèles gated") { studio.openHuggingFace(URL(string: "https://huggingface.co/models?other=voice-cloning")!) }
-                    Button("Chercher des modèles légers") { Task { await studio.fetchHFModels() } }
-                }.font(.system(size: 11)).buttonStyle(.link)
-            }.padding(12).background(Dashboard.soft).clipShape(RoundedRectangle(cornerRadius: 6))
+            panelTitle("Modèles", subtitle: "Installe et active les moteurs disponibles localement")
             if studio.models.isEmpty {
                 Text("Démarre le studio pour accéder au catalogue de modèles.").font(.system(size: 12)).foregroundStyle(Dashboard.muted).padding(.vertical, 16)
             }
@@ -527,9 +523,9 @@ struct ContentView: View {
         }.padding(18).frame(maxWidth: .infinity, alignment: .leading).dashboardPanel()
     }
 
-    private var texts: some View {
+    private var prises: some View {
         VStack(alignment: .leading, spacing: 14) {
-            panelTitle("Bibliothèque des textes générés", subtitle: "Retrouve toutes tes prises audio")
+            panelTitle("Prises générées", subtitle: "Retrouve toutes tes prises audio")
             if studio.audios.isEmpty { Text("Aucune prise générée pour le moment. Elle apparaîtra ici avec son transcript dès que tu lances une génération.").font(.system(size: 12)).foregroundStyle(Dashboard.muted) }
             ForEach(studio.audios) { audio in
                 VStack(alignment: .leading, spacing: 8) {
@@ -544,11 +540,406 @@ struct ContentView: View {
         }.padding(18).frame(maxWidth: .infinity, alignment: .leading).dashboardPanel()
     }
 
+    /// Page Réglages, dans la fenêtre principale : sections empilées Providers / HF / À propos.
+    private var reglages: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            reglagesBloc("Providers IA", "Les services d'analyse des livres — GLM, DeepSeek, OpenAI ou Ollama local. Les clés restent sur ce Mac.") {
+                ClesAPIView(studio: studio)
+            }
+            reglagesBloc("Clé Hugging Face", "Pour télécharger les modèles protégés (gated). Le token reste local à ce studio.") {
+                hfCarte
+            }
+            reglagesBloc("À propos", nil) {
+                AProposView()
+            }
+        }
+    }
+
+    private func reglagesBloc<Contenu: View>(_ titre: String, _ sousTitre: String?, @ViewBuilder contenu: () -> Contenu) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(titre).font(.system(size: 17, weight: .semibold))
+                if let sousTitre {
+                    Text(sousTitre).font(.system(size: 11)).foregroundStyle(Dashboard.muted)
+                }
+            }
+            contenu()
+        }
+    }
+
+    private var hfCarte: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Certains modèles sont protégés (gated). Marche à suivre :")
+                .font(.system(size: 11)).foregroundStyle(Dashboard.muted)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("1. Ouvre la page du modèle (lien sous son nom, section Modèles) et accepte les conditions « Agree and access repository ».")
+                Text("2. Sur huggingface.co/settings/tokens : « Create new token », nomme-le, type « Read », puis « Create token ».")
+                Text("3. Copie tout de suite le token affiché (il commence par hf_ — montré une seule fois).")
+                Text("4. Colle-le ici, Enregistrer, puis relance Installer sur le modèle.")
+            }.font(.system(size: 11)).foregroundStyle(Dashboard.muted)
+            HStack {
+                SecureField("hf_…", text: $studio.hfToken).textFieldStyle(.roundedBorder)
+                Button("Enregistrer le token") { Task { await studio.saveHFToken() } }
+                Button("Ouvrir Hugging Face") { studio.openHuggingFace() }
+            }
+            HStack(spacing: 14) {
+                Button("Voir les modèles gated") { studio.openHuggingFace(URL(string: "https://huggingface.co/models?other=voice-cloning")!) }
+                Button("Chercher des modèles légers") { Task { await studio.fetchHFModels() } }
+            }.font(.system(size: 11)).buttonStyle(.link)
+            if !studio.hfResults.isEmpty {
+                Divider()
+                Text("Suggestions Hugging Face").font(.system(size: 12, weight: .semibold))
+                ForEach(studio.hfResults) { result in
+                    HStack { Text(result.repo).font(.system(size: 11)); Spacer(); Text("\(result.telechargements ?? 0) téléchargements").font(.system(size: 10)).foregroundStyle(Dashboard.muted) }
+                }
+            }
+        }.padding(18).frame(maxWidth: .infinity, alignment: .leading).dashboardPanel()
+    }
+
+    /// Section Livres : liste des EPUB + accès au studio dédié (fenêtre séparée).
+    private var livres: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            panelTitle("Livres", subtitle: "EPUB → audiobooks multi-voix, édités dans le studio dédié")
+            if studio.books.isEmpty {
+                Text(studio.state == nil ? "Démarre le studio pour voir tes livres." : "Aucun livre préparé pour le moment.")
+                    .font(.system(size: 12)).foregroundStyle(Dashboard.muted).padding(.vertical, 8)
+            }
+            ForEach(studio.books) { book in
+                HStack(spacing: 10) {
+                    Image(systemName: "book.closed").foregroundStyle(Dashboard.muted)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(book.titre).font(.system(size: 12, weight: .medium)).lineLimit(1)
+                        Text("\(book.chapitres.count) chapitres · \(book.mots.formatted()) mots")
+                            .font(.system(size: 10)).foregroundStyle(Dashboard.muted)
+                    }
+                    Spacer()
+                    Button("Ouvrir") { openWindow(id: "book-studio") }
+                        .buttonStyle(.bordered).controlSize(.small)
+                        .help("Ouvrir ce studio des livres")
+                }.padding(.vertical, 3)
+                if book.id != studio.books.last?.id { Divider() }
+            }
+            Button("Ouvrir le studio des livres", systemImage: "book") { openWindow(id: "book-studio") }
+                .buttonStyle(.bordered)
+                .disabled(studio.state == nil)
+        }.padding(18).frame(maxWidth: .infinity, alignment: .leading).dashboardPanel()
+    }
+
     private func panelTitle(_ title: String, subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title).font(.system(size: 13, weight: .semibold))
             Text(subtitle).font(.system(size: 11)).foregroundStyle(Dashboard.muted)
         }
+    }
+}
+
+@MainActor
+private struct WebStudioWindow: NSViewRepresentable {
+    let url: URL
+
+    func makeNSView(context: Context) -> WKWebView {
+        let view = StudioWebView(url: url)
+        return view
+    }
+
+    func updateNSView(_ view: WKWebView, context: Context) {}
+}
+
+/// WebView du studio : sans cache HTTP (le serveur local redémarre avec l'app,
+/// une réponse tronquée captée à ce moment ne doit jamais rester collée) et
+/// avec reconnexion automatique pendant l'arrêt/relance du serveur.
+@MainActor
+private final class StudioWebView: WKWebView, WKNavigationDelegate {
+    private let cible: URL
+    private var tentatives = 0
+
+    init(url: URL) {
+        cible = url
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .nonPersistent()
+        super.init(frame: .zero, configuration: configuration)
+        navigationDelegate = self
+        var requete = URLRequest(url: cible)
+        requete.cachePolicy = .reloadIgnoringLocalCacheData
+        load(requete)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) n'est pas pris en charge") }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        tentatives = 0
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        retenter()
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        retenter()
+    }
+
+    /// Le serveur local peut être en train de redémarrer : on retente une minute.
+    private func retenter() {
+        guard tentatives < 30 else { return }
+        tentatives += 1
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            guard let self else { return }
+            var requete = URLRequest(url: self.cible)
+            requete.cachePolicy = .reloadIgnoringLocalCacheData
+            self.load(requete)
+        }
+    }
+}
+
+// ------------------------------------------------------------- Réglages
+
+private struct ClesAPIView: View {
+    @ObservedObject var studio: Studio
+    @State private var charge = false
+    @State private var editionID = ""
+    @State private var nom = ""
+    @State private var endpoint = ""
+    @State private var modele = ""
+    @State private var cle = ""
+    @State private var statut = ""
+    @State private var statutOK = false
+    @State private var occupé = false
+    @State private var testEnCours: String?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                entete
+                if studio.state == nil {
+                    Label("Le studio est éteint : démarre le serveur local pour gérer les providers.",
+                          systemImage: "power").font(.caption).foregroundStyle(.secondary)
+                } else {
+                    listeProviders
+                }
+                formulaire
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+        }
+        .dashboardPanel()
+        .task {
+            guard !charge, studio.state != nil else { return }
+            charge = true
+            await studio.chargerProfilsIA()
+        }
+    }
+
+    private var entete: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("L'analyse des livres (cast, attribution des voix) utilise un service compatible OpenAI — GLM, DeepSeek, OpenAI ou Ollama local. Les clés restent sur ce Mac, dans le dossier de données du studio.")
+                .font(.caption).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var listeProviders: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if studio.iaProfils.isEmpty {
+                Text(studio.error ?? "Aucun provider enregistré : ajoute ton service ci-dessous.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            ForEach(studio.iaProfils) { profil in
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Text(profil.nom).font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                        if profil.actif {
+                            Label("actif", systemImage: "checkmark.circle.fill")
+                                .font(.caption2).foregroundStyle(.green)
+                        } else if !profil.configure {
+                            Label("incomplet", systemImage: "exclamationmark.triangle.fill")
+                                .font(.caption2).foregroundStyle(.orange)
+                        }
+                        Spacer()
+                        if !profil.actif {
+                            Button("Activer") { Task { await studio.activerProfilIA(profil.id) } }
+                                .buttonStyle(.bordered).controlSize(.small).disabled(occupé)
+                        }
+                        Button("Tester") {
+                            testEnCours = profil.id
+                            Task {
+                                let resultat = await studio.testerProfilIA(profil.id)
+                                if let erreur = resultat.erreur {
+                                    statutOK = false
+                                    statut = erreur
+                                } else {
+                                    statutOK = true
+                                    statut = "Connecté — réponse : \(resultat.reponse ?? "ok")"
+                                }
+                                testEnCours = nil
+                            }
+                        }
+                        .buttonStyle(.bordered).controlSize(.small)
+                        .disabled(occupé || testEnCours == profil.id)
+                        Button("Modifier") { remplir(profil) }
+                            .buttonStyle(.bordered).controlSize(.small)
+                        Button("Supprimer", role: .destructive) {
+                            Task { await studio.supprimerProfilIA(profil.id) }
+                        }
+                        .buttonStyle(.bordered).controlSize(.small).disabled(occupé)
+                    }
+                    Text("\(profil.modele) · \(profil.base_url) · \(profil.cle_masquee ?? "sans clé")")
+                        .font(.caption2).foregroundStyle(.secondary)
+                        .lineLimit(1).truncationMode(.middle)
+                        .textSelection(.enabled)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color(.controlBackgroundColor)))
+                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(profil.actif ? Color.green.opacity(0.45) : Color(.separatorColor), lineWidth: 1))
+            }
+        }
+    }
+
+    private var formulaire: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Text(editionID.isEmpty ? "Ajouter un provider" : "Modifier « \(nom) »").font(.subheadline.weight(.semibold))
+                Spacer()
+                if !editionID.isEmpty {
+                    Button("Nouveau") { vider() }.buttonStyle(.borderless).font(.caption)
+                }
+            }
+            LigneReglages(label: "Nom") {
+                TextField("GLM principal · Ollama local", text: $nom).textFieldStyle(.roundedBorder)
+            }
+            LigneReglages(label: "Endpoint") {
+                TextField("https://api.z.ai/api/coding/paas/v4", text: $endpoint)
+                    .textFieldStyle(.roundedBorder)
+            }
+            LigneReglages(label: "Modèle") {
+                TextField("glm-5.3-flash · qwen3:4b · gpt-4o-mini", text: $modele)
+                    .textFieldStyle(.roundedBorder)
+            }
+            LigneReglages(label: editionID.isEmpty ? "Clé API" : "Nouvelle clé") {
+                SecureField("clé distante — vide pour Ollama local ou conserver l'actuelle", text: $cle)
+                    .textFieldStyle(.roundedBorder)
+            }
+            HStack(spacing: 12) {
+                Button(editionID.isEmpty ? "Ajouter le provider" : "Enregistrer") {
+                    occupé = true
+                    Task {
+                        let erreur = await studio.enregistrerProfilIA(
+                            nom: nom.trimmingCharacters(in: .whitespaces),
+                            endpoint: endpoint.trimmingCharacters(in: .whitespaces),
+                            modele: modele.trimmingCharacters(in: .whitespaces),
+                            cle: cle.trimmingCharacters(in: .whitespaces),
+                            edition: editionID)
+                        occupé = false
+                        statutOK = erreur == nil
+                        statut = erreur ?? (editionID.isEmpty ? "Provider ajouté." : "Provider modifié.")
+                        if erreur == nil { vider() }
+                    }
+                }
+                .buttonStyle(.borderedProminent).disabled(occupé || nom.isEmpty || endpoint.isEmpty || modele.isEmpty)
+                if !statut.isEmpty {
+                    Label(statut, systemImage: statutOK ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(statutOK ? .green : .red)
+                        .textSelection(.enabled)
+                }
+            }
+            Text("URL de base uniquement, sans /chat/completions. Le test interroge le provider avec « Réponds exactement : ok ».")
+                .font(.caption2).foregroundStyle(.secondary)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color(.controlBackgroundColor)))
+        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Color(.separatorColor), lineWidth: 1))
+    }
+
+    private func remplir(_ profil: IAProfil) {
+        editionID = profil.id
+        nom = profil.nom
+        endpoint = profil.base_url
+        modele = profil.modele
+        cle = ""
+        statut = ""
+    }
+
+    private func vider() {
+        editionID = ""
+        nom = ""
+        endpoint = ""
+        modele = ""
+        cle = ""
+        statut = ""
+    }
+}
+
+private struct LigneReglages<Contenu: View>: View {
+    let label: String
+    @ViewBuilder let contenu: Contenu
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(label).font(.caption).foregroundStyle(.secondary).frame(width: 78, alignment: .trailing)
+            contenu
+        }
+    }
+}
+
+private struct AProposView: View {
+    private let version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "?"
+    private let build = (Bundle.main.infoDictionary?["CFBundleVersion"] as? String) ?? "1"
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 0) {
+                    Image(nsImage: NSApp.applicationIconImage)
+                        .resizable().interpolation(.high)
+                        .frame(width: 88, height: 88)
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .stroke(Color.primary.opacity(0.08), lineWidth: 1))
+                        .padding(.top, 40).padding(.bottom, 16)
+                    Text("PK Voice Cloner").font(.system(size: 24, weight: .bold))
+                    Text("Version \(version) (\(build))")
+                        .font(.system(size: 13)).foregroundStyle(.secondary).padding(.top, 4)
+                    Text("Studio vocal 100 % local · Apple Silicon · macOS 14+")
+                        .font(.system(size: 13)).foregroundStyle(.secondary)
+                        .padding(.top, 2).padding(.bottom, 28)
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Ta voix, tes livres, ton Mac.").italic().font(.system(size: 13))
+                        Text("Clone une voix avec quelques secondes de référence, génère la narration d'un EPUB en multi-voix avec attribution automatique des personnages, et écoute le résultat. Aucun audio ne quitte ce Mac.")
+                            .font(.system(size: 13)).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text("Moteurs : VoxCPM2, dots.tts, Qwen3-TTS et Pocket TTS. Mises à jour automatiques via Sparkle.")
+                            .font(.system(size: 13)).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }.frame(maxWidth: 480).padding(.bottom, 32)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            Divider()
+            HStack(spacing: 18) {
+                Link(destination: URL(string: "https://ko-fi.com/pouark")!) {
+                    Label("Soutenir sur Ko-fi", systemImage: "heart.fill")
+                        .font(.caption).foregroundStyle(.red)
+                }
+                Link(destination: URL(string: "https://mondary.design/apps/")!) {
+                    Label("Hub d'applications PK", systemImage: "square.grid.2x2")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Link(destination: URL(string: "https://github.com/mondary/Macos_PKvoicecloner")!) {
+                    Label("GitHub", systemImage: "network")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text("Utilise une voix avec consentement.").font(.caption2).foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 24).padding(.vertical, 14)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .dashboardPanel()
     }
 }
 
@@ -588,5 +979,12 @@ private extension View {
                     }
                 }
             }
+        Window("Studio des livres", id: "book-studio") {
+            WebStudioWindow(url: delegate.studio.baseURL)
+                .frame(minWidth: 1050, idealWidth: 1280, maxWidth: .infinity,
+                       minHeight: 680, idealHeight: 860, maxHeight: .infinity)
+        }
+        .defaultSize(width: 1280, height: 860)
+        .windowResizability(.contentSize)
     }
 }

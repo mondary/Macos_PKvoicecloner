@@ -155,6 +155,8 @@ class LivresContracts(unittest.TestCase):
         self.assertEqual(self.client.get(f"/api/livres/{livre['id']}").json()["titre"], livre["titre"])
         chapitre = self.client.get(f"/api/livres/{livre['id']}/chapitre/2").json()
         self.assertIn("plongee0", chapitre["texte"])
+        self.assertIn("plongee0", chapitre["texte_source"])
+        self.assertEqual(chapitre["texte_source"], chapitre["texte"])
         self.assertNotIn("mot0", chapitre["texte"])          # pas de mélange avec le chapitre 1
         self.assertFalse(chapitre["texte"].startswith("#"))  # ligne de titre retirée du texte
         self.assertEqual(self.client.get(f"/api/livres/{livre['id']}/couverture").status_code, 404)
@@ -272,27 +274,32 @@ class LivresContracts(unittest.TestCase):
 # --------------------------------------------------------------- analyse IA
 
 def faux_llm(cfg, messages, **kwargs):
-    """Faux LLM : répond selon la TÂCHE marquée dans le prompt."""
+    """Faux LLM : répond selon la TÂCHE marquée dans le prompt (corps complet + usage)."""
     prompt = messages[-1]["content"]
+
+    def corps(contenu):
+        return {"choices": [{"message": {"role": "assistant", "content": contenu}}],
+                "usage": {"prompt_tokens": 90, "completion_tokens": 10, "total_tokens": 100}}
+
     if "TÂCHE: CAST" in prompt:
-        return json.dumps({"cast": [
+        return corps(json.dumps({"cast": [
             {"id": "narrateur", "nom": "Narrateur", "genre": "femme", "role": "narrateur",
              "description": "", "importance": "principal"},
             {"id": "marc", "nom": "Marc", "genre": "homme", "role": "personnage",
              "description": "Capitaine", "importance": "principal"},
             {"id": "lea", "nom": "Léa", "genre": "femme", "role": "personnage",
              "description": "", "importance": "secondaire"},
-        ]})
+        ]}))
     if "TÂCHE: TAGAGE" in prompt:
         morceau = prompt.split("<<<\n", 1)[1].split("\n>>>", 1)[0]
         lignes = []
         for index, ligne in enumerate(morceau.splitlines()):
             if ligne.strip():
-                lignes.append(("[narrateur] " if index == 0 else "[marc] ") + ligne.strip())
-        lignes.append("[np1] Attendez-moi !")
-        return "\n".join(lignes)
+                lignes.append(("///narrateur " if index == 0 else "///marc ") + ligne.strip())
+        lignes.append("///np1 Attendez-moi !")
+        return corps("\n".join(lignes))
     if "TÂCHE: GENRES" in prompt:
-        return json.dumps({"np1": "homme"})
+        return corps(json.dumps({"np1": "homme"}))
     raise AssertionError(f"prompt inattendu : {prompt[:80]}")
 
 
@@ -303,7 +310,7 @@ class AnalyseContracts(unittest.TestCase):
         self.patches = [
             patch.object(server, "LIVRES", self.root),
             patch.object(server, "FICHIER_IA", self.root / "ia.json"),
-            patch.object(livres.ia, "completer", faux_llm),
+            patch.object(livres.ia, "appeler", faux_llm),
         ]
         for p in self.patches:
             p.start()
@@ -336,6 +343,22 @@ class AnalyseContracts(unittest.TestCase):
         self.assertEqual(relue["cle_masquee"], "…efgh")
         self.assertEqual(self.client.post("/api/ia/config", json={"base_url": "ftp://non"}).status_code, 400)
 
+    def test_profils_ia_crud_et_ollama_sans_cle(self):
+        premier = self.client.post("/api/ia/profils", json={
+            "nom": "Ollama local", "base_url": "http://localhost:11434/v1", "modele": "qwen3:4b", "cle": ""})
+        self.assertEqual(premier.status_code, 200, premier.text)
+        profil = premier.json()
+        self.assertTrue(profil["configure"])
+        self.assertEqual(profil["cle_masquee"], "clé locale")
+        distant = self.client.post("/api/ia/profils", json={
+            "nom": "Cloud test", "base_url": "https://api.example.test/v1", "modele": "test", "cle": "secret123"})
+        self.assertEqual(distant.status_code, 200, distant.text)
+        self.assertNotIn("secret123", json.dumps(distant.json()))
+        self.assertEqual(self.client.post(f"/api/ia/profils/{distant.json()['id']}/activer").status_code, 200)
+        self.assertEqual(self.client.get("/api/ia/profils").json()["actif"], distant.json()["id"])
+        self.assertEqual(self.client.delete(f"/api/ia/profils/{distant.json()['id']}").status_code, 200)
+        self.assertEqual(self.client.get("/api/ia/profils").json()["actif"], profil["id"])
+
     def test_tester_ia(self):
         self.assertEqual(self.client.post("/api/ia/tester").status_code, 400)
         self.client.post("/api/ia/config", json={
@@ -354,25 +377,31 @@ class AnalyseContracts(unittest.TestCase):
         self.assertEqual(cast["marc"]["genre"], "homme")
         self.assertEqual(cast["lea"]["genre"], "femme")
         self.assertEqual(cast["np1"]["genre"], "homme")           # découvert puis classé
+        self.assertEqual(cast["np1"]["nom"], "Voix inconnue 1")   # pas de « Np1 » cryptique
         for chapitre in projet["chapitres"]:
             self.assertEqual(chapitre["analyse"], "faite")
             self.assertEqual(chapitre["voix"], ["narrateur", "marc", "np1"])
         texte = self.client.get(f"/api/livres/{livre['id']}/chapitre/1").json()["texte"]
-        self.assertTrue(texte.startswith("[narrateur]"))
-        self.assertIn("[marc] mot0 mot1", texte)                # texte original préservé
+        self.assertTrue(texte.startswith("///narrateur"))
+        self.assertIn("///marc mot0 mot1", texte)                # texte original préservé
         # le tagage ne change pas le décompte de mots (les tags ne comptent pas)
         mots_avant = next(c["mots"] for c in livre["chapitres"] if c["num"] == 1)
         mots_apres = next(c["mots"] for c in projet["chapitres"] if c["num"] == 1)
         self.assertEqual(mots_avant, mots_apres)
-        self.assertEqual(mots_apres, livres._compte_mots(texte.rsplit("\n[np1]", 1)[0]))
+        self.assertEqual(mots_apres, livres._compte_mots(texte.rsplit("\n///np1", 1)[0]))
+        # tokens consommés : cast + 2 tagages + classement = 4 appels × 100 tokens
+        self.assertEqual(projet["analyse"]["tokens"], 400)
+        self.assertEqual(projet["tokens_ia"], 400)
+        # le narrateur détecté en anglais reste un rôle unique
+        self.assertNotIn("narrator", {v["id"] for v in projet["cast"]})
 
     def test_reanalyse_retagge_sans_cumuler_les_tags(self):
         livre = self.livre(CHAPITRES[:1])
         livres.analyser_livre(self.root, livre["id"], self.cfg)
         livres.analyser_livre(self.root, livre["id"], self.cfg, forcer=True)
         texte = self.client.get(f"/api/livres/{livre['id']}/chapitre/1").json()["texte"]
-        self.assertNotIn("[narrateur] [", texte)
-        self.assertEqual(len([l for l in texte.splitlines() if l.startswith("[narrateur] [")]), 0)
+        self.assertNotIn("///narrateur ///", texte)   # pas de tag cumulé à la ré-analyse
+        self.assertNotIn("[narrateur] [", texte)      # l'ancien format n'en embrique pas non plus
 
     def test_analyse_un_seul_chapitre_puis_reprise(self):
         livre = self.livre()
@@ -390,26 +419,26 @@ class AnalyseContracts(unittest.TestCase):
         self.assertEqual(len(cast_initial), 4)          # narrateur + marc + lea + np1
 
         appels = {"cast": 0}
-        dorigine = livres.ia.completer
+        dorigine = livres.ia.appeler
 
         def compteur(cfg, messages, **kwargs):
             if "TÂCHE: CAST" in messages[-1]["content"]:
                 appels["cast"] += 1
             return dorigine(cfg, messages, **kwargs)
 
-        with patch.object(livres.ia, "completer", compteur):
+        with patch.object(livres.ia, "appeler", compteur):
             livres.analyser_livre(self.root, livre["id"], self.cfg, numeros=[1], forcer=True)
         self.assertEqual(appels["cast"], 0)             # aucun nouvel appel de distribution
         cast_conserve = livres.lire(self.root, livre["id"])["cast"]
         self.assertEqual([v["id"] for v in cast_conserve], [v["id"] for v in cast_initial])
 
-        with patch.object(livres.ia, "completer", compteur):
+        with patch.object(livres.ia, "appeler", compteur):
             livres.analyser_livre(self.root, livre["id"], self.cfg, forcer=True)   # livre entier
         self.assertEqual(appels["cast"], 1)             # là, la distribution est refaite
 
     def test_erreur_ia_visible_dans_le_projet(self):
         livre = self.livre(CHAPITRES[:1])
-        avec_erreur = patch.object(livres.ia, "completer",
+        avec_erreur = patch.object(livres.ia, "appeler",
                                    side_effect=ia.IaErreur("quota dépassé"))
         with avec_erreur:
             projet = livres.analyser_livre(self.root, livre["id"], self.cfg)
@@ -461,9 +490,17 @@ class AnalyseContracts(unittest.TestCase):
         decoupe = livres._decouper_analyse("p1 " * 400 + "\n\n" + "p2 " * 400, taille=1000)
         self.assertGreaterEqual(len(decoupe), 2)
         self.assertTrue(all(len(m) <= 2000 for m in decoupe))
+        self.assertEqual(livres._decouper_phrases("Il entre. Elle répond : « Bonjour ! » Le feu baisse."),
+                         ["Il entre.", "Elle répond : « Bonjour ! »", "Le feu baisse."])
         self.assertEqual(livres.voix_du_texte("[marc] a\n[narrateur] b\n[marc] c"),
                          ["narrateur", "marc"])
+        self.assertEqual(livres.voix_du_texte("///marc a\n///narrateur b\n///marc c"),
+                         ["narrateur", "marc"])
+        self.assertEqual(livres.voix_du_texte("[marc] a\n///narrateur b\n///marc c"),
+                         ["narrateur", "marc"])                 # les deux formats cohabitent
+        self.assertEqual(livres._compte_mots("[marc] un deux\n///lea trois"), 3)
         self.assertEqual(livres._slug("Léa-Marie Östër"), "lea-marie-oster")
+        self.assertEqual(livres._slug("Narrator"), "narrateur")
 
 
 if __name__ == "__main__":

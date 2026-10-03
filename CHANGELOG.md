@@ -1,6 +1,91 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.29] - 2026-10-03
+
+### Fixed
+
+- **Écran blanc du studio web corrigé** : la fenêtre intégrée de l'app ne met plus le studio en cache (data store non persistant, requêtes sans cache) et retente automatiquement une minute quand le serveur local redémarre — une fenêtre ouverte pendant un arrêt/relance se reconnecte seule au lieu de rester blanche.
+
+## [2026.10.28] - 2026-10-03
+
+### Changed
+
+- **Réglages regroupés, même écran dans l'app et le studio web** : entrée « Réglages » épinglée en bas de la barre latérale (au-dessus de « Studio personnel »), l'app et le web ont les mêmes sections — Providers IA (formulaire pleine largeur), Clé Hugging Face (déplacée depuis Modèles) et À propos (version, Ko-fi, hub PK, GitHub).
+- **Navigation alignée** entre l'app native et le studio web : Vue d'ensemble, Bibliothèque de voix, Texte vers voix, Livres, Modèles, Réglages. L'app gagne la section Livres (liste + ouverture du studio dédié) ; « Bibliothèque des textes » devient « Prises générées » et rejoint Texte vers voix.
+- Le bouton Réglages quitte le header de l'app ; le dropdown « Réglages IA » disparaît de la page Livres du studio web.
+
+## [2026.10.27] - 2026-10-03
+
+### Changed
+
+- Les Réglages ne sont plus une fenêtre séparée : bouton ⚙ du header et section « Réglages » de la barre latérale affichent Clés API (providers IA) et À propos dans la fenêtre principale de l'app, au style du tableau de bord.
+
+## [2026.10.26] - 2026-10-03
+
+### Added
+
+- **Réglages natifs** : bouton ⚙ dans la barre supérieure de l'app (et menu Réglages… ⌘,) ouvrant une fenêtre complète — gestion des providers IA et de leurs clés API (ajout, modification, test, activation, suppression), page À propos avec version, lien Ko-fi, hub d'applications PK et GitHub.
+
+## [2026.10.25] - 2026-10-03
+
+### Fixed
+
+- Le studio livre s'ouvre dans une vraie fenêtre macOS redimensionnable avec contrôles natifs de fermeture, et non dans une feuille modale trop petite.
+
+## [2026.10.24] - 2026-10-02
+
+### Changed
+
+- Le bouton « Ouvrir le studio web » de l'app macOS ouvre maintenant le studio livre dans une fenêtre intégrée WKWebView au lieu d'envoyer vers Safari.
+
+## [2026.10.23] - 2026-10-02
+
+### Added
+
+- Écoute continue des segments d'un chapitre avec pauses de respiration différenciées selon la ponctuation ; lecture interruptible.
+
+## [2026.10.22] - 2026-10-02
+
+### Changed
+
+- Association des rôles colorée selon le genre de voix, formulaire pleine largeur et bouton d'enregistrement renforcé.
+- Contrôles des segments différenciés : « Générer » avant la première synthèse, lecteur audio et « Régénérer » lorsqu'un rendu existe.
+- Erreur explicite dans Réglages IA quand l'ancien serveur ne possède pas encore l'API multi-profils.
+
+## [2026.10.21] - 2026-10-02
+
+### Changed
+
+- Version du studio web affichée dans l'en-tête supérieur sticky, visible pendant le défilement et dans la page dédiée d'un livre ; le pied de page conserve également la version.
+
+## [2026.10.20] - 2026-10-02
+
+### Added
+
+- **Providers IA multiples** : ajouter, modifier, tester, activer et supprimer plusieurs profils (endpoint, modèle, clé masquée) ; Ollama local accepte une clé vide et les permissions du fichier de configuration sont limitées au compte courant.
+- **Modèle local conseillé** : aide intégrée pour Ollama + Qwen3 4B quantifié, avec endpoint, commande de téléchargement et conseils mémoire/contexte.
+- **Page livre plein écran** : navigation latérale masquée dans le livre, liste de chapitres compacte à gauche et lecteur à droite ; le premier chapitre s’ouvre à l’entrée.
+- **Statut par chapitre** : état d'analyse, voix détectées, segments détectés et audios générés ; état audio conservé dans le projet pour survivre au rechargement.
+- Le post-traitement sépare désormais côté serveur les phrases fusionnées par le modèle pour maintenir une unité audio par phrase.
+
+### Fixed
+
+- Alignement original/segments par similarité de texte : plusieurs phrases source peuvent correspondre à un segment IA fusionné ; les segments vides ne créent plus de fausses lignes/IDs et les phrases source restantes sont signalées explicitement.
+
+## [2026.10.19] - 2026-10-02
+
+### Added
+
+- **Comparaison originale / structure IA** : conservation du texte source à l'import et affichage en deux colonnes synchronisées ; chaque phrase attribuée reçoit son numéro d'ordre dans le chapitre.
+- **Attribution des voix et génération par segment** : associer chaque rôle à une voix de la bibliothèque, lancer une phrase seule ou générer le lot séquentiellement ; les WAV prêts restent accessibles par lecteur dans la comparaison.
+- Feedback de fin d'analyse avec total de tokens ; progression plus fine par extrait et phase courante affichée. Les réponses OpenAI-compatibles fournissant `usage` alimentent le compteur.
+
+### Changed
+
+- L'analyse demande désormais une phrase par ligne/segment, y compris lorsque plusieurs phrases successives ont le même locuteur.
+- Nouveau préfixe propriétaire `///voix` (l'ancien `[voix]` reste accepté en lecture) ; les locuteurs `np1` sont présentés comme « Voix inconnue 1 ».
+
 ## [2026.10.18] - 2026-10-02
 
 ### Changed

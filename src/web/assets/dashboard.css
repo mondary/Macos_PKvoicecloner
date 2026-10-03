@@ -278,6 +278,8 @@ body.book-focus .books-head,body.book-focus .book-drop{display:none!important}
 .cl-segment-row.homme{border-left-color:#3b6db4;background:#f2f6fc}
 .cl-segment-row.femme{border-left-color:#c24477;background:#fdf4f8}
 .cl-segment-row.indetermine{border-left-color:var(--muted);background:var(--soft)}
+.cl-segment-row.suspect{border-left-color:#b45309;background:#fff8eb}
+.cl-suspect-note{flex:none;font:600 9px/1.4 var(--mono);color:#b45309;background:#fdeccd;border-radius:4px;padding:2px 6px;letter-spacing:.02em}
 .cl-segment-head{grid-column:1/-1;display:flex;align-items:center;gap:8px;min-height:16px}
 .cl-segment-num{flex:none;color:var(--muted);font:9px var(--mono);letter-spacing:.02em}
 .cl-segment-row .cl-chip{flex:none;font:600 9px/1.4 var(--mono);letter-spacing:.035em}

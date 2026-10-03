@@ -1729,6 +1729,56 @@
     }));
     actions.appendChild(relance);
     if (analyseFait) {
+      const verifier = document.createElement("button");
+      verifier.className = "pill-light";
+      verifier.type = "button";
+      verifier.textContent = "Vérifier l'attribution (local)";
+      verifier.title = "Laya, un petit modèle local : signale les segments « narrateur » qui ressemblent à du dialogue — sans consommer de tokens";
+      const verifierStatus = document.createElement("span");
+      verifierStatus.className = "chapter-status";
+      verifier.addEventListener("click", async () => {
+        verifier.disabled = true;
+        try {
+          let etatLaya = await (await fetch("/api/laya/etat")).json();
+          if (!etatLaya.installe) throw new Error("Laya n'est pas installé : .venv/bin/python -m pip install laya");
+          if (!etatLaya.pret) {
+            if (!etatLaya.chargement) await fetch("/api/laya/charger", { method: "POST" });
+            verifierStatus.textContent = "Chargement de Laya — une seule fois (~800 Mo au premier lancement)…";
+            while (!(etatLaya = await (await fetch("/api/laya/etat")).json()).pret) {
+              if (etatLaya.erreur) throw new Error(etatLaya.erreur);
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+            }
+          }
+          verifierStatus.textContent = "Vérification des attributions en local…";
+          const response = await fetch(`/api/livres/${book.id}/chapitre/${chapter.num}/verifier`, { method: "POST" });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.detail || "vérification impossible");
+          panel.querySelectorAll(".cl-segment-row.suspect").forEach((row) => {
+            row.classList.remove("suspect");
+            row.querySelector(".cl-suspect-note")?.remove();
+          });
+          payload.segments.forEach((segment) => {
+            if (!segment.dialogue) return;
+            const row = panel.querySelector(`.cl-segment-row[data-segment-index="${segment.num}"]`);
+            if (!row) return;
+            row.classList.add("suspect");
+            const note = document.createElement("span");
+            note.className = "cl-suspect-note";
+            note.textContent = `dialogue probable · ${(segment.probabilite * 100).toFixed(0)} %`;
+            note.title = "Laya détecte des paroles prononcées sur un segment attribué au narrateur — à relire";
+            row.querySelector(".cl-segment-head")?.appendChild(note);
+          });
+          verifierStatus.textContent = payload.suspects
+            ? `${payload.suspects} dialogue(s) probable(s) attribué(s) au narrateur — relis les lignes surlignées.`
+            : `Aucun dialogue attribué au narrateur sur ${payload.total} segments.`;
+        } catch (error) {
+          verifierStatus.textContent = error.message;
+          verifierStatus.classList.add("dirty");
+        } finally {
+          verifier.disabled = false;
+        }
+      });
+      actions.append(verifier, verifierStatus);
       const batch = document.createElement("button");
       batch.className = "pill-light";
       batch.type = "button";

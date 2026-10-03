@@ -18,6 +18,9 @@ Endpoints :
   GET  /api/livres/{id}/couverture       image de couverture
   GET|POST /api/ia/config        configuration LLM OpenAI-compatible (clé masquée en lecture)
   POST /api/ia/tester            vérifie l'endpoint et la clé
+  POST /api/laya/charger         charge le modèle local Laya (contrôle d'attribution)
+  GET  /api/laya/etat            état du modèle Laya
+  POST /api/livres/{id}/chapitre/{n}/verifier  relecture locale des attributions
   POST /api/generer     {texte, vitesse, transcript} -> job id
   POST /api/moteur      {moteur: voxcpm2|dots|qwen3|pocket} changement de moteur TTS
   GET  /api/modeles     modèles téléchargeables + état installé
@@ -56,6 +59,7 @@ if str(Path(__file__).resolve().parent) not in sys.path:      # livres.py / ia.p
     sys.path.insert(0, str(Path(__file__).resolve().parent))  # quel que soit le mode de lancement
 import ia
 import livres
+import laya_local
 
 SRC = Path(__file__).resolve().parent
 PROJET = SRC.parent.parent
@@ -1027,6 +1031,41 @@ def tester_config_ia(req: dict = Body(default=None)):
 @app.post("/api/ia/profils/{pid}/tester")
 def tester_profil_ia(pid: str):
     return tester_config_ia({"profil_id": pid})
+
+
+# --------------------------------------------------------------- contrôle Laya (local)
+
+@app.get("/api/laya/etat")
+def etat_laya():
+    """Disponibilité du modèle local de contrôle d'attribution."""
+    return laya_local.etat()
+
+
+@app.post("/api/laya/charger", status_code=202)
+def charger_laya():
+    """Charge le modèle multilingue en tâche de fond (téléchargé une fois)."""
+    return laya_local.charger_en_fond()
+
+
+@app.post("/api/livres/{lid}/chapitre/{num}/verifier")
+def verifier_chapitre(lid: str, num: int):
+    """Relit les attributions du chapitre avec Laya : signale les segments
+    « narrateur » qui contiennent probablement du dialogue."""
+    if not laya_local.pret():
+        raise HTTPException(409, "Laya se charge — relance la vérification dans un instant")
+    chapitre = livres.lire_chapitre(LIVRES, _id_livre(lid), num)
+    if not chapitre:
+        raise HTTPException(404, "chapitre inconnu")
+    segments: list[tuple[str, str]] = []
+    for ligne in chapitre["texte"].splitlines():
+        trouve = livres.VOIX_LIGNE.match(ligne.strip())
+        if trouve:
+            segments.append((livres._slug(trouve.group(1) or trouve.group(2)), trouve.group(3).strip()))
+    if not segments:
+        raise HTTPException(400, "chapitre pas encore analysé : lance d'abord l'analyse IA")
+    resultats = laya_local.verifier_segments(segments)
+    suspects = sum(1 for r in resultats if r.get("dialogue"))
+    return {"segments": resultats, "suspects": suspects, "total": len(segments)}
 
 
 @app.post("/api/livres/{lid}/analyser", status_code=202)

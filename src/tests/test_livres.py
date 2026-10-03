@@ -22,6 +22,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 import ia  # noqa: E402
 import livres  # noqa: E402
+import laya_local  # noqa: E402
 
 CHAPITRES = [
     ("Premier chapitre", [" ".join(f"mot{i}" for i in range(30)), " ".join(f"suite{i}" for i in range(30))]),
@@ -501,6 +502,24 @@ class AnalyseContracts(unittest.TestCase):
         self.assertEqual(livres._compte_mots("[marc] un deux\n///lea trois"), 3)
         self.assertEqual(livres._slug("Léa-Marie Östër"), "lea-marie-oster")
         self.assertEqual(livres._slug("Narrator"), "narrateur")
+
+    def test_verifier_attribution_laya(self):
+        class AgentFaux:
+            def predict(self, state, questions):
+                return {"answers": {"dialogue": {"noul": 0.9 if "«" in state else 0.1,
+                                                 "confidence": 0.8}}}
+
+        segments = [
+            ("narrateur", "Il tourna la page."),
+            ("narrateur", "Elle souffla : « pars vite »."),
+            ("marc", "Attends-moi !"),
+        ]
+        resultats = laya_local.verifier_segments(segments, agent=AgentFaux())
+        self.assertEqual([r["num"] for r in resultats], [1, 2, 3])
+        self.assertFalse(resultats[0]["dialogue"])          # récit, probabilité 0.1
+        self.assertTrue(resultats[1]["dialogue"])           # dialogue suspecté sur le narrateur
+        self.assertFalse(resultats[2]["verifie"])           # un personnage n'est pas interrogé
+        self.assertRaises(RuntimeError, laya_local.verifier_segments, segments, agent=None)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.31** · macOS Apple Silicon · Apache-2.0
+version **2026.10.32** · macOS Apple Silicon · Apache-2.0
 
 🎙️ **Open source AI voice studio — 100 % local.** Your voice says any text. Powered by [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts) and [faster-whisper](https://github.com/SYSTRAN/faster-whisper) on Apple Silicon via MPS. **No data ever leaves the machine.**
 
@@ -41,6 +41,7 @@ The FTP-ready website is self-contained in [`store/website/`](store/website/): u
 - **Aligned navigation, app / web studio** — the same entries on both sides: Overview, Voice library, Text to voice, Books, Models, Settings; the app opens the dedicated book studio from its Books section
 - **Audiobooks (web studio)** — import an EPUB and compare its preserved original with the AI-structured text sentence by sentence, with color-coded voice assignments, segment generation, and continuous playback with punctuation-based breathing pauses; the audiobook editor is not yet part of SwiftUI
 - **Book analysis and voices** — save multiple OpenAI-compatible providers (GLM, DeepSeek, OpenAI or local Ollama), map each character to a library voice, and generate segments individually or sequentially in a batch; the book page tracks analysis, segments and generated audio
+- **Local attribution check (Laya)** — a small on-device model (322M, loaded once from the shared Hugging Face cache) reviews each chapter and flags “narrator” segments that look like dialogue: zero tokens, zero cloud after the first download
 - **Automatic startup** — the server starts when the app opens; when off, a welcome panel explains it with a big Start button
 - **Install then activate in one go** — a model installed from the studio activates by itself once the download finishes
 - **Clean studio** — an ElevenLabs-style clear interface: voices on the left, text and **Generate** on the right, PK coral accent

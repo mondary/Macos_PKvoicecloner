@@ -1,6 +1,12 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.32] - 2026-10-03
+
+### Added
+
+- **Contrôle d'attribution local avec Laya** : nouveau bouton « Vérifier l'attribution (local) » sur un chapitre analysé — un petit modèle embarqué (multilingue 322M, chargé une fois depuis le cache Hugging Face partagé) signale les segments « narrateur » qui contiennent probablement du dialogue. Zéro token, zéro cloud après le premier téléchargement ; les segments suspects sont surlignés dans la vue comparaison avec leur probabilité.
+
 ## [2026.10.31] - 2026-10-03
 
 ### Fixed

@@ -21,6 +21,7 @@
 +- `macos-menu-and-settings` — retour des Réglages dans la fenêtre principale (section latérale + ⚙ du header, picker segmenté Clés API / À propos).
 +- `macos-menu-and-settings` / `design-taste-frontend` — Réglages épinglés en bas de sidebar, sections empilées Providers IA + Clé Hugging Face + À propos, navigation alignée app/web (Vue d'ensemble → Réglages), section Livres native.
 +- `macos-patterns` — WebView du studio sans cache (data store non persistant) + reconnexion automatique : plus d'écran blanc après un redémarrage du serveur local.
++- `laya-integration` / `modeles-partages` — contrôle d'attribution local avec Laya (multilingue 322M, cache HF partagé) : endpoint `/api/livres/{id}/chapitre/{n}/verifier`, surlignage des segments suspects dans la vue comparaison.
 
 ## Limites constatées
 

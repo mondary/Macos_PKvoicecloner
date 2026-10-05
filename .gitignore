@@ -17,3 +17,6 @@ __pycache__/
 
 # Brouillons d icones locaux
 /ChatGPT Image*.png
+
+# Outils locaux (SadTalker etc.) — installés hors dépôt
+tools/

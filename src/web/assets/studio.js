@@ -1557,7 +1557,44 @@
     if (book.cast?.length) infos.appendChild(castChips(book));
     const actions = document.createElement("div");
     actions.className = "book-actions";
-    actions.append(boutonAnalyse(book), boutonSuppression(book));
+    const exporterLivre = document.createElement("button");
+    exporterLivre.className = "pill-light";
+    exporterLivre.type = "button";
+    exporterLivre.textContent = "Exporter l'audiobook (M4B)";
+    exporterLivre.title = "Assemble les chapitres générés en un M4B chapitré — les chapitres sans audio complet sont ignorés";
+    const exportStatus = document.createElement("span");
+    exportStatus.className = "chapter-status";
+    exporterLivre.addEventListener("click", async () => {
+      exporterLivre.disabled = true;
+      try {
+        await fetch(`/api/livres/${book.id}/exporter`, { method: "POST" });
+        for (;;) {
+          const job = await (await fetch(`/api/livres/${book.id}/export`)).json();
+          if (job.etat === "erreur") throw new Error(job.erreur || "export impossible");
+          if (job.etat === "pret") {
+            const lien = document.createElement("a");
+            lien.href = `/api/livres/${book.id}/fichier`;
+            lien.textContent = `⤓ Télécharger le M4B (${job.total - job.ignores.length} chapitres)`;
+            exportStatus.textContent = job.ignores.length
+              ? ` Ignorés sans audio complet : ${job.ignores.map((i) => i.num).join(", ")}.`
+              : "";
+            actions.querySelectorAll(".chapter-link").forEach((l) => l.remove());
+            actions.insertBefore(lien, exportStatus);
+            lien.className = "chapter-link";
+            notify("Audiobook exporté.");
+            break;
+          }
+          exportStatus.textContent = `Export du chapitre ${job.chapitre}/${job.total}…`;
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+      } catch (error) {
+        exportStatus.textContent = error.message;
+        exportStatus.classList.add("dirty");
+      } finally {
+        exporterLivre.disabled = false;
+      }
+    });
+    actions.append(boutonAnalyse(book), exporterLivre, boutonSuppression(book), exportStatus);
     head.append(cover, infos, actions);
     page.appendChild(head);
     if (book.cast?.length) {
@@ -1779,6 +1816,36 @@
         }
       });
       actions.append(verifier, verifierStatus);
+      const exporter = document.createElement("button");
+      exporter.className = "pill-light";
+      exporter.type = "button";
+      exporter.textContent = "Exporter le chapitre";
+      exporter.title = "Concatène les segments générés en un seul WAV, pauses de ponctuation incluses";
+      const exporterStatus = document.createElement("span");
+      exporterStatus.className = "chapter-status";
+      exporter.addEventListener("click", async () => {
+        exporter.disabled = true;
+        exporterStatus.textContent = "Assemblage du chapitre…";
+        try {
+          const response = await fetch(`/api/livres/${book.id}/chapitre/${chapter.num}/exporter`, { method: "POST" });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.detail || "export impossible");
+          const lien = document.createElement("a");
+          lien.href = `/api/livres/${book.id}/chapitre/${chapter.num}/fichier`;
+          lien.className = "chapter-link";
+          lien.textContent = `⤓ Télécharger le chapitre (${payload.duree} s)`;
+          exporterStatus.textContent = "";
+          const precedent = exporterStatus.parentElement?.querySelector(".chapter-link");
+          precedent?.remove();
+          actions.insertBefore(lien, exporterStatus);
+        } catch (error) {
+          exporterStatus.textContent = error.message;
+          exporterStatus.classList.add("dirty");
+        } finally {
+          exporter.disabled = false;
+        }
+      });
+      actions.append(exporter, exporterStatus);
       const batch = document.createElement("button");
       batch.className = "pill-light";
       batch.type = "button";

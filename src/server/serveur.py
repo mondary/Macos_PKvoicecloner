@@ -21,6 +21,10 @@ Endpoints :
   POST /api/laya/charger         charge le modèle local Laya (contrôle d'attribution)
   GET  /api/laya/etat            état du modèle Laya
   POST /api/livres/{id}/chapitre/{n}/verifier  relecture locale des attributions
+  POST /api/livres/{id}/chapitre/{n}/exporter  concatène les segments en un WAV
+  POST /api/livres/{id}/exporter    assemble le livre en M4B chapitré (202, suivi via /export)
+  GET  /api/livres/{id}/export      état de l'export M4B
+  GET  /api/livres/{id}/fichier     téléchargement du M4B
   POST /api/generer     {texte, vitesse, transcript} -> job id
   POST /api/moteur      {moteur: voxcpm2|dots|qwen3|pocket} changement de moteur TTS
   GET  /api/modeles     modèles téléchargeables + état installé
@@ -1066,6 +1070,210 @@ def verifier_chapitre(lid: str, num: int):
     resultats = laya_local.verifier_segments(segments)
     suspects = sum(1 for r in resultats if r.get("dialogue"))
     return {"segments": resultats, "suspects": suspects, "total": len(segments)}
+
+
+@app.get("/api/laya/etat")
+def etat_laya():
+    """Disponibilité du modèle local de contrôle d'attribution."""
+    return laya_local.etat()
+
+
+# --------------------------------------------------------------- export audiobook
+
+PAUSE_VIRGULE, PAUSE_PARAGRAPHE, PAUSE_PHRASE = 0.22, 0.55, 0.5
+
+
+def _pause_pour(phrase: str) -> float:
+    """Pause insérée après un segment, selon sa ponctuation finale."""
+    fin = phrase.rstrip()
+    if fin.endswith((",", ";", ":")):
+        return PAUSE_VIRGULE
+    if fin.endswith((".", "!", "?", "…", "»", '"')):
+        return PAUSE_PHRASE
+    return PAUSE_PARAGRAPHE
+
+
+def _segments_export(racine: Path, lid: str, num: int) -> list[tuple[Path, float]]:
+    """WAV générés du chapitre, dans l'ordre du texte, avec leur pause ; 409 s'il en manque."""
+    projet = livres.lire(racine, lid)
+    if not projet:
+        raise HTTPException(404, "livre inconnu")
+    chapitre = next((c for c in projet["chapitres"] if c["num"] == num), None)
+    if not chapitre:
+        raise HTTPException(404, "chapitre inconnu")
+    audio = chapitre.get("audio_segments", {})
+    texte = livres.lire_chapitre(racine, lid, num)["texte"]
+    segments: list[tuple[Path, float]] = []
+    manquants: list[int] = []
+    for index, ligne in enumerate(texte.splitlines(), 1):
+        trouve = livres.VOIX_LIGNE.match(ligne.strip())
+        if not trouve:
+            continue
+        info = audio.get(str(index))
+        fichier = SORTIES / Path(info["fichier"]).name if info else None
+        if not fichier or not fichier.exists():
+            manquants.append(index)
+            continue
+        segments.append((fichier, _pause_pour(trouve.group(3))))
+    if manquants:
+        apercu = ", ".join(str(m) for m in manquants[:6])
+        raise HTTPException(409, f"{len(manquants)} segment(s) sans audio (ex. {apercu}) — génère le chapitre d'abord")
+    if not segments:
+        raise HTTPException(400, "aucun segment généré pour ce chapitre")
+    return segments
+
+
+def _concatener_wav(elements: list[tuple[Path, float]], sortie: Path) -> None:
+    """Normalise chaque WAV (24 kHz mono) puis concatène avec les silences."""
+    tmp = sortie.parent / "_tmp"
+    tmp.mkdir(parents=True, exist_ok=True)
+    for ancien in tmp.glob("*"):
+        ancien.unlink()
+    lignes: list[str] = []
+    for n, (chemin, pause) in enumerate(elements):
+        part = tmp / f"part-{n:04d}.wav"
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(chemin),
+                        "-ar", "24000", "-ac", "1", "-c:a", "pcm_s16le", str(part)], check=True)
+        lignes.append(f"file '{part}'")
+        if pause:
+            sil = tmp / f"sil-{pause}.wav"
+            if not sil.exists():
+                subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi",
+                                "-i", "anullsrc=r=24000:cl=mono", "-t", str(pause),
+                                "-c:a", "pcm_s16le", str(sil)], check=True)
+            lignes.append(f"file '{sil}'")
+    liste = tmp / "liste.txt"
+    liste.write_text("\n".join(lignes), encoding="utf-8")
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
+                    "-i", str(liste), "-c", "copy", str(sortie)], check=True)
+    for ancien in tmp.glob("*"):
+        ancien.unlink()
+
+
+def _exporter_chapitre_wav(racine: Path, lid: str, num: int) -> Path:
+    segments = _segments_export(racine, lid, num)
+    exports = racine / lid / "exports"
+    exports.mkdir(parents=True, exist_ok=True)
+    sortie = exports / f"chapitre-{num:03d}.wav"
+    _concatener_wav(segments, sortie)
+    return sortie
+
+
+def _duree_audio(chemin: Path) -> float:
+    out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                          "-of", "csv=p=0", str(chemin)], capture_output=True, text=True, check=True)
+    return float(out.stdout.strip())
+
+
+def _ecrire_m4b(parties: list[Path], chapitres: list[dict], projet: dict,
+                final: Path, couverture: Path | None) -> None:
+    """Assemble les chapitres en un M4B : marqueurs de chapitres + pochette."""
+    tmp = final.parent / "_tmp"
+    tmp.mkdir(parents=True, exist_ok=True)
+    complet = tmp / "complet.wav"
+    liste = tmp / "liste.txt"
+    liste.write_text("\n".join(f"file '{p}'" for p in parties), encoding="utf-8")
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
+                    "-i", str(liste), "-c", "copy", str(complet)], check=True)
+    meta = [";FFMETADATA1", f"title={projet['titre']}",
+            f"artist={projet.get('auteur') or 'PK Voice Studio'}"]
+    for c in chapitres:
+        meta += ["[CHAPTER]", "TIMEBASE=1/1000",
+                 f"START={int(c['start'] * 1000)}", f"END={int((c['start'] + c['duree']) * 1000)}",
+                 f"title={c['titre']}"]
+    ffd = tmp / "chapitres.txt"
+    ffd.write_text("\n".join(meta), encoding="utf-8")
+    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(complet), "-i", str(ffd)]
+    if couverture:
+        cmd += ["-i", str(couverture), "-map", "0:a", "-map", "2:v",
+                "-disposition:v", "attached_pic", "-c:v", "mjpeg"]
+    cmd += ["-map_metadata", "1", "-c:a", "aac", "-b:a", "96k", str(final)]
+    subprocess.run(cmd, check=True)
+
+
+exports_jobs: dict[str, dict] = {}
+
+
+@app.post("/api/livres/{lid}/chapitre/{num}/exporter")
+def exporter_chapitre(lid: str, num: int):
+    """Concatène les segments générés du chapitre (pauses selon ponctuation)."""
+    wav = _exporter_chapitre_wav(LIVRES, _id_livre(lid), num)
+    return {"ok": True, "duree": round(_duree_audio(wav), 1)}
+
+
+@app.get("/api/livres/{lid}/chapitre/{num}/fichier")
+def fichier_chapitre(lid: str, num: int):
+    f = LIVRES / _id_livre(lid) / "exports" / f"chapitre-{num:03d}.wav"
+    if not f.exists():
+        raise HTTPException(404, "export introuvable : exporte d'abord le chapitre")
+    return FileResponse(f, media_type="audio/wav", filename=f.name)
+
+
+@app.post("/api/livres/{lid}/exporter", status_code=202)
+def exporter_livre(lid: str):
+    """Assemble tous les chapitres générés en un M4B chapitré (tâche de fond)."""
+    lid = _id_livre(lid)
+    job = exports_jobs.get(lid)
+    if job and job.get("etat") == "en_cours":
+        raise HTTPException(409, "un export est déjà en cours pour ce livre")
+    exports_jobs[lid] = {"etat": "en_cours", "chapitre": 0, "total": 0, "ignores": []}
+    threading.Thread(target=_executer_export_livre, args=(lid,), daemon=True).start()
+    return exports_jobs[lid]
+
+
+@app.get("/api/livres/{lid}/export")
+def etat_export_livre(lid: str):
+    lid = _id_livre(lid)
+    job = exports_jobs.get(lid)
+    if not job:
+        raise HTTPException(404, "aucun export lancé pour ce livre")
+    return job
+
+
+@app.get("/api/livres/{lid}/fichier")
+def fichier_livre(lid: str):
+    lid = _id_livre(lid)
+    f = LIVRES / lid / "exports" / "livre.m4b"
+    if not f.exists():
+        raise HTTPException(404, "aucun export de livre : lance d'abord l'export")
+    projet = livres.lire(LIVRES, lid)
+    nom = re.sub(r"[^a-zA-Z0-9]+", "-", projet["titre"] if projet else "audiobook").strip("-") or "audiobook"
+    return FileResponse(f, media_type="audio/mp4", filename=f"{nom}.m4b")
+
+
+def _executer_export_livre(lid: str) -> None:
+    job = exports_jobs[lid]
+    try:
+        projet = livres.lire(LIVRES, lid)
+        if not projet:
+            raise RuntimeError("livre inconnu")
+        exports = LIVRES / lid / "exports"
+        exports.mkdir(parents=True, exist_ok=True)
+        couverture = LIVRES / lid / "couverture.jpg"
+        parties: list[Path] = []
+        meta: list[dict] = []
+        ignores: list[dict] = []
+        t = 0.0
+        job["total"] = len(projet["chapitres"])
+        for c in projet["chapitres"]:
+            try:
+                wav = _exporter_chapitre_wav(LIVRES, lid, c["num"])
+            except HTTPException as e:
+                ignores.append({"num": c["num"], "titre": c["titre"], "raison": e.detail})
+                job["ignores"] = ignores
+                continue
+            duree = _duree_audio(wav)
+            meta.append({"titre": c["titre"], "start": t, "duree": duree})
+            t += duree
+            parties.append(wav)
+            job["chapitre"] = c["num"]
+        if not parties:
+            raise RuntimeError("aucun chapitre exportable : génère d'abord des segments")
+        final = exports / "livre.m4b"
+        _ecrire_m4b(parties, meta, projet, final, couverture if couverture.exists() else None)
+        job.update(etat="pret", fichier=final.name, ignores=ignores)
+    except Exception as e:  # noqa: BLE001 — remonte au client via /api/livres/{id}/export
+        job.update(etat="erreur", erreur=str(e)[:300])
 
 
 @app.post("/api/livres/{lid}/analyser", status_code=202)

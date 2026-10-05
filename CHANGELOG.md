@@ -1,6 +1,16 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.33] - 2026-10-05
+
+### Added
+
+- **Export audiobook** : « Exporter le chapitre » concatène les segments générés en un WAV unique avec les pauses de ponctuation intégrées (virgule 220 ms, phrase 500 ms) ; « Exporter l'audiobook (M4B) » assemble tous les chapitres générés en un **M4B chapitré** (marqueurs de chapitres, pochette de l'EPUB si présente, titre et auteur en métadonnées), avec progression par chapitre et téléchargement direct. Les chapitres sans audio complet sont listés comme ignorés.
+
+### Fixed
+
+- Test d'analyse interrompue fiabilisé : le thread de reprise n'est plus lancé pour de vrai (il survivait au tearDown et retombait sur un appel réseau bloquant).
+
 ## [2026.10.32] - 2026-10-03
 
 ### Added

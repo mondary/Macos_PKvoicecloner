@@ -5,8 +5,10 @@ import importlib.util
 import io
 import json
 import os
+import shutil
 import sys
 import tempfile
+import time
 import unittest
 import zipfile
 from pathlib import Path
@@ -480,11 +482,16 @@ class AnalyseContracts(unittest.TestCase):
         self.assertEqual(repris["analyse"]["etat"], "interrompue")
         self.assertIn("1/2 chapitres", repris["analyse"]["erreur"])
 
-        # et l'endpoint n'oppose plus de 409 : l'analyse repart (chapitre 2 seul)
-        self.client.post("/api/ia/config", json={
-            "base_url": "https://exemple.test/v1", "cle": "sk-x", "modele": "faux"})
-        reponse = self.client.post(f"/api/livres/{livre['id']}/analyser", json={})
-        self.assertEqual(reponse.status_code, 202, reponse.text)
+        # et l'endpoint n'oppose plus de 409 : l'analyse repart (chapitre 2 seul).
+        # Thread simulé : un vrai thread survit au tearDown (patch arrêté) et
+        # retomberait sur l'appel réseau réel, bloquant analyses_en_cours.
+        with patch.object(server.threading, "Thread") as thread:
+            self.client.post("/api/ia/config", json={
+                "base_url": "https://exemple.test/v1", "cle": "sk-x", "modele": "faux"})
+            reponse = self.client.post(f"/api/livres/{livre['id']}/analyser", json={})
+            self.assertEqual(reponse.status_code, 202, reponse.text)
+            thread.return_value.start.assert_called_once()
+        server.analyses_en_cours.discard(livre["id"])
 
     def test_decoupage_et_comptage(self):
         self.assertEqual(livres._compte_mots("[marc] un deux trois"), 3)
@@ -520,6 +527,56 @@ class AnalyseContracts(unittest.TestCase):
         self.assertTrue(resultats[1]["dialogue"])           # dialogue suspecté sur le narrateur
         self.assertFalse(resultats[2]["verifie"])           # un personnage n'est pas interrogé
         self.assertRaises(RuntimeError, laya_local.verifier_segments, segments, agent=None)
+
+
+class ExportContracts(AnalyseContracts):
+    """Export audiobook : règles de pause, concaténation ffmpeg, M4B."""
+
+    def setUp(self):
+        super().setUp()
+        self.patches.append(patch.object(server, "SORTIES", self.root / "sorties"))
+        self.patches[-1].start()
+        (self.root / "sorties").mkdir(exist_ok=True)
+
+    def test_regles_de_pause(self):
+        self.assertEqual(server._pause_pour("Il dort."), server.PAUSE_PHRASE)
+        self.assertEqual(server._pause_pour("Attends,"), server.PAUSE_VIRGULE)
+        self.assertEqual(server._pause_pour("Attends :"), server.PAUSE_VIRGULE)
+        self.assertEqual(server._pause_pour("—"), server.PAUSE_PARAGRAPHE)
+
+    @unittest.skipUnless(shutil.which("ffmpeg"), "ffmpeg requis")
+    def test_export_chapitre_bout_en_bout(self):
+        import numpy as np
+        import soundfile as sf
+
+        livre = self.livre(CHAPITRES[:1])
+        server.livres.analyser_livre(self.root, livre["id"], self.cfg)
+        texte = server.livres.lire_chapitre(self.root, livre["id"], 1)["texte"]
+        total = sum(1 for l in texte.splitlines() if server.livres.VOIX_LIGNE.match(l.strip()))
+        self.assertGreater(total, 0)
+        for i, nom in enumerate(["seg-a.wav", "seg-b.wav"]):
+            sf.write(self.root / "sorties" / nom, np.zeros(2400, dtype="float32"), 24000)
+        projet = server.livres.lire(self.root, livre["id"])
+        projet["chapitres"][0]["audio_segments"] = {
+            str(i): {"fichier": "seg-a.wav" if i % 2 else "seg-b.wav", "empreinte": "a" * 8}
+            for i in range(1, total + 1)}
+        (self.root / livre["id"] / "projet.json").write_text(
+            json.dumps(projet, ensure_ascii=False), encoding="utf-8")
+
+        reponse = self.client.post(f"/api/livres/{livre['id']}/chapitre/1/exporter")
+        self.assertEqual(reponse.status_code, 200, reponse.text)
+        self.assertGreater(reponse.json()["duree"], 0)
+        fichier = self.client.get(f"/api/livres/{livre['id']}/chapitre/1/fichier")
+        self.assertEqual(fichier.status_code, 200)
+
+        # un segment retiré du projet → 409 explicite, pas d'export incomplet
+        projet = server.livres.lire(self.root, livre["id"])
+        del projet["chapitres"][0]["audio_segments"]["1"]
+        (self.root / livre["id"] / "projet.json").write_text(
+            json.dumps(projet, ensure_ascii=False), encoding="utf-8")
+        reponse = self.client.post(f"/api/livres/{livre['id']}/chapitre/1/exporter")
+        self.assertEqual(reponse.status_code, 409)
+        self.assertIn("1", reponse.json()["detail"])
 
 
 if __name__ == "__main__":

@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: voice-cloner-dev
+  cancel-in-progress: false
+
 jobs:
   dev:
     if: ${{ !contains(github.event.head_commit.message, 'appcast dev') }}
@@ -33,6 +37,10 @@ jobs:
         run: |
           gh release create dev --prerelease --title "PK Voice Cloner dev" --notes "Build automatique du canal dev." || true
           gh release upload dev releases/PKVoiceCloner-dev.zip --clobber
+      - name: Check out latest main for appcast
+        run: |
+          git fetch origin main
+          git checkout --detach origin/main
       - name: Sign and publish dev appcast
         env:
           GH_TOKEN: ${{ github.token }}
@@ -47,6 +55,4 @@ jobs:
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           git add appcast-dev.xml
           git commit -m "MAJ: appcast dev ($BUNDLE_VERSION)" || exit 0
-          git fetch origin main
-          git rebase origin/main
           git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main

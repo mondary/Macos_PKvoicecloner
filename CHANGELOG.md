@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.44] - 2026-10-07
+
+### Fixed
+- Publication de l’appcast Dev depuis la dernière version de `main`, sans rebase conflictuel ; builds du flux sérialisés.
+
 ## [2026.10.43] - 2026-10-07
 
 ### Changed

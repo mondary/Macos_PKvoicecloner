@@ -14,13 +14,5 @@
             <description>Version Stable issue de la 2026.10.45-dev validée : menu contextuel de la barre des menus et fond homogène de la page À propos.</description>
             <enclosure url="https://github.com/mondary/Macos_PKvoicecloner/releases/download/v2026.10.45/PKVoiceCloner-2026.10.45.zip" sparkle:edSignature="SfMkki+tAtascBecFnWhrnQCwAlZ8XcqpNnDUW368JhS1G5M0eCYB/562nLRx+6CTDCZUuOy9brVIfC1jxZcCw==" length="8609994" type="application/octet-stream" />
         </item>
-        <item>
-            <title>Version 0.6.0</title>
-            <pubDate>Tue, 15 Sep 2026 16:32:07 +0000</pubDate>
-            <sparkle:version>0.6.0</sparkle:version>
-            <sparkle:shortVersionString>0.6.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/mondary/Macos_PKvoicecloner/releases/download/v0.6.0/PKVoiceCloner-0.6.0.zip" sparkle:edSignature="Me6oGR9RzEt8cyBPbyks+HD4BRvZ7xinVbC9naSuSS6c0dO84mi8YvxYveTTcdviHXey8eqW6aQrT7FUBRNAAw==" length="2682214" type="application/octet-stream" />
-        </item>
     </channel>
 </rss>

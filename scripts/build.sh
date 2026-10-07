@@ -52,7 +52,9 @@ detecter_sdk() {
 }
 detecter_sdk
 
-swiftc "${SDK_ARGS[@]}" "${DIR}"/src/macos/*.swift \
+# Bash 3.2 (CI) : "${SDK_ARGS[@]}" vide + set -u = unbound variable.
+# Idiome portable : n'étendre que si le tableau est défini et non vide.
+swiftc ${SDK_ARGS[@]+"${SDK_ARGS[@]}"} "${DIR}"/src/macos/*.swift \
   -F "${SPARKLE_DIR}" \
   -parse-as-library \
   -o "${CONTENTS}/MacOS/PKVoiceCloner" \

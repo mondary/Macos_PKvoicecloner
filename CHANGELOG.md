@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.40] - 2026-10-07
+
+### Fixed
+- Build CI corrigé : expansion du tableau SDK vide sous bash 3.2 avec set -u (idiome portable).
+
 ## [2026.10.39] - 2026-10-07
 
 ### Changed

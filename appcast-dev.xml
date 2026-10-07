@@ -3,8 +3,8 @@
  <channel><title>PK Voice Cloner (dev)</title>
  <link>https://raw.githubusercontent.com/mondary/Macos_PKvoicecloner/main/appcast-dev.xml</link>
  <description>Canal de développement PK Voice Cloner</description><language>fr</language>
- <item><title>PK Voice Cloner 2026.10.41-dev</title><pubDate>Wed, 07 Oct 2026 17:51:24 +0000</pubDate>
- <sparkle:version>1791395437</sparkle:version><sparkle:shortVersionString>2026.10.41-dev</sparkle:shortVersionString>
+ <item><title>PK Voice Cloner 2026.10.42-dev</title><pubDate>Wed, 07 Oct 2026 19:53:16 +0000</pubDate>
+ <sparkle:version>1791402756</sparkle:version><sparkle:shortVersionString>2026.10.42-dev</sparkle:shortVersionString>
  <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
- <enclosure url="https://github.com/mondary/Macos_PKvoicecloner/releases/download/dev/PKVoiceCloner-dev.zip" sparkle:edSignature="3a1f+3vp9IduO/XtAQgMUL7Un8Xi7NpHcIZlJtfbHd9nWKLwDvI9cWRflBH4qU3F0XlAJdDiM5G/0rx0XZvsCg==" length="7686871" type="application/octet-stream" />
+ <enclosure url="https://github.com/mondary/Macos_PKvoicecloner/releases/download/dev/PKVoiceCloner-dev.zip" sparkle:edSignature="DixhCUahG6j09qbUwsXMs9M3SWEYlOVekEjuvi3P/O8EIQxtF5ZR02NcM4M0q14JaoOdwh1ICPdi81MHoLLbCA==" length="7715473" type="application/octet-stream" />
  </item></channel></rss>

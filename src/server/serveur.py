@@ -109,6 +109,13 @@ MODELES_TELECHARGEABLES = {
         "paquets": (("pocket-tts", "pocket_tts"),),
     },
 }
+MODELES_ASR = {
+    "whisper-large-v3": {"repo": "Systran/faster-whisper-large-v3", "moteur": "whisper", "label": "Whisper large-v3", "taille": "~3 Go", "categorie": "transcription", "paquets": (("faster-whisper", "faster_whisper"),)},
+    "parakeet-redux": {"repo": "moondream/parakeet-redux", "moteur": "parakeet-redux", "label": "Parakeet Redux", "taille": "~178 Mo", "categorie": "transcription", "paquets": (("moondream>=2.4.1", "moondream"),), "environnement": ".venv-whisper"},
+}
+MODELES_CATEGORISATION = {
+    "laya": {"repo": "convaiinnovations/laya", "moteur": "laya", "label": "Laya multilingue", "taille": "~800 Mo", "categorie": "categorisation", "paquets": (("laya", "laya"),)},
+}
 MOTEURS_CEUR = (  # catalogue des moteurs principaux
     {"id": "voxcpm2", "moteur": "voxcpm2", "repo": "openbmb/VoxCPM2", "label": "VoxCPM2", "taille": "~5 Go",
      "paquets": (("voxcpm", "voxcpm"),)},
@@ -248,10 +255,14 @@ def convertir_wav(src: Path, dst: Path):
 
 
 def transcrire(wav: Path) -> str:
+    moteur_asr = _lire_moteurs_actifs().get("transcription", "whisper")
+    if moteur_asr not in {"whisper", "parakeet-redux"}:
+        raise RuntimeError(f"moteur de transcription inconnu : {moteur_asr}")
     r = subprocess.run(
-        [str(PROJET / ".venv-whisper" / "bin" / "python"), str(SRC / "transcrire.py"), str(wav)],
+        [str(PROJET / ".venv-whisper" / "bin" / "python"), str(SRC / "transcrire.py"), str(wav), moteur_asr],
         capture_output=True, text=True, timeout=600,
-        env={**os.environ, "HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1"},
+        env={**os.environ, "HF_HUB_OFFLINE": "0" if moteur_asr == "parakeet-redux" else "1",
+             "TRANSFORMERS_OFFLINE": "0" if moteur_asr == "parakeet-redux" else "1"},
     )
     if r.returncode != 0:
         raise RuntimeError("transcription échouée : " + r.stderr[-400:])
@@ -333,13 +344,14 @@ def _alias_modeles() -> dict:
         return {}
 
 
-def _item_modele(mid: str, moteur: str, repo: str, label: str, taille: str, core: bool) -> dict:
+def _item_modele(mid: str, moteur: str, repo: str, label: str, taille: str, core: bool, categorie="tts") -> dict:
     item = {
         "id": mid,
         "moteur": moteur,
         "repo": repo,
         "taille": taille,
         "core": core,
+        "categorie": categorie,
         "installe": _est_installe(repo),
         "label": _alias_modeles().get(mid) or label,
     }
@@ -349,12 +361,28 @@ def _item_modele(mid: str, moteur: str, repo: str, label: str, taille: str, core
 
 @app.get("/api/modeles")
 def liste_modeles():
-    items = [_item_modele(m["id"], m["moteur"], m["repo"], m["label"], m["taille"], True) for m in MOTEURS_CEUR]
+    items = [_item_modele(m["id"], m["moteur"], m["repo"], m["label"], m["taille"], True, "tts") for m in MOTEURS_CEUR]
     items += [
         _item_modele(mid, m["moteur"], m["repo"], m["label"], m["taille"], False)
         for mid, m in MODELES_TELECHARGEABLES.items()
     ]
+    actifs = _lire_moteurs_actifs()
+    for catalogue in (MODELES_ASR, MODELES_CATEGORISATION):
+        items.extend(_item_modele(mid, m["moteur"], m["repo"], m["label"], m["taille"], False, m["categorie"])
+                     for mid, m in catalogue.items())
+    for item in items:
+        item["actif"] = (item["moteur"] == moteur_pret if item["categorie"] == "tts"
+                         else actifs.get(item["categorie"]) == item["moteur"])
+        if item["moteur"] == "laya":
+            item["actif"] = laya_local.pret()
     return {"modeles": items}
+
+
+def _lire_moteurs_actifs():
+    try:
+        return json.loads((PROJET / "data" / "moteurs_actifs.json").read_text(encoding="utf-8"))
+    except Exception:
+        return {"transcription": "whisper", "categorisation": "laya"}
 
 
 @app.post("/api/modeles/{modele_id}/renommer")
@@ -362,7 +390,7 @@ def renommer_modele(modele_id: str, req: dict = Body(...)):
     nom = (req.get("nom") or "").strip()[:60]
     if not nom:
         raise HTTPException(400, "nom vide")
-    connus = {m["id"] for m in MOTEURS_CEUR} | set(MODELES_TELECHARGEABLES)
+    connus = {m["id"] for m in MOTEURS_CEUR} | set(MODELES_TELECHARGEABLES) | set(MODELES_ASR) | set(MODELES_CATEGORISATION)
     if modele_id not in connus:
         raise HTTPException(404, "modèle inconnu")
     alias = _alias_modeles()
@@ -415,7 +443,9 @@ def liste_audios():
 
 
 def _modele_catalogue(modele_id: str):
-    return MODELES_TELECHARGEABLES.get(modele_id) or next((m for m in MOTEURS_CEUR if m["id"] == modele_id), None)
+    return (MODELES_TELECHARGEABLES.get(modele_id) or MODELES_ASR.get(modele_id)
+            or MODELES_CATEGORISATION.get(modele_id)
+            or next((m for m in MOTEURS_CEUR if m["id"] == modele_id), None))
 
 
 def _installer_modele(modele_id: str):
@@ -430,7 +460,8 @@ def _installer_modele(modele_id: str):
                 # cassée par un déplacement du dossier (third_party -> vendor).
                 vendore = PROJET / "vendor" / "VoxCPM"
                 editable = paquet == "voxcpm" and (vendore / "pyproject.toml").exists()
-                args = ["uv", "pip", "install", "--python", sys.executable]
+                python = PROJET / m.get("environnement", ".venv") / "bin" / "python"
+                args = ["uv", "pip", "install", "--python", str(python)]
                 args += ["-e", str(vendore)] if editable else [paquet]
                 r = subprocess.run(args, capture_output=True, text=True)
                 if r.returncode != 0:
@@ -490,6 +521,30 @@ def supprimer_modele(modele_id: str):
         shutil.rmtree(cache)
     installations.pop(modele_id, None)
     return {"ok": True, "supprime": m["repo"]}
+
+
+@app.post("/api/modeles/{modele_id}/activer", status_code=202)
+def activer_modele(modele_id: str):
+    global moteur_asr
+    m = _modele_catalogue(modele_id)
+    if not m:
+        raise HTTPException(404, "modèle inconnu")
+    categorie = m.get("categorie", "tts")
+    if not _est_installe(m["repo"]):
+        raise HTTPException(409, "installe d'abord ce modèle")
+    if categorie == "tts":
+        return changer_moteur({"moteur": m["moteur"]})
+    actifs = _lire_moteurs_actifs()
+    actifs[categorie] = m["moteur"]
+    chemin = PROJET / "data" / "moteurs_actifs.json"
+    chemin.parent.mkdir(parents=True, exist_ok=True)
+    chemin.write_text(json.dumps(actifs), encoding="utf-8")
+    if categorie == "transcription":
+        moteur_asr = m["moteur"]
+        return {"ok": True, "moteur": moteur_asr}
+    if m["moteur"] == "laya":
+        return laya_local.charger_en_fond()
+    raise HTTPException(400, "catégoriseur non pris en charge")
 
 
 @app.post("/api/moteur", status_code=202)

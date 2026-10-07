@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.33** · macOS Apple Silicon · Apache-2.0
+version **2026.10.39** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
 
 🎙️ **Open source AI voice studio — 100 % local.** Your voice says any text. Powered by [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts) and [faster-whisper](https://github.com/SYSTRAN/faster-whisper) on Apple Silicon via MPS. **No data ever leaves the machine.**
 
@@ -27,7 +27,8 @@ The FTP-ready website is self-contained in [`store/website/`](store/website/): u
 - **Ultimate cloning** — clip + transcript → timbre, rhythm and style preserved
 - **Voice library** — every imported or recorded clip becomes a persistent clone, reusable across sessions: list, preview, select, delete
 - **Upload or mic** — QuickTime `.m4a`, `.mp3`, `.wav`, `.webm`, or record straight in the page (guided empty state: import or record)
-- **Auto transcription** — Whisper large-v3 (multilingual), editable before generating
+- **Auto transcription** — Whisper large-v3 (multilingual) by default, or Parakeet Redux (~178 MB) as an option; edit the transcript before generating
+- **Model manager** — choose TTS, transcription and categorization engines in the UI; install and activate the model you want without using the terminal
 - **Speed** 0.75×–1.5× — pure time-stretch, pitch stays untouched
 - **On-demand resident model** — loaded once for a session; **Power off** releases its memory when you are done
 - **Offline** — models cached locally, no network calls
@@ -37,7 +38,7 @@ The FTP-ready website is self-contained in [`store/website/`](store/website/): u
 - **Native macOS app** — SwiftUI interface: the server starts and stops with the app, automatic Sparkle updates
 - **No-duplicate overview** — voice, model, book and privacy stats; server health, quick voice selection, logs, model installation, recent books and latest generated takes
 - **Book studio inside the native app** — “Open web studio” opens the EPUB library and editor in a macOS app window (WKWebView) while the local server is running
-- **Settings inside the app window, pinned at the sidebar's bottom** — the “Réglages” section (above “Studio personnel”) groups, in both the native app and the web studio: AI providers and API keys (add, test, activate — keys stay on this Mac), the Hugging Face token for gated models, and an About page with version, Ko-fi, the PK app hub and GitHub
+- **Settings inside the main window (⌘,)** — AI providers and API keys, Hugging Face token, Project Library, Support/Ko-fi, About, and Stable/Dev channels. The waveform menu bar icon is enabled by default; Dock and menu bar visibility can be configured separately in General.
 - **Aligned navigation, app / web studio** — the same entries on both sides: Overview, Voice library, Text to voice, Books, Models, Settings; the app opens the dedicated book studio from its Books section
 - **Audiobooks (web studio)** — import an EPUB and compare its preserved original with the AI-structured text sentence by sentence, with color-coded voice assignments, segment generation, and continuous playback with punctuation-based breathing pauses; the audiobook editor is not yet part of SwiftUI
 - **Book analysis and voices** — save multiple OpenAI-compatible providers (GLM, DeepSeek, OpenAI or local Ollama), map each character to a library voice, and generate segments individually or sequentially in a batch; the book page tracks analysis, segments and generated audio
@@ -83,7 +84,7 @@ curl -fsSL https://raw.githubusercontent.com/mondary/Macos_PKvoicecloner/main/in
 brew install ffmpeg
 uv venv .venv && uv venv .venv-whisper
 uv pip install --python .venv/bin/python -e vendor/VoxCPM
-uv pip install --python .venv-whisper/bin/python faster-whisper
+uv pip install --python .venv-whisper/bin/python faster-whisper 'moondream>=2.4.1'
 # dots.tts engine (optional) — pynini does not build on macOS, install without it
 uv pip install --python .venv/bin/python --no-deps dots-tts
 uv pip install --python .venv/bin/python huggingface-hub loguru "langcodes[data]" einops "librosa>=0.11.0" "torchaudio>=2.8" torchdiffeq tqdm lingua-language-detector
@@ -116,13 +117,24 @@ open "releases/PK Voice Cloner.app"
 
 Voice cloning must not be used for impersonation. This project is meant for your own voice; a public product should require proof of consent.
 
-## 🔗 Credits
+## 🔗 Credits — tools and models used
 
 - [VoxCPM / VoxCPM2](https://github.com/OpenBMB/VoxCPM) — OpenBMB, Apache-2.0
 - [dots.tts](https://github.com/studio-dots-ai/dots.tts) — dots studio, Apache-2.0
 - [faster-whisper](https://github.com/SYSTRAN/faster-whisper) — SYSTRAN
+- [Parakeet Redux](https://huggingface.co/moondream/parakeet-redux) — Moondream, CC-BY-4.0 weights, Photon runtime
+- [Photon](https://moondream.ai/photon) — Moondream local inference engine
+- [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) — optional TTS engine
+- [Pocket TTS](https://github.com/kyutai-labs/pocket-tts) — optional TTS engine by Kyutai
+- [Laya](https://github.com/convaiinnovations/laya) — local voice and character categorization
+- [Sparkle](https://github.com/sparkle-project/Sparkle) — macOS app updates
 - [Three.js](https://threejs.org/) — legacy MIT 3D runtime (v0.3), locally distributed
+
+### Inspirations
+
 - [ThreeUI Community](https://github.com/MengTo/threeui) — Three.js runtime source and component inspiration, MIT
+- [ElevenLabs](https://elevenlabs.io/) — voice-studio interface inspiration
+- [Pulse](https://github.com/qunqin24/Pulse) — inspiration for the Credits section in About
 
 ---
 

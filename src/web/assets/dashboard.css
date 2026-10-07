@@ -266,7 +266,7 @@ body.book-focus .books-head,body.book-focus .book-drop{display:none!important}
 .settings-card .ia-fields input:not([type=checkbox]){width:100%;box-sizing:border-box}
 .settings-card .ia-actions{flex-wrap:wrap}
 .about-links a{text-decoration:none;display:inline-flex;align-items:center}
-.model-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0}
+.models-category{margin:20px 0 4px;padding-top:14px;border-top:1px solid var(--line);font-size:10px;letter-spacing:.09em;color:var(--muted)}.models-category:first-child{margin-top:0;padding-top:0;border:0}.model-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0}
 .model-actions{display:flex;gap:6px;align-items:center;flex:none}
 .model-actif{color:#16a34a;font-weight:600;font-size:11px}
 .model-suppr{border:1px solid var(--line-2);border-radius:5px;background:white;color:var(--ink-2);font:10px var(--sans);padding:4px 8px;cursor:pointer}

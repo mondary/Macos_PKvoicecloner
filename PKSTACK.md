@@ -23,6 +23,16 @@
 +- `macos-patterns` — WebView du studio sans cache (data store non persistant) + reconnexion automatique : plus d'écran blanc après un redémarrage du serveur local.
 +- `laya-integration` / `modeles-partages` — contrôle d'attribution local avec Laya (multilingue 322M, cache HF partagé) : endpoint `/api/livres/{id}/chapitre/{n}/verifier`, surlignage des segments suspects dans la vue comparaison.
 
+## Skills récemment appliquées
+
+- `pk-settings-shell` — statut Stable/Dev comparé aux builds, vérification manuelle rafraîchie et indicateur d’update dans la sidebar.
+- `macos-build` — parse Swift effectué ; build complet bloqué par l’absence du plugin de macros SwiftUI dans les Command Line Tools.
+- `pk-settings-shell` — fenêtre Réglages native inspirée de PKmonitor : navigation latérale, Providers IA, clé Hugging Face, Project Library, Support/Ko-fi, À propos et canaux Sparkle Stable/Dev.
+- `macos-build` — compilation Swift/Sparkle et vérification du bundle natif après ajout de la fenêtre Réglages.
+- `-pk-COMMIT` — bump CalVer, synchronisation README FR/EN et CHANGELOG pour le gestionnaire de modèles et les Réglages.
+- `pk-settings-shell` — reprise des pages About/Support/Project Library de PKmonitor et réglages de présentation app (icônes Dock et barre des menus).
+- `pk-settings-shell` — section Credits dans About, sources utilisées séparées des inspirations; audit des répertoires `vendor/` et sous-modules avant suppression.
+
 ## Limites constatées
 
 Le DMG/ZIP v0.6.0 et le cask installent uniquement `PK Voice Cloner.app`. `scripts/build.sh` écrit le chemin du dépôt local dans `Contents/Resources/ProjectRoot.txt`, et `Studio.swift` exige `.venv/bin/python` à la racine du projet. Ils ne forment donc pas une installation autonome sur une autre machine. Un nouveau package intégrant ou provisionnant le serveur et ses dépendances est requis avant d’annoncer DMG/Homebrew comme installables.

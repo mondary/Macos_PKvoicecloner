@@ -20,6 +20,11 @@ struct ContentView: View {
     private let sections = [("Vue d’ensemble", "square.grid.2x2"), ("Bibliothèque de voix", "waveform"), ("Texte vers voix", "text.justify"), ("Livres", "books.vertical"), ("Modèles", "cpu")]
 
     var body: some View {
+        Group {
+        if section == "Réglages" {
+            SettingsWindowView(studio: studio, onBack: { section = "Vue d’ensemble" })
+                .frame(minWidth: 980, minHeight: 650)
+        } else {
         HStack(spacing: 0) {
             sidebar
             Rectangle().fill(Dashboard.line).frame(width: 1)
@@ -48,9 +53,7 @@ struct ContentView: View {
                         }
                         if section == "Vue d’ensemble" {
                             overview
-                        } else if section == "Réglages" {
-                            reglages
-                        } else if studio.state == nil {
+                } else if studio.state == nil {
                             welcome
                         } else if section == "Bibliothèque de voix" {
                             voices
@@ -72,7 +75,10 @@ struct ContentView: View {
         .background(.white).foregroundStyle(Dashboard.ink)
         .frame(minWidth: 920, minHeight: 650)
         .preferredColorScheme(.light)
+        }
+        }
         .task { await studio.boot() }
+        .onReceive(NotificationCenter.default.publisher(for: .pkOpenSettings)) { _ in section = "Réglages" }
         .sheet(isPresented: Binding(get: { renamePath != nil }, set: { if !$0 { renamePath = nil } })) {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Renommer").font(.headline)
@@ -126,7 +132,7 @@ struct ContentView: View {
                     .background(section == "Réglages" ? Dashboard.soft : Color.clear)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
                     .contentShape(Rectangle())
-            }.buttonStyle(.plain)
+            }.buttonStyle(.plain).help("Ouvrir les réglages")
             Divider().padding(.vertical, 12)
             HStack(spacing: 10) {
                 Text("PK").font(.system(size: 10)).foregroundStyle(.white).frame(width: 30, height: 30).background(Dashboard.ink).clipShape(Circle())
@@ -486,7 +492,10 @@ struct ContentView: View {
             if studio.models.isEmpty {
                 Text("Démarre le studio pour accéder au catalogue de modèles.").font(.system(size: 12)).foregroundStyle(Dashboard.muted).padding(.vertical, 16)
             }
-            ForEach(studio.models) { model in
+            ForEach([("tts", "TEXT-TO-SPEECH"), ("transcription", "SPEECH-TO-TEXT"), ("categorisation", "CATÉGORISATION")], id: \.0) { category, title in
+                let entries = studio.models.filter { ($0.categorie ?? "tts") == category }
+                if !entries.isEmpty { Text(title).font(.system(size: 10, weight: .semibold)).foregroundStyle(Dashboard.muted).padding(.top, 8) }
+                ForEach(entries) { model in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 12) {
                         Image(systemName: "cpu").foregroundStyle(Dashboard.muted)
@@ -498,8 +507,8 @@ struct ContentView: View {
                         Text(model.taille).foregroundStyle(Dashboard.muted)
                         if model.etat == "en_cours" { ProgressView().controlSize(.small); Text("Installation…") }
                         else if model.installe {
-                            Button(studio.state?.moteur == model.moteur && studio.state?.modele == true ? "Actif" : "Activer") { Task { await studio.engine(model.moteur) } }
-                                .disabled(controlsLocked || (studio.state?.moteur == model.moteur && studio.state?.modele == true))
+                            Button(model.actif == true || (category == "tts" && studio.state?.moteur == model.moteur && studio.state?.modele == true) ? "Actif" : "Activer") { Task { await studio.activate(model) } }
+                                .disabled(controlsLocked || model.actif == true || (category == "tts" && studio.state?.moteur == model.moteur && studio.state?.modele == true))
                         } else {
                             Button(model.etat == "erreur" ? "Réessayer" : "Installer", systemImage: "arrow.down.circle") { Task { await studio.install(model) } }.disabled(controlsLocked)
                         }
@@ -512,7 +521,8 @@ struct ContentView: View {
                     }.font(.system(size: 12))
                     if let error = model.erreur { Text(error).font(.system(size: 11)).foregroundStyle(.red).textSelection(.enabled) }
                 }.padding(.vertical, 8)
-                if model.id != studio.models.last?.id { Divider() }
+                if model.id != entries.last?.id { Divider() }
+                }
             }
             if !studio.hfResults.isEmpty {
                 Text("Suggestions Hugging Face").font(.system(size: 12, weight: .semibold)).padding(.top, 8)
@@ -726,7 +736,7 @@ private final class StudioWebView: WKWebView, WKNavigationDelegate {
 
 // ------------------------------------------------------------- Réglages
 
-private struct ClesAPIView: View {
+struct ClesAPIView: View {
     @ObservedObject var studio: Studio
     @State private var charge = false
     @State private var editionID = ""
@@ -984,7 +994,15 @@ private extension View {
 
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate {
     let studio = Studio()
+    private var statusItem: NSStatusItem?
+    private var preferenceObserver: NSObjectProtocol?
     func applicationDidFinishLaunching(_ notification: Notification) {
+        UserDefaults.standard.register(defaults: ["showMenuBarIcon": true, "showDockIcon": true])
+        applyPresentationPreferences()
+        preferenceObserver = NotificationCenter.default.addObserver(forName: .pkAppPresentationPreferencesChanged, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.applyPresentationPreferences() }
+        }
+        UpdaterManager.shared.start()
         if CommandLine.arguments.contains("--stop") {
             Task {
                 do { _ = try await studio.request("api/arreter", method: "POST", timeout: 3) }
@@ -993,16 +1011,52 @@ private extension View {
             }
         } else { NSApp.activate(ignoringOtherApps: true) }
     }
+    private func applyPresentationPreferences() {
+        if UserDefaults.standard.bool(forKey: "showDockIcon") {
+            NSApp.setActivationPolicy(.regular)
+        } else {
+            NSApp.setActivationPolicy(.accessory)
+        }
+        if UserDefaults.standard.bool(forKey: "showMenuBarIcon") {
+            if statusItem == nil {
+                let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+                item.button?.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "PK Voice Cloner")
+                item.button?.image?.isTemplate = true
+                item.button?.toolTip = "PK Voice Cloner"
+                item.button?.target = self
+                item.button?.action = #selector(showStudioFromMenuBar)
+                statusItem = item
+            }
+        } else if let statusItem {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            self.statusItem = nil
+        }
+    }
+    @objc private func showStudioFromMenuBar() {
+        NSApp.activate(ignoringOtherApps: true)
+        if let window = NSApp.windows.first(where: { $0.title == "PK Voice Cloner" }) {
+            window.makeKeyAndOrderFront(nil)
+        } else {
+            NSApp.windows.first?.makeKeyAndOrderFront(nil)
+        }
+    }
     func applicationWillTerminate(_ notification: Notification) { studio.terminate() }
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        !UserDefaults.standard.bool(forKey: "showMenuBarIcon")
+    }
 }
 
 @main struct PKVoiceClonerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    @Environment(\.openWindow) private var openWindow
     var body: some Scene {
         WindowGroup("PK Voice Cloner") { ContentView(studio: delegate.studio) }
             .defaultSize(width: 1180, height: 800)
-            .commands {
+             .commands {
+                CommandGroup(replacing: .appSettings) {
+                    Button("Réglages…") { NotificationCenter.default.post(name: .pkOpenSettings, object: nil) }
+                        .keyboardShortcut(",", modifiers: .command)
+                }
                 CommandGroup(after: .help) {
                     Button("Soutenir PK Voice Cloner sur Ko-fi") {
                         if let url = URL(string: "https://ko-fi.com/pouark") {

@@ -1,0 +1,50 @@
+name: Dev build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  dev:
+    if: ${{ !contains(github.event.head_commit.message, 'appcast dev') }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build dev app
+        env:
+          PK_DEV_BUILD: "1"
+        run: ./scripts/build.sh
+      - name: Archive app
+        run: ditto -c -k --keepParent "releases/PK Voice Cloner.app" "releases/PKVoiceCloner-dev.zip"
+      - name: Read versions
+        id: version
+        run: |
+          echo "bundle=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' 'releases/PK Voice Cloner.app/Contents/Info.plist')" >> "$GITHUB_OUTPUT"
+          echo "short=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' 'releases/PK Voice Cloner.app/Contents/Info.plist')" >> "$GITHUB_OUTPUT"
+      - name: Publish dev archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create dev --prerelease --title "PK Voice Cloner dev" --notes "Build automatique du canal dev." || true
+          gh release upload dev releases/PKVoiceCloner-dev.zip --clobber
+      - name: Sign and publish dev appcast
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          BUNDLE_VERSION: ${{ steps.version.outputs.bundle }}
+          SHORT_VERSION: ${{ steps.version.outputs.short }}
+        run: |
+          python3 -m venv /tmp/sparkle-venv
+          /tmp/sparkle-venv/bin/pip -q install cryptography
+          /tmp/sparkle-venv/bin/python .github/scripts/dev_appcast.py "releases/PKVoiceCloner-dev.zip" "$BUNDLE_VERSION" "$SHORT_VERSION"
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add appcast-dev.xml
+          git commit -m "MAJ: appcast dev ($BUNDLE_VERSION)" || exit 0
+          git fetch origin main
+          git rebase origin/main
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main

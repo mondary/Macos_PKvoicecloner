@@ -6,6 +6,10 @@ set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="$(sed -nE 's/^## \[([^]]+)\].*/\1/p' "${DIR}/CHANGELOG.md" | grep -v Unreleased | head -1)"
+IS_DEV="${PK_DEV_BUILD:-0}"
+DISPLAY_VERSION="${VERSION}"
+BUILD_NUMBER="$(date +%s)"
+if [[ "${IS_DEV}" == "1" ]]; then DISPLAY_VERSION="${VERSION}-dev"; fi
 
 SPARKLE_VERSION="2.9.6"
 SPARKLE_SHA256="52bf9e88cdd972fc0c81501377a880e90d47031bd8ca5462488f843e2609e192"
@@ -25,7 +29,7 @@ if [[ ! -f "${SPARKLE_DIR}/Sparkle.framework/Sparkle" || ! -x "${SPARKLE_DIR}/bi
   rm -f "${SPARKLE_DIR}/Sparkle.tar.xz"
 fi
 
-echo "🔨 Compilation (${VERSION})…"
+echo "🔨 Compilation (${DISPLAY_VERSION})…"
 mkdir -p "${CONTENTS}/MacOS" "${CONTENTS}/Resources" "${CONTENTS}/Frameworks"
 
 # Les CLT récents (27) ne livrent pas le plugin de macros SwiftUI (SwiftUIMacros) :
@@ -60,6 +64,10 @@ swiftc "${SDK_ARGS[@]}" "${DIR}"/src/macos/*.swift \
 cp -R "${SPARKLE_DIR}/Sparkle.framework" "${CONTENTS}/Frameworks/"
 
 printf '%s\n' "${DIR}" > "${CONTENTS}/Resources/ProjectRoot.txt"
+mkdir -p "${CONTENTS}/Resources/ProjectIcons" "${CONTENTS}/Resources/ProjectScreenshots"
+cp "${DIR}"/src/macos/Resources/ProjectIcons/*.png "${CONTENTS}/Resources/ProjectIcons/"
+cp "${DIR}"/src/macos/Resources/ProjectScreenshots/*.png "${CONTENTS}/Resources/ProjectScreenshots/" 2>/dev/null || true
+cp "${DIR}/src/macos/Resources/kofi-logo.png" "${CONTENTS}/Resources/kofi-logo.png"
 
 # --- Icône (.icns) depuis icon.png ---
 if [[ -f "${DIR}/src/packaging/icon.png" ]]; then
@@ -91,9 +99,9 @@ cat > "${CONTENTS}/Info.plist" << EOF
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>${VERSION}</string>
+    <string>${DISPLAY_VERSION}</string>
     <key>CFBundleVersion</key>
-    <string>${VERSION}</string>
+    <string>${BUILD_NUMBER}</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>LSApplicationCategoryType</key>

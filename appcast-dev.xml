@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>PK Voice Cloner (dev)</title>
+    <link>https://raw.githubusercontent.com/mondary/Macos_PKvoicecloner/main/appcast-dev.xml</link>
+    <description>Canal de développement PK Voice Cloner</description>
+    <language>fr</language>
+  </channel>
+</rss>

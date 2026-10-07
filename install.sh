@@ -37,7 +37,7 @@ say "création des environnements Python (VoxCPM2 + Whisper)…"
 uv venv .venv
 uv venv .venv-whisper
 uv pip install --python .venv/bin/python -e vendor/VoxCPM
-uv pip install --python .venv-whisper/bin/python faster-whisper
+uv pip install --python .venv-whisper/bin/python faster-whisper 'moondream>=2.4.1'
 
 say "moteur dots.tts (français haute fidélité, 48 kHz)…"
 uv pip install --python .venv/bin/python --no-deps dots-tts
@@ -54,4 +54,4 @@ fi
 say "installation terminée. Lancement :"
 printf "  ouvre l'app PK Voice Cloner (Applications) — ou : open \"%s/PK Voice Cloner.app\"\n" "$DEST"
 printf "  en app macOS versionnée : brew install --cask pk-voice-cloner\n"
-printf "  Les modèles (~5 Go VoxCPM2, ~4 Go dots.tts, ~3 Go Whisper) se téléchargent au premier usage.\n"
+printf "  Les modèles (~5 Go VoxCPM2, ~4 Go dots.tts, ~3 Go Whisper ou ~178 Mo Parakeet Redux) se téléchargent au premier usage.\n"

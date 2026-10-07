@@ -65,9 +65,25 @@ class StudioContracts(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('Conversion', response.json()['detail'])
 
+    def test_transcription_engine_selection_is_explicit_and_offline_for_whisper(self):
+        (self.root / 'data').mkdir(exist_ok=True)
+        (self.root / 'data/moteurs_actifs.json').write_text('{"transcription":"whisper"}')
+        with patch.object(server, 'PROJET', self.root), \
+             patch.object(server.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, 'Bonjour', '')) as run:
+            self.assertEqual(server.transcrire(self.root / 'clip.wav'), 'Bonjour')
+        self.assertEqual(run.call_args.args[0][-1], 'whisper')
+        self.assertEqual(run.call_args.kwargs['env']['HF_HUB_OFFLINE'], '1')
+
+    def test_unknown_transcription_engine_fails_clearly(self):
+        (self.root / 'data').mkdir(exist_ok=True)
+        (self.root / 'data/moteurs_actifs.json').write_text('{"transcription":"unknown"}')
+        with patch.object(server, 'PROJET', self.root):
+            with self.assertRaisesRegex(RuntimeError, 'moteur de transcription inconnu'):
+                server.transcrire(self.root / 'clip.wav')
+
     def test_model_catalogue_install_rename_delete(self):
         models = self.client.get('/api/modeles').json()['modeles']
-        self.assertEqual(len(models), 4)
+        self.assertEqual(len(models), 7)
         self.assertTrue(all(not m['installe'] for m in models))
         for model in models:
             mid = model['id']
@@ -83,6 +99,15 @@ class StudioContracts(unittest.TestCase):
             self.assertEqual(next(m for m in self.client.get('/api/modeles').json()['modeles'] if m['id'] == mid)['label'], 'Mon moteur')
             self.assertEqual(self.client.delete(f'/api/modeles/{mid}').status_code, 200)
             self.assertFalse(cache.exists())
+
+    def test_model_catalogue_groups_and_activation_persists_asr_choice(self):
+        models = self.client.get('/api/modeles').json()['modeles']
+        self.assertEqual({m['categorie'] for m in models}, {'tts', 'transcription', 'categorisation'})
+        with patch.object(server, 'PROJET', self.root), patch.object(server, '_est_installe', return_value=True):
+            response = self.client.post('/api/modeles/parakeet-redux/activer')
+            self.assertEqual(response.status_code, 202, response.text)
+            active = server.json.loads((self.root / 'data/moteurs_actifs.json').read_text())
+        self.assertEqual(active['transcription'], 'parakeet-redux')
 
     def test_cached_model_still_installs_missing_python_package(self):
         cache = server._cache_modele('openbmb/VoxCPM2')

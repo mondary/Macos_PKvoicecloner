@@ -34,6 +34,7 @@ echo "✍️  Signature EdDSA…"
 SIG=$("$SIGN_UPDATE" "releases/${ZIP_NAME}" | sed -E 's/.*edSignature="([^"]+)".*/\1/')
 LEN=$(stat -f%z "releases/${ZIP_NAME}")
 PUB_DATE="$(date -u '+%a, %d %b %Y %H:%M:%S %z')"
+BUILD_NUMBER="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' 'releases/PK Voice Cloner.app/Contents/Info.plist')"
 
 cat > appcast.xml << EOF
 <?xml version="1.0" standalone="yes"?>
@@ -46,7 +47,7 @@ cat > appcast.xml << EOF
         <item>
             <title>Version ${VERSION}</title>
             <pubDate>${PUB_DATE}</pubDate>
-            <sparkle:version>${VERSION}</sparkle:version>
+            <sparkle:version>${BUILD_NUMBER}</sparkle:version>
             <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <enclosure

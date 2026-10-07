@@ -18,6 +18,7 @@ struct VoiceResponse: Codable { let voix: [Voice] }
 struct Model: Codable, Identifiable {
     let id: String; let moteur: String; let repo: String; let taille: String
     let core: Bool; let installe: Bool; let label: String; let etat: String?; let erreur: String?
+    let categorie: String?; let actif: Bool?
 }
 struct ModelResponse: Codable { let modeles: [Model] }
 struct GeneratedAudio: Codable, Identifiable { let nom: String; let duree: Double; let taille: Int; let transcript: String; var id: String { nom } }
@@ -333,7 +334,7 @@ struct StudioError: LocalizedError {
                 self.message = "Installation de \(model.label), activation à la fin…"
                 Task { await self.watchInstall(model) }
             } else {
-                await self.engine(model.moteur)   // déjà installé : activation directe
+                await self.activate(model)   // déjà installé : activation directe
             }
         }
     }
@@ -345,11 +346,19 @@ struct StudioError: LocalizedError {
             guard let data = try? await request("api/modeles", timeout: 5),
                   let list = try? JSONDecoder().decode(ModelResponse.self, from: data).modeles,
                   let m = list.first(where: { $0.id == model.id }) else { continue }
-            if m.etat == "pret" { await engine(m.moteur); return }
+            if m.etat == "pret" { await activate(m); return }
             if m.etat == "erreur" {
                 error = "Installation de \(model.label) échouée : \(m.erreur ?? "consulte le journal")"
                 return
             }
+        }
+    }
+
+    func activate(_ model: Model) async {
+        if (model.categorie ?? "tts") == "tts" { await engine(model.moteur); return }
+        await perform {
+            _ = try await self.request("api/modeles/\(model.id)/activer", method: "POST")
+            try await self.refreshLibrary()
         }
     }
 

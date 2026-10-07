@@ -727,7 +727,17 @@
     const list = $("modelesList");
     list.textContent = "";
     let enCours = false;
+    const groups = { tts: "TEXT-TO-SPEECH", transcription: "SPEECH-TO-TEXT", categorisation: "CATÉGORISATION" };
+    let lastCategory = "";
     (payload.modeles || []).forEach((m) => {
+      const category = m.categorie || "tts";
+      if (category !== lastCategory) {
+        const heading = document.createElement("h3");
+        heading.className = "models-category";
+        heading.textContent = groups[category] || category;
+        list.appendChild(heading);
+        lastCategory = category;
+      }
       const item = document.createElement("div");
       item.className = "model-item";
       const link = document.createElement("a");
@@ -746,7 +756,7 @@
         enCours = true;
         actions.appendChild(btn);
       } else if (m.installe) {
-        if (m.moteur === moteurActif) {
+        if (m.actif || (category === "tts" && m.moteur === moteurActif)) {
           const actif = document.createElement("span");
           actif.className = "model-actif";
           actif.textContent = "● Actif";
@@ -756,7 +766,7 @@
           activer.className = "pill-light";
           activer.type = "button";
           activer.textContent = "Activer";
-          activer.addEventListener("click", () => switchEngine(m.moteur));
+          activer.addEventListener("click", () => category === "tts" ? switchEngine(m.moteur) : activerModele(m.id));
           actions.appendChild(activer);
         }
         if (!m.core) {
@@ -818,7 +828,9 @@
           if (model?.etat === "erreur") throw new Error(model.erreur || "installation impossible");
           if (model?.etat === "pret") {
             $("recuperationMoteur").hidden = true;
-            await switchEngine(id);
+            const selected = (models.modeles || []).find((item) => item.id === id);
+            if (selected?.categorie === "tts") await switchEngine(selected.moteur);
+            else await activerModele(id);
             refreshModeles();
             return;
           }
@@ -831,6 +843,16 @@
       notify(`Installation impossible : ${error.message}`, "error");
       refreshSystem();
     }
+  }
+
+  async function activerModele(id) {
+    try {
+      const response = await fetch(`/api/modeles/${id}/activer`, { method: "POST" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "activation impossible");
+      notify("Modèle activé.");
+      refreshModeles();
+    } catch (error) { notify(`Activation impossible : ${error.message}`, "error"); }
   }
 
   async function supprimerModele(id) {

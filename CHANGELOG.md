@@ -1,6 +1,46 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.39] - 2026-10-07
+
+### Changed
+
+- À propos et la sidebar des Réglages affichent une mise à jour disponible selon les numéros de build, comparent correctement les versions CalVer et rafraîchissent les appcasts avant le contrôle manuel.
+
+## [2026.10.38] - 2026-10-07
+
+### Added
+
+- Icône native de barre des menus activée par défaut, avec options indépendantes pour l’affichage dans la barre des menus et le Dock.
+- Pages À propos, Support et Project Library rapprochées de la mise en page PKmonitor, avec assets locaux et descriptif centré de l’auteur.
+- Section Crédits dans À propos : moteurs/outils effectivement intégrés séparés des inspirations d’interface, avec liens vers leurs projets.
+
+### Changed
+
+- Réglages intégrés à la fenêtre principale ; About, Support et Project Library reprennent la structure PKmonitor.
+
+## [2026.10.36] - 2026-10-07
+
+### Added
+
+- Fenêtre Réglages PK et canaux Stable/Dev Sparkle préparés, avec appcast Dev activable après configuration du secret GitHub `SPARKLE_PRIVATE_KEY`.
+
+## [2026.10.35] - 2026-10-07
+
+### Added
+
+- **Gestionnaire de modèles par famille** : catalogue unifié TTS, speech-to-text et catégorisation, avec installation puis activation depuis le studio web et l'app native. Le choix de transcription est conservé entre les sessions ; Laya rejoint le catalogue de catégorisation.
+
+### Fixed
+
+- Installation de Parakeet Redux dans l'environnement ASR dédié, plutôt que dans celui du serveur TTS.
+
+## [2026.10.34] - 2026-10-07
+
+### Added
+
+- **Parakeet Redux en option pour la transcription** : moteur alternatif à Whisper large-v3, les deux moteurs restent isolés dans l'environnement ASR dédié.
+
 ## [2026.10.33] - 2026-10-05
 
 ### Added

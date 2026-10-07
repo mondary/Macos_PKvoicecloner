@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.41] - 2026-10-07
+
+### Fixed
+- Visibilité de `versionStatus` alignée sur son type privé (échec de compilation CI détecté par type-check, invisible au parse local).
+
 ## [2026.10.40] - 2026-10-07
 
 ### Fixed

@@ -118,7 +118,7 @@ final class UpdaterManager: NSObject, ObservableObject {
         }
     }
 
-    func versionStatus(for channel: String) -> PKChannelVersionStatus {
+    fileprivate func versionStatus(for channel: String) -> PKChannelVersionStatus {
         let installedVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
         let installedChannel = installedVersion.localizedCaseInsensitiveContains("-dev") ? "dev" : "stable"
         guard channel == installedChannel else { return .otherChannel }

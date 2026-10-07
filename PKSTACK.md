@@ -25,6 +25,8 @@
 
 ## Skills récemment appliquées
 
+- `macos-menu-and-settings` / `macos-build` — menu contextuel de la barre des menus et fond homogène de la page À propos ; compilation native et contrôle visuel.
+- `publish-macos-sparkle` / `pk-commits` — livraison des corrections en 2026.10.45-dev, via le workflow Dev et son appcast signé.
 - `pk-settings-shell` — statut Stable/Dev comparé aux builds, vérification manuelle rafraîchie et indicateur d’update dans la sidebar.
 - `macos-build` — parse Swift effectué ; build complet bloqué par l’absence du plugin de macros SwiftUI dans les Command Line Tools.
 - `pk-settings-shell` — fenêtre Réglages native inspirée de PKmonitor : navigation latérale, Providers IA, clé Hugging Face, Project Library, Support/Ko-fi, À propos et canaux Sparkle Stable/Dev.

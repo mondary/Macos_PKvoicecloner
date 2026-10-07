@@ -63,7 +63,7 @@ EOF
 
 echo "⬆️  GitHub release ${TAG}…"
 git add appcast.xml
-git commit -m "release v${VERSION}" || true
+git commit -m "MAJ: appcast sparkle v${VERSION}" || true
 gh release create "${TAG}" \
   --title "PK Voice Cloner ${VERSION}" \
   --generate-notes \

@@ -3,6 +3,9 @@ Keep a Changelog — https://keepachangelog.com
 
 ## [2026.10.45] - 2026-10-07
 
+### Changed
+- Promotion de la version Dev validée en Stable 2026.10.45, avec archive Sparkle signée, DMG et installateur macOS.
+
 ### Fixed
 - Menu contextuel au clic droit (et Ctrl-clic) sur l’icône de la barre des menus, avec accès au studio, aux réglages, aux mises à jour et à la page À propos.
 - Fond du bloc Mises à jour et du pied de page À propos harmonisé avec celui des autres réglages, tout en conservant le bloc fixé en bas.

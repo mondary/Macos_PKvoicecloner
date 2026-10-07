@@ -16,7 +16,7 @@ The currently verified channel is the source installer (macOS Apple Silicon). It
 curl -fsSL https://raw.githubusercontent.com/mondary/Macos_PKvoicecloner/main/install.sh | sh
 ```
 
-GitHub release v0.6.0 also offers a DMG, and the Homebrew tap has a cask, but neither package is standalone: the app alone depends on the source checkout and its Python environment. Direct installation is therefore not yet a working end-user path. See the [store page](store/website/index.html) and [CHANGELOG](CHANGELOG.md).
+Stable release [2026.10.45](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/v2026.10.45) provides a DMG, a macOS installer and a signed Sparkle ZIP. The Homebrew cask installs the same bundle. These packages still require the source checkout and its Python environment, prepared by the command above. See the [store page](store/website/index.html) and [CHANGELOG](CHANGELOG.md).
 
 The FTP-ready website is self-contained in [`store/website/`](store/website/): upload the contents of this folder to your hosting (entry point: `index.html`).
 

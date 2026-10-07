@@ -25,6 +25,7 @@
 
 ## Skills récemment appliquées
 
+- `pk-app-release` / `publish-macos-sparkle` / `pkhomebrew` / `dmgly-dmg-install` — promotion de la version Dev validée en Stable 2026.10.45, archives signées, DMG, installateur, appcast et cask synchronisés.
 - `macos-menu-and-settings` / `macos-build` — menu contextuel de la barre des menus et fond homogène de la page À propos ; compilation native et contrôle visuel.
 - `publish-macos-sparkle` / `pk-commits` — livraison des corrections en 2026.10.45-dev, via le workflow Dev et son appcast signé.
 - `pk-settings-shell` — statut Stable/Dev comparé aux builds, vérification manuelle rafraîchie et indicateur d’update dans la sidebar.

@@ -16,7 +16,7 @@ Le canal actuellement vérifié est l’installateur depuis les sources (macOS A
 curl -fsSL https://raw.githubusercontent.com/mondary/Macos_PKvoicecloner/main/install.sh | sh
 ```
 
-La release GitHub v0.6.0 propose aussi un DMG, et le tap Homebrew possède un cask, mais ces deux paquets ne sont pas autonomes : l’app seule dépend du dépôt source et de son environnement Python. Leur installation directe ne constitue donc pas encore un parcours fonctionnel. Voir [la page store](store/website/index.html) et [CHANGELOG](CHANGELOG.md).
+La release Stable [2026.10.45](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/v2026.10.45) propose un DMG, un installateur macOS et un ZIP signé pour Sparkle. Le cask Homebrew installe le même bundle. Ces paquets nécessitent encore le dépôt source et son environnement Python, préparés par la commande ci-dessus. Voir [la page store](store/website/index.html) et [CHANGELOG](CHANGELOG.md).
 
 Le site publiable prêt pour FTP est autonome dans [`store/website/`](store/website/) : téléverse le contenu de ce dossier sur ton hébergement (le point d’entrée est `index.html`).
 

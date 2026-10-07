@@ -32,13 +32,16 @@ final class StudioWindowCoordinator: ObservableObject {
     }
 
     func attach(_ window: NSWindow) {
-        guard self.window !== window else { return }
+        guard self.window !== window else {
+            finishPresentation()
+            return
+        }
         if let closeObserver { NotificationCenter.default.removeObserver(closeObserver) }
         self.window = window
         closeObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification, object: window, queue: .main
         ) { [weak self, weak window] _ in
-            Task { @MainActor in
+            MainActor.assumeIsolated {
                 guard let self, self.window === window else { return }
                 self.window = nil
             }
@@ -62,7 +65,7 @@ final class StudioWindowCoordinator: ObservableObject {
 
 /// Registers only the studio's own window, never a book or Sparkle window.
 struct StudioWindowRegistration: NSViewRepresentable {
-    let coordinator: StudioWindowCoordinator
+    @ObservedObject var coordinator: StudioWindowCoordinator
 
     func makeNSView(context: Context) -> RegistrationView {
         let view = RegistrationView()
@@ -70,7 +73,13 @@ struct StudioWindowRegistration: NSViewRepresentable {
         return view
     }
 
-    func updateNSView(_ view: RegistrationView, context: Context) {}
+    func updateNSView(_ view: RegistrationView, context: Context) {
+        guard let window = view.window else { return }
+        DispatchQueue.main.async { [weak coordinator, weak window] in
+            guard let window else { return }
+            coordinator?.attach(window)
+        }
+    }
 
     final class RegistrationView: NSView {
         var onWindow: ((NSWindow) -> Void)?

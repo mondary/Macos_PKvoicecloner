@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.39** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
+version **2026.10.42** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
 
 🎙️ **Open source AI voice studio — 100 % local.** Your voice says any text. Powered by [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts) and [faster-whisper](https://github.com/SYSTRAN/faster-whisper) on Apple Silicon via MPS. **No data ever leaves the machine.**
 
@@ -38,7 +38,7 @@ The FTP-ready website is self-contained in [`store/website/`](store/website/): u
 - **Native macOS app** — SwiftUI interface: the server starts and stops with the app, automatic Sparkle updates
 - **No-duplicate overview** — voice, model, book and privacy stats; server health, quick voice selection, logs, model installation, recent books and latest generated takes
 - **Book studio inside the native app** — “Open web studio” opens the EPUB library and editor in a macOS app window (WKWebView) while the local server is running
-- **Settings inside the main window (⌘,)** — AI providers and API keys, Hugging Face token, Project Library, Support/Ko-fi, About, and Stable/Dev channels. The waveform menu bar icon is enabled by default; Dock and menu bar visibility can be configured separately in General.
+- **Settings inside the main window (⌘,)** — AI providers and API keys, Hugging Face token, dedicated Credits & inspirations, Project Library, Support/Ko-fi, and About with Stable/Dev channels. The waveform menu bar icon reopens the studio; Dock and menu bar visibility can be configured separately in General.
 - **Aligned navigation, app / web studio** — the same entries on both sides: Overview, Voice library, Text to voice, Books, Models, Settings; the app opens the dedicated book studio from its Books section
 - **Audiobooks (web studio)** — import an EPUB and compare its preserved original with the AI-structured text sentence by sentence, with color-coded voice assignments, segment generation, and continuous playback with punctuation-based breathing pauses; the audiobook editor is not yet part of SwiftUI
 - **Book analysis and voices** — save multiple OpenAI-compatible providers (GLM, DeepSeek, OpenAI or local Ollama), map each character to a library voice, and generate segments individually or sequentially in a batch; the book page tracks analysis, segments and generated audio
@@ -126,7 +126,7 @@ Voice cloning must not be used for impersonation. This project is meant for your
 - [Photon](https://moondream.ai/photon) — Moondream local inference engine
 - [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) — optional TTS engine
 - [Pocket TTS](https://github.com/kyutai-labs/pocket-tts) — optional TTS engine by Kyutai
-- [Laya](https://github.com/convaiinnovations/laya) — local voice and character categorization
+- [Laya](https://huggingface.co/convaiinnovations) — local voice and character categorization
 - [Sparkle](https://github.com/sparkle-project/Sparkle) — macOS app updates
 - [Three.js](https://threejs.org/) — legacy MIT 3D runtime (v0.3), locally distributed
 
@@ -134,7 +134,6 @@ Voice cloning must not be used for impersonation. This project is meant for your
 
 - [ThreeUI Community](https://github.com/MengTo/threeui) — Three.js runtime source and component inspiration, MIT
 - [ElevenLabs](https://elevenlabs.io/) — voice-studio interface inspiration
-- [Pulse](https://github.com/qunqin24/Pulse) — inspiration for the Credits section in About
 
 ---
 

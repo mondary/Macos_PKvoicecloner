@@ -1020,11 +1020,14 @@ private extension View {
         if UserDefaults.standard.bool(forKey: "showMenuBarIcon") {
             if statusItem == nil {
                 let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-                item.button?.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "PK Voice Cloner")
-                item.button?.image?.isTemplate = true
-                item.button?.toolTip = "PK Voice Cloner"
-                item.button?.target = self
-                item.button?.action = #selector(showStudioFromMenuBar)
+                if let button = item.button {
+                    button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "PK Voice Cloner")
+                    button.image?.isTemplate = true
+                    button.toolTip = "PK Voice Cloner"
+                    button.target = self
+                    button.action = #selector(showStudioFromMenuBar)
+                    button.sendAction(on: [.leftMouseUp])
+                }
                 statusItem = item
             }
         } else if let statusItem {

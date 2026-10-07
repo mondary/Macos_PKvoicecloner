@@ -14,12 +14,12 @@ private enum PKLanguage: String, CaseIterable, Identifiable {
 }
 
 private enum PKSettingsSection: String, CaseIterable, Identifiable {
-    case general, providers, huggingFace, library, support, about
+    case general, providers, huggingFace, credits, library, support, about
     var id: String { rawValue }
     var group: String {
         switch self {
         case .general, .providers, .huggingFace: "app"
-        case .library, .support, .about: "pk"
+        case .credits, .library, .support, .about: "pk"
         }
     }
     var icon: String {
@@ -27,17 +27,25 @@ private enum PKSettingsSection: String, CaseIterable, Identifiable {
         case .general: "slider.horizontal.3"
         case .providers: "network"
         case .huggingFace: "key.horizontal"
+        case .credits: "text.book.closed"
         case .library: "square.grid.2x2"
         case .support: "heart.fill"
         case .about: "info.circle"
         }
     }
+    var iconTint: Color? {
+        switch self {
+        case .support: Color(red: 1, green: 0.37, blue: 0.36)
+        case .about: .accentColor
+        default: nil
+        }
+    }
     func title(_ lang: PKLanguage) -> String {
         let values: [PKLanguage: [String: String]] = [
-            .fr: ["general": "Général", "providers": "Providers IA", "huggingFace": "Clé Hugging Face", "library": "Project Library", "support": "Support", "about": "À propos"],
-            .en: ["general": "General", "providers": "AI Providers", "huggingFace": "Hugging Face Token", "library": "Project Library", "support": "Support", "about": "About"],
-            .es: ["general": "General", "providers": "Proveedores de IA", "huggingFace": "Token de Hugging Face", "library": "Project Library", "support": "Soporte", "about": "Acerca de"],
-            .de: ["general": "Allgemein", "providers": "KI-Anbieter", "huggingFace": "Hugging-Face-Token", "library": "Project Library", "support": "Support", "about": "Über"],
+            .fr: ["general": "Général", "providers": "Providers IA", "huggingFace": "Clé Hugging Face", "credits": "Crédits", "library": "Bibliothèque de projets", "support": "Soutenir", "about": "À propos"],
+            .en: ["general": "General", "providers": "AI Providers", "huggingFace": "Hugging Face Token", "credits": "Credits", "library": "Project Library", "support": "Support", "about": "About"],
+            .es: ["general": "General", "providers": "Proveedores de IA", "huggingFace": "Token de Hugging Face", "credits": "Créditos", "library": "Biblioteca de proyectos", "support": "Apoyar", "about": "Acerca de"],
+            .de: ["general": "Allgemein", "providers": "KI-Anbieter", "huggingFace": "Hugging-Face-Token", "credits": "Credits", "library": "Projektbibliothek", "support": "Unterstützen", "about": "Über"],
         ]
         return values[lang]?[rawValue] ?? rawValue
     }
@@ -289,8 +297,15 @@ struct SettingsWindowView: View {
                         Text(PKSettingsSection.groupTitle(group, language: language)).font(.system(size: 9, weight: .bold)).foregroundStyle(.tertiary).padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 4)
                         ForEach(items) { item in
                             Button { selection = item } label: {
-                                Label(item.title(language), systemImage: item.icon).font(.system(size: 12, weight: selection == item ? .semibold : .regular)).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 10).frame(height: 34)
-                                    .foregroundStyle(item == .support ? Color(red: 1, green: 0.37, blue: 0.36) : .primary)
+                                HStack(spacing: 9) {
+                                    Image(systemName: item.icon).frame(width: 18)
+                                        .foregroundStyle(item.iconTint ?? (selection == item ? Color.primary : Color.secondary))
+                                    Text(item.title(language))
+                                        .font(.system(size: 12, weight: selection == item ? .semibold : .regular))
+                                        .foregroundStyle(selection == item ? Color.primary : Color.secondary)
+                                    Spacer(minLength: 0)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 10).frame(height: 34)
                                     .background(selection == item ? Color.accentColor.opacity(0.13) : .clear, in: RoundedRectangle(cornerRadius: 8))
                             }.buttonStyle(.plain).padding(.horizontal, 8)
                         }
@@ -325,6 +340,7 @@ struct SettingsWindowView: View {
                 case .general: general
                 case .providers: ClesAPIView(studio: studio)
                 case .huggingFace: huggingFace
+                case .credits: PKCreditsView(language: language)
                 case .library: PKProjectLibraryView(language: language)
                 case .support: PKSupportView(language: language)
                 case .about: PKAboutView(language: language)
@@ -431,24 +447,6 @@ private struct PKAboutView: View {
                         .buttonStyle(.borderedProminent).disabled(!updater.canCheckForUpdates)
                     }
                 }.frame(maxWidth: 480)
-                settingsCard(language == .fr ? "Crédits" : "Credits", icon: "heart.text.square") {
-                    Text(language == .fr ? "Outils et moteurs utilisés" : "Tools and engines used").font(.system(size: 13, weight: .semibold))
-                    creditLink("VoxCPM2", detail: language == .fr ? "Clonage vocal · OpenBMB" : "Voice cloning · OpenBMB", url: "https://github.com/OpenBMB/VoxCPM")
-                    creditLink("dots.tts", detail: language == .fr ? "Synthèse et clonage vocal · dots studio" : "Speech synthesis and voice cloning · dots studio", url: "https://github.com/studio-dots-ai/dots.tts")
-                    creditLink("Qwen3-TTS", detail: language == .fr ? "Moteur TTS optionnel · Qwen" : "Optional TTS engine · Qwen", url: "https://github.com/QwenLM/Qwen3-TTS")
-                    creditLink("Pocket TTS", detail: language == .fr ? "Moteur TTS léger · Kyutai" : "Lightweight TTS engine · Kyutai", url: "https://github.com/kyutai-labs/pocket-tts")
-                    creditLink("faster-whisper", detail: language == .fr ? "Transcription Whisper · SYSTRAN" : "Whisper transcription · SYSTRAN", url: "https://github.com/SYSTRAN/faster-whisper")
-                    creditLink("Parakeet Redux + Photon", detail: language == .fr ? "Transcription alternative · Moondream" : "Alternative transcription · Moondream", url: "https://huggingface.co/moondream/parakeet-redux")
-                    creditLink("Laya", detail: language == .fr ? "Catégorisation locale · Convai Innovations" : "Local categorization · Convai Innovations", url: "https://github.com/convaiinnovations/laya")
-                    creditLink("Sparkle", detail: language == .fr ? "Mises à jour de l’app macOS" : "macOS app updates", url: "https://github.com/sparkle-project/Sparkle")
-                    Divider().padding(.vertical, 4)
-                    Text(language == .fr ? "Inspirations" : "Inspirations").font(.system(size: 13, weight: .semibold))
-                    creditLink("ElevenLabs", detail: language == .fr ? "Inspiration pour l’interface du studio vocal" : "Voice-studio interface inspiration", url: "https://elevenlabs.io/")
-                    creditLink("ThreeUI Community", detail: language == .fr ? "Source du runtime Three.js historique et inspiration de composants" : "Source of the legacy Three.js runtime and component inspiration", url: "https://github.com/MengTo/threeui")
-                    creditLink("Pulse", detail: language == .fr ? "Inspiration pour la présentation des crédits dans À propos" : "Inspiration for the Credits section in About", url: "https://github.com/qunqin24/Pulse")
-                    Text(language == .fr ? "Les crédits distinguent les logiciels et modèles réellement utilisés des références d’inspiration." : "Credits distinguish software and models actually used from sources of inspiration.")
-                        .font(.caption).foregroundStyle(.secondary).padding(.top, 4)
-                }
             }.padding(.horizontal, 28).padding(.top, 0).frame(maxWidth: 700).frame(maxWidth: .infinity)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -481,17 +479,6 @@ private struct PKAboutView: View {
         }
     }
 
-    private func creditLink(_ name: String, detail: String, url: String) -> some View {
-        Link(destination: URL(string: url)!) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(name).font(.system(size: 12, weight: .medium))
-                Text("— \(detail)").font(.system(size: 12)).foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-                Image(systemName: "arrow.up.right").font(.system(size: 9)).foregroundStyle(.tertiary)
-            }.contentShape(Rectangle())
-        }.buttonStyle(.plain)
-    }
-
     private var updateButtonTitle: String {
         guard let available = updater.availableUpdateVersion else {
             return language == .fr ? "Rechercher les mises à jour…" : "Check for Updates…"
@@ -508,6 +495,98 @@ private struct PKAboutView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading).padding(10)
         .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+}
+
+private struct PKCreditsView: View {
+    let language: PKLanguage
+
+    private struct Entry: Identifiable {
+        let id: String
+        let icon: String
+        let title: String
+        let author: String
+        let use: String
+        let license: String?
+        let tint: Color
+        let url: URL
+    }
+
+    private var tools: [Entry] {
+        [
+            Entry(id: "voxcpm", icon: "waveform", title: "VoxCPM2", author: "OpenBMB", use: language == .fr ? "Clonage vocal local · Apache-2.0" : "Local voice cloning · Apache-2.0", license: "Apache-2.0", tint: .purple, url: URL(string: "https://github.com/OpenBMB/VoxCPM")!),
+            Entry(id: "dots", icon: "waveform", title: "dots.tts", author: "dots studio", use: language == .fr ? "Synthèse et clonage vocal · Apache-2.0" : "Speech synthesis and voice cloning · Apache-2.0", license: "Apache-2.0", tint: .blue, url: URL(string: "https://github.com/studio-dots-ai/dots.tts")!),
+            Entry(id: "qwen", icon: "text.bubble", title: "Qwen3-TTS", author: "Qwen", use: language == .fr ? "Moteur de synthèse vocale optionnel" : "Optional text-to-speech engine", license: nil, tint: .orange, url: URL(string: "https://github.com/QwenLM/Qwen3-TTS")!),
+            Entry(id: "pocket", icon: "waveform", title: "Pocket TTS", author: "Kyutai", use: language == .fr ? "Moteur TTS léger optionnel" : "Optional lightweight TTS engine", license: nil, tint: .teal, url: URL(string: "https://github.com/kyutai-labs/pocket-tts")!),
+            Entry(id: "whisper", icon: "text.quote", title: "faster-whisper", author: "SYSTRAN", use: language == .fr ? "Transcription Whisper locale" : "Local Whisper transcription", license: "MIT", tint: .indigo, url: URL(string: "https://github.com/SYSTRAN/faster-whisper")!),
+            Entry(id: "parakeet", icon: "waveform.badge.mic", title: "Parakeet Redux + Photon", author: "Moondream", use: language == .fr ? "Moteur de transcription alternatif · poids CC-BY-4.0" : "Alternative transcription engine · CC-BY-4.0 weights", license: "CC-BY-4.0", tint: .cyan, url: URL(string: "https://huggingface.co/moondream/parakeet-redux")!),
+            Entry(id: "laya", icon: "tag", title: "Laya", author: "Convai Innovations", use: language == .fr ? "Catégorisation locale des voix et personnages" : "Local voice and character categorization", license: nil, tint: .pink, url: URL(string: "https://huggingface.co/convaiinnovations")!),
+            Entry(id: "sparkle", icon: "sparkles", title: "Sparkle", author: "Sparkle project", use: language == .fr ? "Mises à jour de l’app macOS · MIT" : "macOS app updates · MIT", license: "MIT", tint: .yellow, url: URL(string: "https://github.com/sparkle-project/Sparkle")!),
+            Entry(id: "threejs", icon: "cube.transparent", title: "Three.js r149", author: "Three.js authors · via ThreeUI Community", use: language == .fr ? "Runtime 3D historique embarqué · MIT" : "Bundled legacy 3D runtime · MIT", license: "MIT", tint: .green, url: URL(string: "https://threejs.org/")!)
+        ]
+    }
+
+    private var inspirations: [Entry] {
+        [
+            Entry(id: "elevenlabs", icon: "waveform", title: "ElevenLabs", author: "ElevenLabs", use: language == .fr ? "Inspiration pour l’interface du studio vocal" : "Voice-studio interface inspiration", license: nil, tint: .orange, url: URL(string: "https://elevenlabs.io/")!),
+            Entry(id: "threeui", icon: "square.stack.3d.up", title: "ThreeUI Community", author: "Meng To", use: language == .fr ? "Source historique du runtime Three.js et inspiration de composants" : "Historical source of the Three.js runtime and component inspiration", license: "MIT", tint: .blue, url: URL(string: "https://github.com/MengTo/threeui")!)
+        ]
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                VStack(spacing: 8) {
+                    Image(systemName: "text.book.closed.fill").font(.system(size: 36, weight: .medium)).foregroundStyle(Color.accentColor)
+                    Text(language == .fr ? "Crédits & inspirations" : "Credits & inspirations").font(.system(size: 20, weight: .bold))
+                    Text(language == .fr ? "Les outils réellement utilisés, séparés des références d’inspiration." : "Tools actually used, kept separate from interface inspirations.")
+                        .font(.system(size: 13)).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                }
+                .padding(.top, 36).padding(.bottom, 4)
+
+                creditGroup(title: language == .fr ? "Outils, modèles et dépendances" : "Tools, models and dependencies", entries: tools)
+                creditGroup(title: language == .fr ? "Inspirations" : "Inspirations", entries: inspirations)
+                Text(language == .fr ? "PK Voice Cloner est un projet indépendant. Les crédits ne constituent pas un inventaire juridique exhaustif." : "PK Voice Cloner is an independent project. These credits are not an exhaustive legal notice.")
+                    .font(.caption).foregroundStyle(.secondary).frame(maxWidth: 520, alignment: .leading)
+            }
+            .padding(.horizontal, 28).padding(.bottom, 32)
+            .frame(maxWidth: 576).frame(maxWidth: .infinity)
+        }
+    }
+
+    private func creditGroup(title: String, entries: [Entry]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title).font(.system(size: 13, weight: .semibold))
+            VStack(spacing: 0) {
+                ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                    if index > 0 { Divider().padding(.leading, 58) }
+                    Link(destination: entry.url) {
+                        HStack(spacing: 12) {
+                            Image(systemName: entry.icon).font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(entry.tint).frame(width: 36, height: 36)
+                                .background(entry.tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 6) {
+                                    Text(entry.title).font(.system(size: 12, weight: .semibold))
+                                    if let license = entry.license {
+                                        Text(license).font(.system(size: 9, weight: .medium, design: .monospaced)).foregroundStyle(.secondary)
+                                            .padding(.horizontal, 5).padding(.vertical, 2).background(Color.primary.opacity(0.06), in: Capsule())
+                                    }
+                                }
+                                Text(entry.author).font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
+                                Text(entry.use).font(.system(size: 11)).foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "arrow.up.right").font(.system(size: 10)).foregroundStyle(.tertiary)
+                        }
+                        .padding(.horizontal, 14).padding(.vertical, 9).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .frame(maxWidth: 520, alignment: .leading)
     }
 }
 
@@ -535,7 +614,11 @@ private struct PKProjectLibraryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                settingsHeader("Project Library", language == .fr ? "Découvrez les autres outils et projets que je construis." : "Discover the other tools and projects I build.", icon: "square.grid.2x2")
+                settingsHeader(
+                    [PKLanguage.fr: "Bibliothèque de projets", .en: "Project Library", .es: "Biblioteca de proyectos", .de: "Projektbibliothek"][language] ?? "Project Library",
+                    language == .fr ? "Découvrez les autres outils et projets que je construis." : "Discover the other tools and projects I build.",
+                    icon: "square.grid.2x2"
+                )
                 featuredCard(featured)
                 Text(language == .fr ? "Plus de projets" : "More projects").font(.system(size: 18, weight: .bold, design: .rounded)).padding(.top, 4)
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {

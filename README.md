@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.39** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
+version **2026.10.42** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
 
 🎙️ **Studio vocal IA open source — 100 % local.** Ta voix dit n'importe quel texte. Basé sur [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts) et [faster-whisper](https://github.com/SYSTRAN/faster-whisper), sur la puce Apple via MPS. **Aucune donnée ne quitte la machine.**
 
@@ -38,7 +38,7 @@ Le site publiable prêt pour FTP est autonome dans [`store/website/`](store/webs
 - **App native macOS** — interface native SwiftUI, zéro navigateur : le serveur démarre et s'arrête avec l'app, mises à jour automatiques via Sparkle
 - **Vue d’ensemble sans doublons** — stats des voix, modèles, livres et confidentialité ; état du serveur, activation rapide d’une voix, journal, installation de modèle, livres récents et dernières prises générées
 - **Studio livre intégré à l'app native** — bouton « Ouvrir le studio web » : ouvre la bibliothèque EPUB et son éditeur dans une fenêtre de l'app macOS (WKWebView), pendant que le serveur local tourne
-- **Réglages dans la fenêtre principale (⌘,)** — providers IA et clés API, token Hugging Face, Project Library, Support/Ko-fi, À propos et canaux Stable/Dev. Le picto waveform de la barre des menus est activé par défaut ; Dock et menu bar se règlent séparément dans Général.
+- **Réglages dans la fenêtre principale (⌘,)** — providers IA et clés API, token Hugging Face, Crédits & inspirations, Bibliothèque de projets, Soutenir/Ko-fi et À propos avec canaux Stable/Dev. L’icône waveform de la barre des menus rouvre le studio ; Dock et menu bar se règlent séparément dans Général.
 - **Navigation alignée app / studio web** — mêmes entrées des deux côtés : Vue d'ensemble, Bibliothèque de voix, Texte vers voix, Livres, Modèles, Réglages ; l'app ouvre le studio des livres depuis sa section Livres
 - **Livres audio (studio web)** — importe un EPUB, compare l'original au texte structuré phrase par phrase, avec attribution colorée des voix, génération des segments et écoute continue avec respirations selon la ponctuation ; l'éditeur audiobook n'est pas encore intégré à SwiftUI
 - **Analyse et voix des livres** — enregistre plusieurs providers OpenAI-compatibles (GLM, DeepSeek, OpenAI ou Ollama local), associe chaque personnage à une voix de la bibliothèque et génère les segments individuellement ou en lot séquentiel ; la page livre affiche l'état des analyses, segments et audios
@@ -135,7 +135,7 @@ Le clonage de voix est interdit pour l'usurpation d'identité. Ce projet est con
 - [Photon](https://moondream.ai/photon) — moteur d'inférence local Moondream
 - [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) — moteur TTS optionnel
 - [Pocket TTS](https://github.com/kyutai-labs/pocket-tts) — moteur TTS optionnel de Kyutai
-- [Laya](https://github.com/convaiinnovations/laya) — catégorisation locale des voix et personnages
+- [Laya](https://huggingface.co/convaiinnovations) — catégorisation locale des voix et personnages
 - [Sparkle](https://github.com/sparkle-project/Sparkle) — mises à jour de l'app macOS
 - [Three.js](https://threejs.org/) — runtime 3D MIT historique (v0.3), distribué localement
 
@@ -143,7 +143,6 @@ Le clonage de voix est interdit pour l'usurpation d'identité. Ce projet est con
 
 - [ThreeUI Community](https://github.com/MengTo/threeui) — source du runtime Three.js et inspiration des composants, MIT
 - [ElevenLabs](https://elevenlabs.io/) — inspiration pour l’interface du studio vocal
-- [Pulse](https://github.com/qunqin24/Pulse) — inspiration pour la présentation de la section Crédits dans À propos
 
 ---
 

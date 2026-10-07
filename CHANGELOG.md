@@ -1,6 +1,15 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.42] - 2026-10-07
+
+### Changed
+- Crédits & inspirations déplacés vers une section dédiée ; libellés Soutenir et Bibliothèque de projets localisés.
+- Les builds du canal Dev sont désormais produits depuis la branche `dev`.
+
+### Fixed
+- Clic gauche sur l’icône waveform de la barre des menus ouvre à nouveau le studio.
+
 ## [2026.10.41] - 2026-10-07
 
 ### Fixed

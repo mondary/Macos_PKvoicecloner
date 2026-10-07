@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.43] - 2026-10-07
+
+### Changed
+- Le bloc Mises à jour reste fixé au-dessus du pied de page ; son descriptif Dev correspond à la branche `dev`.
+
 ## [2026.10.42] - 2026-10-07
 
 ### Changed

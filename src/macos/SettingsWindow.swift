@@ -417,54 +417,80 @@ private struct PKAboutView: View {
                 aboutCopy.frame(maxWidth: 480).padding(.bottom, 32)
                 }
                 .frame(maxWidth: .infinity)
-                settingsCard(language == .fr ? "Mises à jour" : "Updates", icon: "arrow.triangle.2.circlepath") {
-                    Picker(language == .fr ? "Canal" : "Channel", selection: $channel) {
-                        Text("Stable").tag("stable")
-                        Text("Dev").tag("dev")
-                    }
-                    .pickerStyle(.segmented)
-                    .disabled(isDev)
-                    .onChange(of: channel) { _, value in updater.channel = value }
-                    Text(channel == "dev"
-                         ? (language == .fr ? "Les builds Dev suivent les pushes de la branche principale et s’installent automatiquement. Le flux sera actif après configuration du secret Sparkle dans GitHub Actions." : "Dev builds follow pushes to the main branch and install automatically. The feed becomes active after configuring the Sparkle secret in GitHub Actions.")
-                         : (language == .fr ? "Le canal Stable reçoit uniquement les versions validées. Sparkle ne rétrograde pas une version Dev déjà plus récente." : "Stable receives validated releases only. Sparkle will not downgrade a newer Dev build."))
-                        .font(.caption).foregroundStyle(.secondary)
-                    HStack(spacing: 10) {
-                        versionColumn([PKLanguage.fr: "Version stable", .en: "Stable version", .es: "Versión estable", .de: "Stable-Version"][language]!, updater.latestStableVersion ?? ([PKLanguage.fr: "Non publiée", .en: "Not published", .es: "No publicada", .de: "Nicht veröffentlicht"][language]!), status: updater.versionStatus(for: "stable"))
-                        versionColumn([PKLanguage.fr: "Version dev", .en: "Dev version", .es: "Versión dev", .de: "Dev-Version"][language]!, updater.latestDevVersion ?? ([PKLanguage.fr: "Non publiée", .en: "Not published", .es: "No publicada", .de: "Nicht veröffentlicht"][language]!), status: updater.versionStatus(for: "dev"))
-                    }
-                    HStack(spacing: 12) {
-                        Spacer()
-                        Button {
-                            updater.refreshVersions()
-                            updater.checkForUpdates()
-                        } label: {
-                            Label(
-                                updateButtonTitle,
-                                systemImage: updater.availableUpdateVersion == nil ? "arrow.triangle.2.circlepath" : "arrow.down.circle.fill"
-                            )
-                        }
-                        .buttonStyle(.borderedProminent).disabled(!updater.canCheckForUpdates)
-                    }
-                }.frame(maxWidth: 480)
             }.padding(.horizontal, 28).padding(.top, 0).frame(maxWidth: 700).frame(maxWidth: .infinity)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            Divider()
-            HStack(spacing: 16) {
-                Link(destination: URL(string: "https://github.com/mondary/Macos_PKvoicecloner")!) { Label("GitHub", systemImage: "network") }
-                Link(destination: URL(string: "https://github.com/mondary/Macos_PKvoicecloner/issues")!) { Label("Issues", systemImage: "exclamationmark.bubble") }
-                Link(destination: URL(string: "https://ko-fi.com/pouark")!) {
-                    HStack(spacing: 4) { if let logo = Bundle.main.path(forResource: "kofi-logo", ofType: "png").flatMap(NSImage.init(contentsOfFile:)) { Image(nsImage: logo).resizable().frame(width: 12, height: 12) }; Text(language == .fr ? "Soutenir sur Ko-fi" : "Support on Ko-fi") }
-                        .foregroundStyle(Color(red: 1, green: 0.37, blue: 0.36))
+            VStack(spacing: 0) {
+                Divider()
+                updateSection
+                    .frame(maxWidth: 700)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 12)
+                Divider()
+                HStack(spacing: 16) {
+                    Link(destination: URL(string: "https://github.com/mondary/Macos_PKvoicecloner")!) { Label("GitHub", systemImage: "network") }
+                    Link(destination: URL(string: "https://github.com/mondary/Macos_PKvoicecloner/issues")!) { Label("Issues", systemImage: "exclamationmark.bubble") }
+                    Link(destination: URL(string: "https://ko-fi.com/pouark")!) {
+                        HStack(spacing: 4) { if let logo = Bundle.main.path(forResource: "kofi-logo", ofType: "png").flatMap(NSImage.init(contentsOfFile:)) { Image(nsImage: logo).resizable().frame(width: 12, height: 12) }; Text(language == .fr ? "Soutenir sur Ko-fi" : "Support on Ko-fi") }
+                            .foregroundStyle(Color(red: 1, green: 0.37, blue: 0.36))
+                    }
+                    Spacer()
+                    Text("Apache-2.0 · macOS 14+").foregroundStyle(.tertiary)
                 }
-                Spacer()
-                Text("Apache-2.0 · macOS 14+").foregroundStyle(.tertiary)
-            }.font(.caption).padding(.horizontal, 24).padding(.vertical, 14)
+                .font(.caption).padding(.horizontal, 24).padding(.vertical, 14)
+            }
+            .background(.regularMaterial)
         }
         .onAppear {
             if isDev { channel = "dev" }
             updater.refreshVersions()
+        }
+    }
+
+    private var updateSection: some View {
+        settingsCard(language == .fr ? "Mises à jour" : "Updates", icon: "arrow.triangle.2.circlepath") {
+            Picker(language == .fr ? "Canal" : "Channel", selection: $channel) {
+                Text("Stable").tag("stable")
+                Text("Dev").tag("dev")
+            }
+            .pickerStyle(.segmented)
+            .disabled(isDev)
+            .onChange(of: channel) { _, value in updater.channel = value }
+
+            Text(channel == "dev"
+                 ? (language == .fr ? "Les builds Dev suivent les pushes de la branche dev et s’installent automatiquement." : "Dev builds follow pushes to the dev branch and install automatically.")
+                 : (language == .fr ? "Le canal Stable reçoit uniquement les versions validées. Sparkle ne rétrograde pas une version Dev déjà plus récente." : "Stable receives validated releases only. Sparkle will not downgrade a newer Dev build."))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 10) {
+                versionColumn(
+                    [PKLanguage.fr: "Version stable", .en: "Stable version", .es: "Versión estable", .de: "Stable-Version"][language]!,
+                    updater.latestStableVersion ?? [PKLanguage.fr: "Non publiée", .en: "Not published", .es: "No publicada", .de: "Nicht veröffentlicht"][language]!,
+                    status: updater.versionStatus(for: "stable")
+                )
+                versionColumn(
+                    [PKLanguage.fr: "Version dev", .en: "Dev version", .es: "Versión dev", .de: "Dev-Version"][language]!,
+                    updater.latestDevVersion ?? [PKLanguage.fr: "Non publiée", .en: "Not published", .es: "No publicada", .de: "Nicht veröffentlicht"][language]!,
+                    status: updater.versionStatus(for: "dev")
+                )
+            }
+
+            HStack(spacing: 12) {
+                Spacer()
+                Button {
+                    updater.refreshVersions()
+                    updater.checkForUpdates()
+                } label: {
+                    Label(
+                        updateButtonTitle,
+                        systemImage: updater.availableUpdateVersion == nil ? "arrow.triangle.2.circlepath" : "arrow.down.circle.fill"
+                    )
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!updater.canCheckForUpdates)
+            }
         }
     }
 

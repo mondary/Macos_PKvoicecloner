@@ -264,6 +264,7 @@ struct SettingsWindowView: View {
     @ObservedObject private var updater = UpdaterManager.shared
     var onBack: (() -> Void)? = nil
     var initialSection: PKSettingsSection = .general
+    var requestID: UUID? = nil
     @State private var selection: PKSettingsSection = .general
     @State private var query = ""
     @State private var language = PKLanguage.current
@@ -352,9 +353,9 @@ struct SettingsWindowView: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear { selection = initialSection; language = .current; updater.refreshVersions() }
         .onChange(of: initialSection) { _, value in selection = value }
-        .onReceive(NotificationCenter.default.publisher(for: .pkOpenSettings)) { notification in
+        .onChange(of: requestID) { _, _ in
             query = ""
-            selection = notification.userInfo?["section"] as? PKSettingsSection ?? .general
+            selection = initialSection
         }
     }
 
@@ -400,7 +401,6 @@ struct SettingsWindowView: View {
 
 extension Notification.Name {
     static let pkAppPresentationPreferencesChanged = Notification.Name("pkAppPresentationPreferencesChanged")
-    static let pkOpenSettings = Notification.Name("pkOpenSettings")
 }
 
 private struct PKAboutView: View {

@@ -25,6 +25,7 @@
 
 ## Skills récemment appliquées
 
+- `macos-menu-and-settings` / `macos-build` / `pk-commits` — coordination de la fenêtre SwiftUI du studio : réouverture après fermeture, restauration après minimisation et conservation des demandes Réglages/À propos/mises à jour, en 2026.10.46-dev.
 - `pk-app-release` / `publish-macos-sparkle` / `pkhomebrew` / `dmgly-dmg-install` — promotion de la version Dev validée en Stable 2026.10.45, archives signées, DMG, installateur, appcast et cask synchronisés.
 - `macos-menu-and-settings` / `macos-build` — menu contextuel de la barre des menus et fond homogène de la page À propos ; compilation native et contrôle visuel.
 - `publish-macos-sparkle` / `pk-commits` — livraison des corrections en 2026.10.45-dev, via le workflow Dev et son appcast signé.

@@ -1,6 +1,13 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.46] - 2026-10-07
+
+### Fixed
+- Les actions de la barre des menus recréent la fenêtre du studio lorsqu’elle a été fermée et la restaurent lorsqu’elle est minimisée ou masquée.
+- À propos, Réglages et Rechercher les mises à jour conservent leur destination jusqu’à l’ouverture de la fenêtre ; l’activation intervient après la fermeture du menu.
+- Les actions du menu de l’application et la réouverture depuis le Dock utilisent le même gestionnaire de fenêtre.
+
 ## [2026.10.45] - 2026-10-07
 
 ### Changed

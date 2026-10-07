@@ -11,6 +11,7 @@ private enum Dashboard {
 
 struct ContentView: View {
     @ObservedObject var studio: Studio
+    @ObservedObject var windows: StudioWindowCoordinator
     @Environment(\.openWindow) private var openWindow
     @State private var renamePath: String?
     @State private var renameValue = ""
@@ -23,7 +24,7 @@ struct ContentView: View {
     var body: some View {
         Group {
         if section == "Réglages" {
-            SettingsWindowView(studio: studio, onBack: { section = "Vue d’ensemble" }, initialSection: settingsSection)
+            SettingsWindowView(studio: studio, onBack: { section = "Vue d’ensemble" }, initialSection: settingsSection, requestID: windows.request.id)
                 .frame(minWidth: 980, minHeight: 650)
         } else {
         HStack(spacing: 0) {
@@ -78,10 +79,14 @@ struct ContentView: View {
         .preferredColorScheme(.light)
         }
         }
+        .onAppear {
+            let action = openWindow
+            windows.openStudioWindow = { action(id: StudioWindowCoordinator.sceneID) }
+        }
         .task { await studio.boot() }
-        .onReceive(NotificationCenter.default.publisher(for: .pkOpenSettings)) { notification in
-            settingsSection = notification.userInfo?["section"] as? PKSettingsSection ?? .general
-            section = "Réglages"
+        .onReceive(windows.$request) { request in
+            settingsSection = request.settingsSection ?? .general
+            section = request.settingsSection == nil ? "Vue d’ensemble" : "Réglages"
         }
         .sheet(isPresented: Binding(get: { renamePath != nil }, set: { if !$0 { renamePath = nil } })) {
             VStack(alignment: .leading, spacing: 16) {
@@ -998,6 +1003,7 @@ private extension View {
 
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate {
     let studio = Studio()
+    let windows = StudioWindowCoordinator()
     private var statusItem: NSStatusItem?
     private var preferenceObserver: NSObjectProtocol?
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -1042,16 +1048,15 @@ private extension View {
     @objc private func statusItemClicked() {
         guard let event = NSApp.currentEvent else { return }
         if event.type == .rightMouseUp || event.modifierFlags.contains(.control) {
-            guard let statusItem else { return }
-            statusItem.menu = makeStatusMenu()
-            defer { statusItem.menu = nil }
-            statusItem.button?.performClick(nil)
+            guard let button = statusItem?.button else { return }
+            let menu = makeStatusMenu()
+            menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.maxY), in: button)
         } else {
             showStudioFromMenuBar()
         }
     }
 
-    private func menuTitle(_ fr: String, _ en: String, _ es: String, _ de: String) -> String {
+    func menuTitle(_ fr: String, _ en: String, _ es: String, _ de: String) -> String {
         switch PKLanguage.current {
         case .fr: fr
         case .en: en
@@ -1091,19 +1096,16 @@ private extension View {
         return menu
     }
 
-    @objc private func showSettingsFromMenuBar() {
-        showStudioFromMenuBar()
-        NotificationCenter.default.post(name: .pkOpenSettings, object: nil)
+    @objc func showSettingsFromMenuBar() {
+        windows.present(settingsSection: .general)
     }
 
-    @objc private func showAboutFromMenuBar() {
-        showStudioFromMenuBar()
-        NotificationCenter.default.post(name: .pkOpenSettings, object: nil, userInfo: ["section": PKSettingsSection.about])
+    @objc func showAboutFromMenuBar() {
+        windows.present(settingsSection: .about)
     }
 
-    @objc private func checkForUpdatesFromMenuBar() {
-        NSApp.activate(ignoringOtherApps: true)
-        UpdaterManager.shared.checkForUpdates()
+    @objc func checkForUpdatesFromMenuBar() {
+        windows.present(settingsSection: .about, checkForUpdates: true)
     }
 
     @objc private func openKoFi() {
@@ -1113,12 +1115,11 @@ private extension View {
     @objc private func quitFromMenuBar() { NSApp.terminate(nil) }
 
     @objc private func showStudioFromMenuBar() {
-        NSApp.activate(ignoringOtherApps: true)
-        if let window = NSApp.windows.first(where: { $0.title == "PK Voice Cloner" }) {
-            window.makeKeyAndOrderFront(nil)
-        } else {
-            NSApp.windows.first?.makeKeyAndOrderFront(nil)
-        }
+        windows.present()
+    }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        windows.present()
+        return false
     }
     func applicationWillTerminate(_ notification: Notification) { studio.terminate() }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -1128,13 +1129,24 @@ private extension View {
 
 @main struct PKVoiceClonerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
-    @Environment(\.openWindow) private var openWindow
+    @ObservedObject private var updater = UpdaterManager.shared
     var body: some Scene {
-        WindowGroup("PK Voice Cloner") { ContentView(studio: delegate.studio) }
+        Window("PK Voice Cloner", id: StudioWindowCoordinator.sceneID) {
+            ContentView(studio: delegate.studio, windows: delegate.windows)
+                .background(StudioWindowRegistration(coordinator: delegate.windows).frame(width: 0, height: 0))
+        }
             .defaultSize(width: 1180, height: 800)
              .commands {
+                CommandGroup(replacing: .appInfo) {
+                    Button(delegate.menuTitle("Rechercher les mises à jour…", "Check for Updates…", "Buscar actualizaciones…", "Nach Updates suchen…")) {
+                        delegate.checkForUpdatesFromMenuBar()
+                    }.disabled(!updater.canCheckForUpdates)
+                    Button(delegate.menuTitle("À propos de PK Voice Cloner", "About PK Voice Cloner", "Acerca de PK Voice Cloner", "Über PK Voice Cloner")) {
+                        delegate.showAboutFromMenuBar()
+                    }
+                }
                 CommandGroup(replacing: .appSettings) {
-                    Button("Réglages…") { NotificationCenter.default.post(name: .pkOpenSettings, object: nil) }
+                    Button("Réglages…") { delegate.showSettingsFromMenuBar() }
                         .keyboardShortcut(",", modifiers: .command)
                 }
                 CommandGroup(after: .help) {

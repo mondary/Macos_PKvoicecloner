@@ -17,12 +17,13 @@ struct ContentView: View {
     @State private var deletePath: String?
     @State private var deleteName = ""
     @State private var section = "Vue d’ensemble"
+    @State private var settingsSection: PKSettingsSection = .general
     private let sections = [("Vue d’ensemble", "square.grid.2x2"), ("Bibliothèque de voix", "waveform"), ("Texte vers voix", "text.justify"), ("Livres", "books.vertical"), ("Modèles", "cpu")]
 
     var body: some View {
         Group {
         if section == "Réglages" {
-            SettingsWindowView(studio: studio, onBack: { section = "Vue d’ensemble" })
+            SettingsWindowView(studio: studio, onBack: { section = "Vue d’ensemble" }, initialSection: settingsSection)
                 .frame(minWidth: 980, minHeight: 650)
         } else {
         HStack(spacing: 0) {
@@ -78,7 +79,10 @@ struct ContentView: View {
         }
         }
         .task { await studio.boot() }
-        .onReceive(NotificationCenter.default.publisher(for: .pkOpenSettings)) { _ in section = "Réglages" }
+        .onReceive(NotificationCenter.default.publisher(for: .pkOpenSettings)) { notification in
+            settingsSection = notification.userInfo?["section"] as? PKSettingsSection ?? .general
+            section = "Réglages"
+        }
         .sheet(isPresented: Binding(get: { renamePath != nil }, set: { if !$0 { renamePath = nil } })) {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Renommer").font(.headline)
@@ -1025,8 +1029,8 @@ private extension View {
                     button.image?.isTemplate = true
                     button.toolTip = "PK Voice Cloner"
                     button.target = self
-                    button.action = #selector(showStudioFromMenuBar)
-                    button.sendAction(on: [.leftMouseUp])
+                    button.action = #selector(statusItemClicked)
+                    button.sendAction(on: [.leftMouseUp, .rightMouseUp])
                 }
                 statusItem = item
             }
@@ -1035,6 +1039,79 @@ private extension View {
             self.statusItem = nil
         }
     }
+    @objc private func statusItemClicked() {
+        guard let event = NSApp.currentEvent else { return }
+        if event.type == .rightMouseUp || event.modifierFlags.contains(.control) {
+            guard let statusItem else { return }
+            statusItem.menu = makeStatusMenu()
+            defer { statusItem.menu = nil }
+            statusItem.button?.performClick(nil)
+        } else {
+            showStudioFromMenuBar()
+        }
+    }
+
+    private func menuTitle(_ fr: String, _ en: String, _ es: String, _ de: String) -> String {
+        switch PKLanguage.current {
+        case .fr: fr
+        case .en: en
+        case .es: es
+        case .de: de
+        }
+    }
+
+    private func makeStatusMenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        @discardableResult
+        func add(_ title: String, symbol: String, action: Selector, key: String = "") -> NSMenuItem {
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+            item.target = self
+            item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+            item.image?.isTemplate = true
+            item.image?.size = NSSize(width: 16, height: 16)
+            menu.addItem(item)
+            return item
+        }
+        add(menuTitle("Ouvrir le studio", "Open Studio", "Abrir el estudio", "Studio öffnen"), symbol: "waveform", action: #selector(showStudioFromMenuBar))
+        menu.addItem(.separator())
+        add(menuTitle("Réglages…", "Settings…", "Ajustes…", "Einstellungen…"), symbol: "gearshape", action: #selector(showSettingsFromMenuBar), key: ",")
+        let support = add(menuTitle("Soutenir sur Ko-fi", "Support on Ko-fi", "Apoyar en Ko-fi", "Auf Ko-fi unterstützen"), symbol: "heart.fill", action: #selector(openKoFi))
+        if let path = Bundle.main.path(forResource: "kofi-logo", ofType: "png"), let logo = NSImage(contentsOfFile: path) {
+            logo.isTemplate = false
+            logo.size = NSSize(width: 16, height: 16)
+            support.image = logo
+        }
+        support.attributedTitle = NSAttributedString(string: support.title, attributes: [.foregroundColor: NSColor(srgbRed: 1, green: 0.37, blue: 0.36, alpha: 1)])
+        let updates = add(menuTitle("Rechercher les mises à jour…", "Check for Updates…", "Buscar actualizaciones…", "Nach Updates suchen…"), symbol: "arrow.triangle.2.circlepath", action: #selector(checkForUpdatesFromMenuBar))
+        updates.isEnabled = UpdaterManager.shared.canCheckForUpdates
+        add(menuTitle("À propos de PK Voice Cloner", "About PK Voice Cloner", "Acerca de PK Voice Cloner", "Über PK Voice Cloner"), symbol: "info.circle", action: #selector(showAboutFromMenuBar))
+        menu.addItem(.separator())
+        add(menuTitle("Quitter PK Voice Cloner", "Quit PK Voice Cloner", "Salir de PK Voice Cloner", "PK Voice Cloner beenden"), symbol: "rectangle.portrait.and.arrow.right", action: #selector(quitFromMenuBar), key: "q")
+        return menu
+    }
+
+    @objc private func showSettingsFromMenuBar() {
+        showStudioFromMenuBar()
+        NotificationCenter.default.post(name: .pkOpenSettings, object: nil)
+    }
+
+    @objc private func showAboutFromMenuBar() {
+        showStudioFromMenuBar()
+        NotificationCenter.default.post(name: .pkOpenSettings, object: nil, userInfo: ["section": PKSettingsSection.about])
+    }
+
+    @objc private func checkForUpdatesFromMenuBar() {
+        NSApp.activate(ignoringOtherApps: true)
+        UpdaterManager.shared.checkForUpdates()
+    }
+
+    @objc private func openKoFi() {
+        if let url = URL(string: "https://ko-fi.com/pouark") { NSWorkspace.shared.open(url) }
+    }
+
+    @objc private func quitFromMenuBar() { NSApp.terminate(nil) }
+
     @objc private func showStudioFromMenuBar() {
         NSApp.activate(ignoringOtherApps: true)
         if let window = NSApp.windows.first(where: { $0.title == "PK Voice Cloner" }) {

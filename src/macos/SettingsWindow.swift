@@ -3,7 +3,7 @@ import Combine
 import Sparkle
 import SwiftUI
 
-private enum PKLanguage: String, CaseIterable, Identifiable {
+enum PKLanguage: String, CaseIterable, Identifiable {
     case fr, en, es, de
     var id: String { rawValue }
     var flag: String { ["fr": "🇫🇷", "en": "🇬🇧", "es": "🇪🇸", "de": "🇩🇪"][rawValue]! }
@@ -13,7 +13,7 @@ private enum PKLanguage: String, CaseIterable, Identifiable {
     }
 }
 
-private enum PKSettingsSection: String, CaseIterable, Identifiable {
+enum PKSettingsSection: String, CaseIterable, Identifiable {
     case general, providers, huggingFace, credits, library, support, about
     var id: String { rawValue }
     var group: String {
@@ -263,6 +263,7 @@ struct SettingsWindowView: View {
     @ObservedObject var studio: Studio
     @ObservedObject private var updater = UpdaterManager.shared
     var onBack: (() -> Void)? = nil
+    var initialSection: PKSettingsSection = .general
     @State private var selection: PKSettingsSection = .general
     @State private var query = ""
     @State private var language = PKLanguage.current
@@ -349,7 +350,12 @@ struct SettingsWindowView: View {
         }
         .frame(minWidth: 980, minHeight: 650)
         .background(Color(nsColor: .windowBackgroundColor))
-        .onAppear { language = .current; updater.refreshVersions() }
+        .onAppear { selection = initialSection; language = .current; updater.refreshVersions() }
+        .onChange(of: initialSection) { _, value in selection = value }
+        .onReceive(NotificationCenter.default.publisher(for: .pkOpenSettings)) { notification in
+            query = ""
+            selection = notification.userInfo?["section"] as? PKSettingsSection ?? .general
+        }
     }
 
     private var general: some View {
@@ -440,7 +446,7 @@ private struct PKAboutView: View {
                 }
                 .font(.caption).padding(.horizontal, 24).padding(.vertical, 14)
             }
-            .background(.regularMaterial)
+            .background(Color(nsColor: .windowBackgroundColor))
         }
         .onAppear {
             if isDev { channel = "dev" }

@@ -108,6 +108,9 @@ moteur_lourd = "voxcpm2"         # dernier moteur de clonage demandé (hors Pipe
 moteur_eteint = False            # désactivation explicite : aucune bascule implicite
 moteur_pret = None               # moteur réellement présent dans `modele`
 erreur_modele = None             # échec visible dans les clients
+PIPER_VOIX: dict[str, object] = {}   # voix Piper résidentes : elles vivent À CÔTÉ
+                                     # du moteur de clonage, jamais déchargées
+                                     # par une génération (cache borné à 6 voix)
 MOTEUR_LABELS = {"voxcpm2": "VoxCPM2", "dots": "dots.tts"}
 # ------------------------------------------------------------------- Piper TTS
 # Catalogue officiel des voix « prêtes à l'emploi » (sans clonage) : chaque
@@ -416,6 +419,22 @@ def _piper_catalogue() -> dict:
     return _piper_catalogue_cache
 
 
+def _voix_piper_chargee(vid: str):
+    """Voix Piper résidente, chargée une fois (~0,4 s) puis gardée chaude.
+
+    Co-résidence : une génération Piper ne décharge plus le moteur de
+    clonage — un livre qui mélange clone (narrateur) et voix Piper
+    (personnages) ne paie plus de rechargement de modèle par segment."""
+    voix = PIPER_VOIX.get(vid)
+    if voix is None:
+        from piper import PiperVoice
+        voix = PiperVoice.load(_piper_voix_installees()[vid]["onnx"])
+        if len(PIPER_VOIX) >= 6:        # cache borné : les voix sont légères
+            PIPER_VOIX.pop(next(iter(PIPER_VOIX)))
+        PIPER_VOIX[vid] = voix
+    return voix
+
+
 def _piper_voix_installees() -> dict[str, dict]:
     """Voix Piper complètes du cache HF : id -> {onnx, config, taille_mo}.
 
@@ -719,7 +738,7 @@ def piper_apercu(vid: str, locuteur: int = 0):
                 import numpy as np
                 from piper import PiperVoice, SynthesisConfig
 
-                voix = PiperVoice.load(installes[vid]["onnx"])
+                voix = _voix_piper_chargee(vid)
                 config = SynthesisConfig(speaker_id=locuteur or None)
                 morceaux = list(voix.synthesize(phrase, config))
                 if not morceaux:
@@ -1099,14 +1118,15 @@ def definir_voix(audio: UploadFile = File(...)):
 
 
 def _cible_implicite(piper: dict | None) -> str | None:
-    """Moteur à charger automatiquement pour cette génération, le cas échéant.
+    """Moteur de clonage à charger automatiquement pour cette génération.
 
-    Une voix Piper alors que Piper n'est pas prêt → bascule vers Piper.
-    Un clone alors que le moteur actif est Piper → retour au dernier moteur
-    de clonage utilisé (moteur_lourd)."""
-    if piper and moteur_pret != "piper":
-        return "piper"
-    if not piper and moteur_actif == "piper" and moteur_pret != moteur_lourd:
+    Les voix Piper sont co-résidentes (cache à part) : une génération Piper
+    ne bascule plus rien et ne décharge plus le moteur de clonage. Un clone
+    alors que le moteur de clonage n'est pas prêt → chargement du dernier
+    moteur de clonage utilisé (moteur_lourd), sans rien décharger."""
+    if piper:
+        return None
+    if moteur_pret != moteur_lourd and moteur_lourd in CHARGEURS:
         return moteur_lourd
     return None
 
@@ -1161,7 +1181,7 @@ def lancer_generation(req: dict = Body(...)):
         raise HTTPException(400, "aucune voix Piper sélectionnée — choisis-en une dans le catalogue")
     else:
         raise HTTPException(400, "aucune voix définie : choisis ou enregistre un audio d'abord")
-    if erreur_modele and not _cible_implicite(piper):
+    if erreur_modele and not piper and moteur_pret is None:
         raise HTTPException(503, f"Le modèle n’a pas pu être chargé : {erreur_modele}")
     if moteur_eteint:
         raise HTTPException(409, "aucun moteur n’est chargé — active un modèle dans l’onglet Modèles")
@@ -1169,12 +1189,11 @@ def lancer_generation(req: dict = Body(...)):
         raise HTTPException(409, "une génération est déjà en cours")
     cible = _cible_implicite(piper)
     if cible:
-        # bascule silencieuse : le moteur suit la voix demandée (Piper se
-        # charge en moins d'une seconde ; le moteur de clonage précédent est
-        # restauré pour un clone — les livres mélangent les deux familles)
-        decharger_modele()
+        # le moteur de clonage manque : chargement en arrière-plan, sans
+        # rien décharger — les voix Piper restent résidentes à côté, un
+        # livre qui mélange clone et Piper ne recharge plus à chaque segment
         threading.Thread(target=charger_modele, args=(cible,), daemon=True).start()
-    elif modele is None and not verrou_chargement.locked():
+    elif modele is None and not piper and not verrou_chargement.locked():
         raise HTTPException(409, "aucun moteur n’est chargé — active un modèle dans l’onglet Modèles")
     job = uuid.uuid4().hex[:10]
     jobs[job] = {"etat": "attente", "debut": time.time()}
@@ -1227,28 +1246,21 @@ def executer_generation(job, texte, vitesse, transcript, reference=None, piper=N
         # dans le studio reste la référence ; seule la synthèse reçoit la
         # forme développée.
         texte = normalisation.normaliser(texte)
+        debut = time.monotonic()
         with verrou_gen:
-            jobs[job]["etat"] = "chargement"
-            deadline = time.monotonic() + 180
-            while modele is None or moteur_pret != moteur_actif:
-                if erreur_modele:
-                    raise RuntimeError(erreur_modele)
-                if time.monotonic() > deadline:
-                    raise RuntimeError("Le modèle ne répond pas après trois minutes. Réessaie ou change de moteur.")
-                time.sleep(0.5)
-            jobs[job]["etat"] = "generation"
             vitesse_native = False
-            if moteur_pret == "piper":
-                import numpy as np
-                from piper import PiperVoice, SynthesisConfig
-
-                cache_voix = modele["voix"]
-                voix_piper = cache_voix.get(piper["voix"])
-                if voix_piper is None:
-                    voix_piper = PiperVoice.load(_piper_voix_installees()[piper["voix"]]["onnx"])
-                    if len(cache_voix) >= 3:     # cache borné : les voix sont légères
-                        cache_voix.pop(next(iter(cache_voix)))
-                    cache_voix[piper["voix"]] = voix_piper
+            attente = 0.0
+            if piper:
+                # Voix Piper co-résidente : aucune bascule de moteur, aucune
+                # attente — le moteur de clonage reste chargé à côté.
+                try:
+                    import numpy as np
+                    from piper import SynthesisConfig
+                except ImportError as erreur:
+                    raise RuntimeError("Piper n’est pas installé — onglet Modèles → Piper → Installer") from erreur
+                jobs[job]["etat"] = "chargement"
+                voix_piper = _voix_piper_chargee(piper["voix"])
+                jobs[job]["etat"] = "generation"
                 config = SynthesisConfig(length_scale=1.0 / vitesse,
                                          speaker_id=piper.get("locuteur"))
                 morceaux = list(voix_piper.synthesize(texte, config))
@@ -1258,6 +1270,17 @@ def executer_generation(job, texte, vitesse, transcript, reference=None, piper=N
                 sample_rate = morceaux[0].sample_rate
                 vitesse_native = True          # vitesse déjà gérée par length_scale
             else:
+                jobs[job]["etat"] = "chargement"
+                depart_attente = time.monotonic()
+                deadline = depart_attente + 180
+                while modele is None or moteur_pret != moteur_actif:
+                    if erreur_modele:
+                        raise RuntimeError(erreur_modele)
+                    if time.monotonic() > deadline:
+                        raise RuntimeError("Le modèle ne répond pas après trois minutes. Réessaie ou change de moteur.")
+                    time.sleep(0.5)
+                attente = time.monotonic() - depart_attente
+                jobs[job]["etat"] = "generation"
                 reference = reference or dict(voix_courante)
                 ref = str(reference["wav"])
                 transcript = transcript or reference.get("transcript") or ""
@@ -1293,6 +1316,7 @@ def executer_generation(job, texte, vitesse, transcript, reference=None, piper=N
                     wav = modele.generate(**kwargs)
                     sample_rate = modele.tts_model.sample_rate
             brute = SORTIES / f"{job}_brute.wav"
+            fin_synthese = time.monotonic()
             sf.write(brute, wav, sample_rate, subtype="PCM_16")
             final = SORTIES / f"{job}.wav"
             filtres = _filtres_audio(vitesse, tonalite, 1.0 if vitesse_native else vitesse, sample_rate)
@@ -1306,7 +1330,10 @@ def executer_generation(job, texte, vitesse, transcript, reference=None, piper=N
             else:
                 brute.rename(final)
             final.with_suffix(".txt").write_text(texte, encoding="utf-8")
-            jobs[job] = {"etat": "pret", "fichier": final.name, "duree": duree_audio(final), "debut": jobs[job]["debut"]}
+            jobs[job] = {"etat": "pret", "fichier": final.name, "duree": duree_audio(final), "debut": jobs[job]["debut"],
+                         "mesures": {"attente": round(attente, 2),
+                                     "synthese": round(fin_synthese - debut - attente, 2),
+                                     "total": round(time.monotonic() - debut, 2)}}
     except Exception as e:  # noqa: BLE001 — remonte au client via /api/job
         jobs[job] = {"etat": "erreur", "erreur": str(e)[:500], "debut": jobs.get(job, {}).get("debut", time.time())}
 

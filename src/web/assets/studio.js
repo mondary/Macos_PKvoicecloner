@@ -2208,7 +2208,8 @@
           ecoute.setAttribute("aria-label", `Écoute de la voix de ${role.nom}`);
           ecoute.src = `/api/audio/${encodeURIComponent(job.fichier)}`;
           row.appendChild(ecoute);
-          status.textContent = `Voix de ${role.nom} prête — Enregistrer pour l'appliquer aux segments.`;
+          const tempsTest = job.mesures?.synthese != null ? ` · synthèse ${String(job.mesures.synthese).replace(".", ",")} s` : "";
+          status.textContent = `Voix de ${role.nom} prête${tempsTest} — Enregistrer pour l'appliquer aux segments.`;
           status.className = "chapter-status saved";
         } catch (error) {
           status.textContent = error.message;
@@ -2989,7 +2990,11 @@
       }
       try { localStorage.setItem(segmentStorageKey(book.id, chapterNum, index, text, referenceId), job.fichier); } catch (_) { /* stockage navigateur désactivé */ }
       afficherAudioSegment(book, chapterNum, index, text, speakerId, actions, job.fichier);
-      if (status) { status.textContent = `Segment ${index} prêt`; status.className = "chapter-status saved"; }
+      if (status) {
+        const temps = job.mesures?.synthese != null ? ` · synthèse ${String(job.mesures.synthese).replace(".", ",")} s` : "";
+        status.textContent = `Segment ${index} prêt${temps}`;
+        status.className = "chapter-status saved";
+      }
       return true;
     } catch (error) {
       if (status) { status.textContent = error.message; status.className = "chapter-status dirty"; }

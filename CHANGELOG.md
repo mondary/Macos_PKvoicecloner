@@ -1,6 +1,14 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.59] - 2026-10-18
+
+### Fixed
+- **Une phrase Piper ne coûte plus une minute** : les voix Piper vivaient à la place du moteur de clonage — un livre qui mélange clone (narrateur) et voix Piper (personnages) déchargeait et rechargait le gros modèle à chaque changement de famille de voix, soit 1 à 2 minutes par segment. Les voix Piper sont désormais co-résidentes (cache dédié à côté du moteur de clonage, jamais déchargé par une génération) : un segment Piper part immédiatement et le moteur de clonage reste chaud pour les segments clonés.
+
+### Added
+- **Temps de synthèse affiché** : chaque segment terminé montre son temps réel (« Segment 12 prêt · synthèse 0,4 s ») et le job expose la répartition attente / synthèse / total — la performance se lit au lieu de se deviner.
+
 ## [2026.10.58] - 2026-10-18
 
 ### Added

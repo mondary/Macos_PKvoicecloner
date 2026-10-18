@@ -1,6 +1,14 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.55] - 2026-10-18
+
+### Changed
+- **Le chapitre suit enfin une séquence lisible** (studio web) : ① Attribution des voix → ② Découpage en phrases → ③ Génération audio → ④ Écoute → ⑤ Export. Chaque étape est numérotée, avec ses boutons, son état, et les étapes verrouillées disent pourquoi (« dès que le chapitre est généré en entier »).
+- **Générer un chapitre entier d'un seul bouton** : « Générer le chapitre » — l'action principale, en noir — produit tous les segments manquants avec la voix de chaque rôle ; **« Tester sur 20 lignes »** donne d'abord un échantillon à écouter, et le compteur « n / m segments générés » suit l'avancement.
+- « Exporter le chapitre » ne traîne plus au milieu : il ferme la marche, après l'écoute, et reste verrouillé tant que le chapitre n'est pas complet.
+- « Vérifier l'attribution (local) » rejoint l'étape d'attribution qu'elle contrôle, et « Tout automatiser ce chapitre » devient un raccourci explicite sous la séquence (analyse → phrases → voix).
+
 ## [2026.10.54] - 2026-10-18
 
 ### Changed

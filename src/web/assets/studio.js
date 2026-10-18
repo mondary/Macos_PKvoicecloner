@@ -1745,6 +1745,35 @@
     return bouton;
   }
 
+  /* Découpe phrase par phrase : partagé par l'éditeur et l'étape ② du chapitre. */
+  async function redecouperChapitre(book, num, bouton, statut = null) {
+    if (!window.confirm("Redécouper ce chapitre phrase par phrase ? Les audios déjà générés de ce chapitre seront invalidés.")) return;
+    bouton.disabled = true;
+    try {
+      const response = await fetch(`/api/livres/${book.id}/chapitre/${num}/reedecouper`, { method: "POST" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "redécoupage impossible");
+      for (let n = 1; n <= book.chapitres.length; n += 1) {
+        chapterTexts.delete(`${book.id}:${n}`);
+        chapterDrafts.delete(`${book.id}:${n}`);
+      }
+      notify("Chapitre redécoupé phrase par phrase — le rythme de lecture s'améliore.");
+      if (statut) {
+        statut.textContent = "Chapitre redécoupé phrase par phrase.";
+        statut.className = "chapter-status saved";
+      }
+      await refreshBooks();
+    } catch (error) {
+      if (statut) {
+        statut.textContent = error.message;
+        statut.className = "chapter-status dirty";
+      }
+      notify(`Redécoupage impossible : ${error.message}`, "error");
+    } finally {
+      bouton.disabled = false;
+    }
+  }
+
   function castChips(book, limit = 0) {
     const div = document.createElement("div");
     div.className = "cast-chips";
@@ -2366,6 +2395,59 @@
 
     const actions = document.createElement("div");
     actions.className = "cp-actions";
+    const lignesSegments = () => [...panel.querySelectorAll(".cl-structured .cl-segment-row")];
+    const fichierDe = (ligne) => segmentFichier(book, chapter.num, Number(ligne.dataset.segmentIndex),
+      ligne.querySelector(".cl-text")?.textContent || "", book.voix_assignees?.[ligne.dataset.speaker] || "");
+    const statutEtape = (texte = "") => {
+      const span = document.createElement("span");
+      span.className = "chapter-status";
+      span.textContent = texte;
+      return span;
+    };
+    const boiteEtape = (...elements) => {
+      const boite = document.createElement("span");
+      boite.className = "cp-step-tools";
+      elements.filter(Boolean).forEach((element) => boite.appendChild(element));
+      return boite;
+    };
+    const ligneEtape = (numero, titre, boite) => {
+      const ligne = document.createElement("div");
+      ligne.className = "cp-step";
+      const pastille = document.createElement("span");
+      pastille.className = "cp-step-num";
+      pastille.textContent = String(numero);
+      const nom = document.createElement("span");
+      nom.className = "cp-step-name";
+      nom.textContent = titre;
+      ligne.append(pastille, nom, boite);
+      return ligne;
+    };
+    let boutonEcoute = null;
+    let boutonExport = null;
+    let boiteExportOutils = null;
+    const noteEtape = (texte) => {
+      const note = document.createElement("span");
+      note.className = "cp-step-note";
+      note.textContent = texte;
+      return note;
+    };
+    const noteEcoute = noteEtape("dès que le chapitre est généré en entier");
+    const noteExport = noteEtape("après une génération complète");
+    const compteur = document.createElement("span");
+    compteur.className = "cp-step-count";
+    const majCompteur = () => {
+      const info = book.chapitres.find((c) => c.num === chapter.num) || {};
+      const total = Number(info.segments) || 0;
+      const faits = Number(info.audio_generes) || 0;
+      compteur.textContent = total ? `${faits} / ${total} segments générés` : "";
+      const complet = total > 0 && faits >= total;
+      if (boutonEcoute) boutonEcoute.disabled = !complet;
+      if (boutonExport) boutonExport.disabled = !complet;
+      [noteEcoute, noteExport].forEach((note) => { if (note) note.hidden = complet; });
+    };
+
+    // ① Attribution des voix : chaque ligne reçoit son rôle.
+    const analyseStatut = statutEtape();
     const relance = document.createElement("button");
     relance.className = "pill-light";
     relance.type = "button";
@@ -2374,19 +2456,15 @@
       ? "Réattribue les voix de ce chapitre (la distribution du livre est conservée)"
       : "Attribue les voix ligne par ligne via l'IA";
     relance.disabled = book.analyse?.etat === "en_cours";
-    relance.addEventListener("click", () => analyzeBook(book, {
-      chapitre: chapter.num, forcer: analyseFait,
-    }));
-    actions.appendChild(boutonAutomatiser(book, chapter.num));
-    actions.appendChild(relance);
+    relance.addEventListener("click", () => analyzeBook(book, { chapitre: chapter.num, forcer: analyseFait }));
+    const boiteAnalyse = boiteEtape(relance);
     if (analyseFait) {
       const verifier = document.createElement("button");
       verifier.className = "pill-light";
       verifier.type = "button";
       verifier.textContent = "Vérifier l'attribution (local)";
       verifier.title = "Laya, un petit modèle local : signale les segments « narrateur » qui ressemblent à du dialogue — sans consommer de tokens";
-      const verifierStatus = document.createElement("span");
-      verifierStatus.className = "chapter-status";
+      const verifierStatus = statutEtape();
       verifier.addEventListener("click", async () => {
         verifier.disabled = true;
         try {
@@ -2419,135 +2497,183 @@
             note.title = "Laya détecte des paroles prononcées sur un segment attribué au narrateur — à relire";
             row.querySelector(".cl-segment-head")?.appendChild(note);
           });
+          verifierStatus.className = "chapter-status";
           verifierStatus.textContent = payload.suspects
             ? `${payload.suspects} dialogue(s) probable(s) attribué(s) au narrateur — relis les lignes surlignées.`
             : `Aucun dialogue attribué au narrateur sur ${payload.total} segments.`;
         } catch (error) {
           verifierStatus.textContent = error.message;
-          verifierStatus.classList.add("dirty");
+          verifierStatus.className = "chapter-status dirty";
         } finally {
           verifier.disabled = false;
         }
       });
-      actions.append(verifier, verifierStatus);
-      const exporter = document.createElement("button");
-      exporter.className = "pill-light";
-      exporter.type = "button";
-      exporter.textContent = "Exporter le chapitre";
-      exporter.title = "Concatène les segments générés en un seul WAV, pauses de ponctuation incluses";
-      const exporterStatus = document.createElement("span");
-      exporterStatus.className = "chapter-status";
-      exporter.addEventListener("click", async () => {
-        exporter.disabled = true;
-        exporterStatus.textContent = "Assemblage du chapitre…";
-        try {
-          const response = await fetch(`/api/livres/${book.id}/chapitre/${chapter.num}/exporter`, { method: "POST" });
-          const payload = await response.json();
-          if (!response.ok) throw new Error(payload.detail || "export impossible");
-          const lien = document.createElement("a");
-          lien.href = `/api/livres/${book.id}/chapitre/${chapter.num}/fichier`;
-          lien.className = "chapter-link";
-          lien.textContent = `⤓ Télécharger le chapitre (${payload.duree} s)`;
-          exporterStatus.textContent = "";
-          const precedent = exporterStatus.parentElement?.querySelector(".chapter-link");
-          precedent?.remove();
-          actions.insertBefore(lien, exporterStatus);
-        } catch (error) {
-          exporterStatus.textContent = error.message;
-          exporterStatus.classList.add("dirty");
-        } finally {
-          exporter.disabled = false;
-        }
-      });
-      actions.append(exporter, exporterStatus);
-      const batch = document.createElement("button");
-      batch.className = "pill-light";
-      batch.type = "button";
-      batch.textContent = "Générer les segments du chapitre";
-      const batchStatus = document.createElement("span");
-      batchStatus.className = "chapter-status";
-      batch.addEventListener("click", async () => {
-        const rows = [...panel.querySelectorAll(".cl-structured .cl-segment-row")];
-        if (!rows.length) {
-          modesChapitre.set(cle, "compare");
-          renderBooks();
-          notify("Vue comparaison activée. Relance le lot pour générer les segments.");
-          return;
-        }
-        const todo = rows.filter((row) => {
-          const index = Number(row.dataset.segmentIndex);
-          return !segmentFichier(book, chapter.num, index, row.querySelector(".cl-text")?.textContent || "",
-            book.voix_assignees?.[row.dataset.speaker] || "");
-        });
-        if (!todo.length) { batchStatus.textContent = "Tous les segments sont déjà générés."; return; }
-        batch.disabled = true;
-        for (let i = 0; i < todo.length; i += 1) {
-          const row = todo[i];
-          const index = Number(row.dataset.segmentIndex);
-          batchStatus.textContent = `Génération du segment ${i + 1}/${todo.length}…`;
-          await generateSegment(book, chapter.num, index, row.querySelector(".cl-text")?.textContent || "",
-            row.dataset.speaker, row.querySelector(".cl-segment-audio"), row.querySelector(".cl-segment-audio button"), batchStatus);
-          if (batchStatus.classList.contains("dirty")) break;
-        }
-        batch.disabled = false;
-        if (!batchStatus.classList.contains("dirty")) batchStatus.textContent = "Génération du lot terminée.";
-      });
-      actions.append(batch, batchStatus);
-
-      const listen = document.createElement("button");
-      listen.className = "pill-light";
-      listen.type = "button";
-      listen.textContent = "Écouter le chapitre";
-      listen.title = "Enchaîne les segments avec une respiration adaptée à la ponctuation";
-      listen.addEventListener("click", async () => {
-        if (chapterPlaybackAudio) {
-          chapterPlaybackAudio.pause();
-          chapterPlaybackAudio = null;
-          listen.textContent = "Écouter le chapitre";
-          return;
-        }
-        const rows = [...panel.querySelectorAll(".cl-structured .cl-segment-row")];
-        const segments = rows.map((row) => {
-          const text = row.querySelector(".cl-text")?.textContent || "";
-          const index = Number(row.dataset.segmentIndex);
-          const fichier = segmentFichier(book, chapter.num, index, text,
-            book.voix_assignees?.[row.dataset.speaker] || "");
-          return { text, fichier };
-        });
-        if (!segments.length || segments.some((segment) => !segment.fichier)) {
-          batchStatus.textContent = "Génère d’abord tous les segments du chapitre.";
-          batchStatus.className = "chapter-status dirty";
-          return;
-        }
-        listen.textContent = "Arrêter la lecture";
-        try {
-          for (let i = 0; i < segments.length; i += 1) {
-            if (listen.textContent !== "Arrêter la lecture") break;
-            const audio = new Audio(`/api/audio/${encodeURIComponent(segments[i].fichier)}`);
-            chapterPlaybackAudio = audio;
-            await new Promise((resolve, reject) => {
-              audio.addEventListener("ended", resolve, { once: true });
-              audio.addEventListener("pause", resolve, { once: true });
-              audio.addEventListener("error", () => reject(new Error("lecture audio impossible")), { once: true });
-              audio.play().catch(reject);
-            });
-            chapterPlaybackAudio = null;
-            if (listen.textContent !== "Arrêter la lecture") break;
-            const pause = /[,;:]$/.test(segments[i].text.trim()) ? 220
-              : /[.!?…»”\"]$/.test(segments[i].text.trim()) ? 520 : 300;
-            if (i < segments.length - 1) await new Promise((resolve) => setTimeout(resolve, pause));
-          }
-        } catch (error) {
-          batchStatus.textContent = error.message;
-          batchStatus.className = "chapter-status dirty";
-        } finally {
-          if (chapterPlaybackAudio) chapterPlaybackAudio.pause();
-          chapterPlaybackAudio = null;
-          listen.textContent = "Écouter le chapitre";
-        }
-      });
-      actions.appendChild(listen);
+      boiteAnalyse.append(verifier, verifierStatus);
     }
+    boiteAnalyse.append(analyseStatut);
+    actions.appendChild(ligneEtape(1, "Attribution des voix", boiteAnalyse));
+
+    // ② Découpage en phrases : à faire avant de générer.
+    const decoupeStatut = statutEtape();
+    const decouper = document.createElement("button");
+    decouper.className = "pill-light";
+    decouper.type = "button";
+    decouper.textContent = "Redécouper en phrases";
+    decouper.title = "Coupe le texte phrase par phrase — à faire avant la génération ; les audios déjà créés du chapitre seront invalidés";
+    decouper.addEventListener("click", () => redecouperChapitre(book, chapter.num, decouper, decoupeStatut));
+    actions.appendChild(ligneEtape(2, "Découpage en phrases", boiteEtape(decouper, decoupeStatut)));
+
+    // ③ Génération audio : un échantillon, puis le chapitre entier.
+    const generationStatut = statutEtape();
+    const tester = document.createElement("button");
+    tester.className = "pill-light";
+    tester.type = "button";
+    tester.textContent = "Tester sur 20 lignes";
+    tester.title = "Génère les 20 premiers segments qui manquent — écoute un échantillon avant de lancer tout le chapitre";
+    tester.disabled = !analyseFait;
+    const batch = document.createElement("button");
+    batch.className = "pill-dark";
+    batch.type = "button";
+    batch.textContent = "Générer le chapitre";
+    batch.title = "Génère tous les segments du chapitre, chacun avec la voix de son rôle — les segments déjà générés sont conservés";
+    batch.disabled = !analyseFait;
+    const genererLot = async (limite = 0) => {
+      const lignes = lignesSegments();
+      if (!lignes.length) {
+        modesChapitre.set(cle, "compare");
+        renderBooks();
+        notify("Vue comparaison activée. Relance la génération des segments.");
+        return;
+      }
+      const reste = lignes.filter((ligne) => !fichierDe(ligne));
+      if (!reste.length) {
+        generationStatut.className = "chapter-status saved";
+        generationStatut.textContent = "Tous les segments du chapitre sont déjà générés.";
+        majCompteur();
+        return;
+      }
+      const cible = limite ? reste.slice(0, limite) : reste;
+      [tester, batch].forEach((bouton) => { bouton.disabled = true; });
+      generationStatut.className = "chapter-status";
+      for (let i = 0; i < cible.length; i += 1) {
+        const ligne = cible[i];
+        generationStatut.textContent = `Segment ${i + 1} / ${cible.length}…`;
+        await generateSegment(book, chapter.num, Number(ligne.dataset.segmentIndex),
+          ligne.querySelector(".cl-text")?.textContent || "", ligne.dataset.speaker,
+          ligne.querySelector(".cl-segment-audio"), ligne.querySelector(".cl-segment-audio button"), generationStatut);
+        majCompteur();
+        if (generationStatut.classList.contains("dirty")) break;
+      }
+      [tester, batch].forEach((bouton) => { bouton.disabled = false; });
+      if (!generationStatut.classList.contains("dirty")) {
+        generationStatut.className = "chapter-status saved";
+        generationStatut.textContent = limite && cible.length < reste.length
+          ? `Échantillon prêt (${cible.length} lignes) — écoute, puis génère le chapitre entier.`
+          : "Chapitre généré.";
+      }
+      majCompteur();
+    };
+    tester.addEventListener("click", () => genererLot(20));
+    batch.addEventListener("click", () => genererLot(0));
+    actions.appendChild(ligneEtape(3, "Génération audio", boiteEtape(tester, batch, compteur, generationStatut)));
+
+    // ④ Écoute : le chapitre enchaîné, respirations comprises.
+    const ecouteStatut = statutEtape();
+    boutonEcoute = document.createElement("button");
+    boutonEcoute.className = "pill-light";
+    boutonEcoute.type = "button";
+    boutonEcoute.textContent = "Écouter le chapitre";
+    boutonEcoute.title = "Enchaîne les segments avec une respiration adaptée à la ponctuation — disponible quand le chapitre est généré en entier";
+    boutonEcoute.disabled = true;
+    boutonEcoute.addEventListener("click", async () => {
+      ecouteStatut.className = "chapter-status";
+      if (chapterPlaybackAudio) {
+        chapterPlaybackAudio.pause();
+        chapterPlaybackAudio = null;
+        boutonEcoute.textContent = "Écouter le chapitre";
+        return;
+      }
+      const segments = lignesSegments().map((ligne) => ({
+        text: ligne.querySelector(".cl-text")?.textContent || "",
+        fichier: fichierDe(ligne),
+      }));
+      if (!segments.length || segments.some((segment) => !segment.fichier)) {
+        ecouteStatut.textContent = "Génère d'abord tous les segments du chapitre.";
+        ecouteStatut.className = "chapter-status dirty";
+        return;
+      }
+      boutonEcoute.textContent = "Arrêter la lecture";
+      try {
+        for (let i = 0; i < segments.length; i += 1) {
+          if (boutonEcoute.textContent !== "Arrêter la lecture") break;
+          const audio = new Audio(`/api/audio/${encodeURIComponent(segments[i].fichier)}`);
+          chapterPlaybackAudio = audio;
+          await new Promise((resolve, reject) => {
+            audio.addEventListener("ended", resolve, { once: true });
+            audio.addEventListener("pause", resolve, { once: true });
+            audio.addEventListener("error", () => reject(new Error("lecture audio impossible")), { once: true });
+            audio.play().catch(reject);
+          });
+          chapterPlaybackAudio = null;
+          if (boutonEcoute.textContent !== "Arrêter la lecture") break;
+          const pause = /[,;:]$/.test(segments[i].text.trim()) ? 220
+            : /[.!?…»”\"]$/.test(segments[i].text.trim()) ? 520 : 300;
+          if (i < segments.length - 1) await new Promise((resolve) => setTimeout(resolve, pause));
+        }
+      } catch (error) {
+        ecouteStatut.textContent = error.message;
+        ecouteStatut.className = "chapter-status dirty";
+      } finally {
+        if (chapterPlaybackAudio) chapterPlaybackAudio.pause();
+        chapterPlaybackAudio = null;
+        boutonEcoute.textContent = "Écouter le chapitre";
+      }
+    });
+    actions.appendChild(ligneEtape(4, "Écoute", boiteEtape(boutonEcoute, noteEcoute, ecouteStatut)));
+
+    // ⑤ Export : le WAV du chapitre, en dernier.
+    const exportStatut = statutEtape();
+    boutonExport = document.createElement("button");
+    boutonExport.className = "pill-light";
+    boutonExport.type = "button";
+    boutonExport.textContent = "Exporter le chapitre";
+    boutonExport.title = "Concatène les segments générés en un seul WAV, pauses de ponctuation incluses — dernier pas du chapitre";
+    boutonExport.disabled = true;
+    boutonExport.addEventListener("click", async () => {
+      boutonExport.disabled = true;
+      exportStatut.className = "chapter-status";
+      exportStatut.textContent = "Assemblage du chapitre…";
+      try {
+        const response = await fetch(`/api/livres/${book.id}/chapitre/${chapter.num}/exporter`, { method: "POST" });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.detail || "export impossible");
+        const lien = document.createElement("a");
+        lien.href = `/api/livres/${book.id}/chapitre/${chapter.num}/fichier`;
+        lien.className = "chapter-link";
+        lien.textContent = `⤓ Télécharger le chapitre (${payload.duree} s)`;
+        exportStatut.textContent = "";
+        boiteExportOutils?.querySelector(".chapter-link")?.remove();
+        boiteExportOutils?.insertBefore(lien, exportStatut);
+      } catch (error) {
+        exportStatut.textContent = error.message;
+        exportStatut.className = "chapter-status dirty";
+      } finally {
+        boutonExport.disabled = false;
+      }
+    });
+    boiteExportOutils = boiteEtape(boutonExport, noteExport, exportStatut);
+    actions.appendChild(ligneEtape(5, "Export du chapitre", boiteExportOutils));
+
+    // Raccourci : la même séquence, sans les étapes manuelles.
+    const raccourciNote = document.createElement("span");
+    raccourciNote.className = "cp-shortcut-note";
+    raccourciNote.textContent = "en un clic : analyse → phrases → attribution des voix";
+    const raccourci = document.createElement("div");
+    raccourci.className = "cp-shortcut";
+    raccourci.append(boutonAutomatiser(book, chapter.num), raccourciNote);
+    actions.appendChild(raccourci);
+
+    majCompteur();
 
     chapterPainters.set(cle, () => renderBooks());
     panel.append(head, corps, actions);
@@ -2930,25 +3056,7 @@
     });
     saveBtn.addEventListener("click", saveChapter);
     splitBtn.addEventListener("click", splitChapter);
-    redecouperBtn.addEventListener("click", async () => {
-      if (!window.confirm("Redécouper ce chapitre phrase par phrase ? Les audios déjà générés de ce chapitre seront invalidés.")) return;
-      redecouperBtn.disabled = true;
-      try {
-        const response = await fetch(`/api/livres/${book.id}/chapitre/${chapter.num}/reedecouper`, { method: "POST" });
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.detail || "redécoupage impossible");
-        for (let num = 1; num <= book.chapitres.length; num += 1) {
-          chapterTexts.delete(`${book.id}:${num}`);
-          chapterDrafts.delete(`${book.id}:${num}`);
-        }
-        notify("Chapitre redécoupé phrase par phrase — le rythme de lecture s'améliore.");
-        await refreshBooks();
-      } catch (error) {
-        notify(`Redécoupage impossible : ${error.message}`, "error");
-      } finally {
-        redecouperBtn.disabled = false;
-      }
-    });
+    redecouperBtn.addEventListener("click", () => redecouperChapitre(book, chapter.num, redecouperBtn));
 
     async function saveChapter() {
       if (saveBtn.disabled || saving) return;

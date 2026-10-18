@@ -133,8 +133,22 @@ body{font-size:13px;line-height:1.45}::selection{background:#e4e4e7}a{color:inhe
 .mode-btn{height:28px;padding:0 14px;border:0;border-radius:999px;background:var(--soft);color:var(--ink-2);font-size:12px;font-weight:500;transition:background .15s ease,color .15s ease}
 .mode-btn:hover:not(.actif){background:var(--wash);color:var(--ink)}
 .mode-btn.actif{background:var(--ink);color:white;font-weight:600}
-.cp-actions{display:flex;gap:8px;align-items:center}
+.cp-actions{display:grid;gap:0;align-items:stretch}
 .cp-actions .pill-light svg{width:11px;height:11px}
+.cp-step{display:grid;grid-template-columns:24px minmax(112px,176px) minmax(0,1fr);gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--soft)}
+.cp-step:first-child{border-top:0;padding-top:2px}
+.cp-step-num{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);font:600 10px var(--sans);color:var(--muted)}
+.cp-step-name{font:600 11px/1.4 var(--sans)}
+.cp-step-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.cp-step-count{font:10px var(--mono);color:var(--muted);letter-spacing:.03em}
+.cp-step-note{font-size:10px;color:var(--faint)}
+.cp-step-note[hidden]{display:none}
+.cp-shortcut{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px dashed var(--line);margin-top:3px;padding-top:11px}
+.cp-shortcut-note{font-size:10px;color:var(--muted)}
+.pill-dark{display:inline-flex;align-items:center;gap:6px;border-radius:6px;font-size:11px;font-weight:600;padding:8px 12px;background:var(--ink);color:#fff;border:1px solid var(--ink)}
+.pill-dark:hover:not(:disabled){background:#27272a}
+.pill-dark:disabled{cursor:wait;opacity:.5}
+@media(max-width:900px){.cp-step{grid-template-columns:24px minmax(0,1fr)}.cp-step-name{grid-column:2}.cp-step-tools{grid-column:2}}
 /* Vue colorée par orateur : narrateur vert, homme bleu, femme rose */
 .cl-vue{display:grid;gap:4px;max-height:420px;overflow-y:auto;padding-right:4px}
 .cl-row{display:flex;gap:10px;align-items:flex-start;padding:7px 10px;border-radius:6px;border-left:3px solid var(--line)}

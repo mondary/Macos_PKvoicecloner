@@ -1,5 +1,10 @@
 # PK Reader Android
 
+## [2026.10.48] - 2026-10-18
+
+- Build Android : installation explicite des SDK actuels, retrait des tests générés par le scaffold et prise en compte des marges système Android.
+- Lecture : maintien du dernier chapitre à la fin du livre et ajustements de la bibliothèque mobile.
+
 ## [2026.10.47] - 2026-10-18
 
 - Première application Android : bibliothèque locale, import EPUB/PDF/TXT/Markdown, lecteur à la phrase, chapitres, signets, reprise, thèmes et minuteur.

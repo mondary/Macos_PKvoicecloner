@@ -1,6 +1,7 @@
 package fr.pk.reader
 
 import android.app.*
+import android.annotation.SuppressLint
 import android.content.*
 import android.content.pm.ServiceInfo
 import android.media.*
@@ -238,6 +239,7 @@ class ReadingService : Service() {
         }
     }
     private fun state()=JSONObject().put("bookId",queue.optString("bookId")).put("index",index).put("playing",playing).put("loading",loading).put("error",error).put("sleepAt",sleepAt).put("preparing",preparing).put("prepared",prepared).put("total",prepareTotal)
+    @SuppressLint("MissingPermission") // Active media-session notifications are exempt on Android 13+.
     private fun publish(){
         val state=state().toString()
         getSharedPreferences("playback",MODE_PRIVATE).edit().putString("state",state).apply()

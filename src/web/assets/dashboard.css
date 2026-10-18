@@ -327,3 +327,14 @@ body.book-focus .books-head,body.book-focus .book-drop{display:none!important}
 .catalog-row .cat-btn.pret{border-color:transparent;background:#eaf4ee;color:var(--green);cursor:default}
 .catalog-row .cat-btn.retirer:hover{border-color:#b91c1c;color:#b91c1c}
 .catalog-foot{padding:10px 20px 14px;color:var(--muted);font:11px var(--mono);border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+/* ---- Bibliothèque de voix : sections par famille ---- */
+.voice-section{margin-bottom:14px}
+.voice-section:last-child{margin-bottom:0}
+.voice-section-head{display:flex;align-items:center;gap:8px;padding:2px 4px 6px}
+.voice-section-head strong{font-size:11px;font-weight:650;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.voice-section-count{font:10px var(--mono);color:var(--faint);border:1px solid var(--line);border-radius:999px;padding:1px 7px}
+.voice-section-add{margin-left:auto;border:1px solid var(--line-2);background:var(--white);border-radius:999px;font-size:11px;color:var(--ink-2);padding:4px 10px;cursor:pointer}
+.voice-section-add:hover{border-color:var(--coral);color:var(--coral-deep)}
+.voice-section-vide{padding:10px 6px;font-size:12px;color:var(--muted);line-height:1.7}
+.voice-section.flash{animation:voice-flash 1.9s ease}
+@keyframes voice-flash{0%,100%{background:transparent}12%,65%{background:var(--coral-tint);border-radius:10px}}

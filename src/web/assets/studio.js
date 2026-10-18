@@ -23,6 +23,9 @@
   let shuttingDown = false;
   let voices = [];
   let selectedId = null;
+  // famille active de la bibliothèque : "clone" (Mes voix) ou "piper" (voix
+  // prêtes à l'emploi) — une seule voix active, toutes familles mêlées
+  let familleVoix = "clone";
 
   // Voix Piper « prêtes à l'emploi » (catalogue téléchargeable, sans clonage)
   let piperVoices = [];
@@ -44,7 +47,7 @@
   let systemTimer = null;
   let toastTimer = null;
 
-  const PANNEAU_AIDE = "Choisis un clone à gauche, écris à droite, génère la prise";
+  const PANNEAU_AIDE = "Choisis une voix — clone ou Piper —, écris à droite, génère la prise";
 
   /* ---------------------- Navigation par sections ---------------------- */
   const VUES = {
@@ -308,7 +311,7 @@
   }
 
   function updateGenerateState() {
-    const voixOk = moteurActif === "piper" ? !!piperSelected : voiceReady;
+    const voixOk = familleVoix === "piper" ? Boolean(piperSelected) : voiceReady;
     $("generer").disabled = shuttingDown || generating || !voixOk || !$("texte").value.trim();
   }
 
@@ -323,38 +326,63 @@
   }
 
   async function refreshVoices(selectId = null) {
-    if (moteurActif === "piper") return refreshPiperVoices();
     try {
       const response = await fetch("/api/voix");
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.detail || "bibliothèque indisponible");
-      // le moteur affiché a pu changer pendant la requête (init, bascule) :
-      // l'affichage suit toujours le moteur courant, jamais la course réseau
-      if (moteurActif === "piper") return refreshPiperVoices();
       voices = payload.voix || [];
     } catch (error) {
       setVoiceStatus(`Bibliothèque indisponible : ${error.message}`, "error");
       return;
     }
-    renderVoices();
-    renderOverview();
-    const count = voices.length;
-    $("voiceCount").textContent = count ? `${count} voix` : "0 voix";
-    $("voiceFooterCount").textContent = count ? `${count} clone${count > 1 ? "s" : ""}` : "";
+    await loadPiperVoix();
+
+    // une voix demandée par un import/enregistrement devient la voix active
     if (selectId && voices.some((v) => v.id === selectId)) {
-      selectVoice(selectId, { silent: true });
-    } else if (!count) {
-      voiceReady = false;
-      selectedId = null;
-      $("transcript").value = "";
-      $("transcript").disabled = true;
-      setVoiceStatus("Aucune voix : importe un clip ou enregistre-toi.");
-      updateGenerateState();
-    } else if (!selectedId && voices.length) {
-      selectVoice(voices[0].id, { silent: true });
-    } else if (!selectedId) {
-      setVoiceStatus("Sélectionne une voix pour l'activer.");
+      await selectVoice(selectId, { silent: true });
+      return;
     }
+
+    const cloneValide = Boolean(selectedId) && voices.some((v) => v.id === selectedId);
+    const piperValide = Boolean(piperSelected) && piperVoices.some((v) => v.id === piperSelected);
+    if (!cloneValide) { selectedId = null; voiceReady = false; }
+    if (!piperValide) { piperSelected = null; }
+    if (!cloneValide && !piperValide) {
+      // rien d'actif : premier clone, sinon première voix Piper, sinon vide
+      if (voices.length) {
+        await selectVoice(voices[0].id, { silent: true });
+        return;
+      }
+      if (piperVoices.length) {
+        familleVoix = "piper";
+        selectPiperVoice(piperVoices[0].id);
+      } else {
+        familleVoix = "clone";
+        $("transcript").value = "";
+        $("transcript").disabled = true;
+        setVoiceStatus("Aucune voix : importe un clip, enregistre-toi, ou télécharge une voix Piper dans le catalogue.");
+      }
+    } else {
+      // la famille active suit ce qui existe encore ; une voix Piper active
+      // annonce son état (la carte ne doit pas rester sur « en chargement »)
+      if (familleVoix === "clone" && !cloneValide) {
+        familleVoix = "piper";
+        selectPiperVoice(piperSelected);
+      }
+      if (familleVoix === "piper" && !piperValide) familleVoix = "clone";
+    }
+    renderVoices();
+    majVoixEntetes();
+    updateGenerateState();
+  }
+
+  function majVoixEntetes() {
+    const total = voices.length + piperVoices.length;
+    $("voiceCount").textContent = total ? `${total} voix` : "0 voix";
+    const parties = [];
+    if (voices.length) parties.push(`${voices.length} clone${voices.length > 1 ? "s" : ""}`);
+    if (piperVoices.length) parties.push(`${piperVoices.length} Piper`);
+    $("voiceFooterCount").textContent = parties.join(" · ");
   }
 
   /* ---------------- Voix Piper (catalogue, sans clonage) ---------------- */
@@ -425,47 +453,9 @@
     return play;
   }
 
-  async function refreshPiperVoices() {
-    await loadPiperVoix();
-    // une bascule vers un moteur de clonage pendant la requête : rendu clone
-    if (moteurActif !== "piper") return refreshVoices();
-    const liste = $("voiceList");
-    liste.textContent = "";
-    const count = piperVoices.length;
-    $("voiceCount").textContent = count ? `${count} voix` : "0 voix";
-    $("voiceFooterCount").textContent = count ? `${count} téléchargée${count > 1 ? "s" : ""}` : "";
-    if (!count) {
-      const empty = document.createElement("div");
-      empty.className = "voice-empty";
-      empty.innerHTML = `${ICON_DOWNLOAD}<strong>Aucune voix du catalogue.</strong><p>Piper lit n'importe quel texte avec des voix prêtes à l'emploi,<br>hors-ligne, sans clonage (~20–80 Mo la voix).</p>`;
-      const actions = document.createElement("div");
-      actions.className = "empty-actions";
-      const bouton = document.createElement("button");
-      bouton.className = "pill-light";
-      bouton.type = "button";
-      bouton.textContent = "Parcourir le catalogue";
-      bouton.addEventListener("click", ouvrirCatalogue);
-      actions.appendChild(bouton);
-      empty.appendChild(actions);
-      liste.appendChild(empty);
-      piperSelected = null;
-      updateGenerateState();
-      setVoiceStatus("Télécharge une voix Piper pour commencer.");
-      return;
-    }
-    piperVoices.forEach((voice) => liste.appendChild(piperRow(voice)));
-    // la sélection persistée (ou la première voix) annonce toujours son état :
-    // sans message, la carte resterait sur « Bibliothèque en chargement… »
-    if (piperSelected && piperVoices.some((v) => v.id === piperSelected)) {
-      selectPiperVoice(piperSelected);
-    } else {
-      selectPiperVoice(piperVoices[0].id);
-    }
-  }
-
   function piperRow(voice) {
     const row = document.createElement("div");
-    row.className = `piper-row${voice.id === piperSelected ? " selected" : ""}`;
+    row.className = `piper-row${voice.id === piperSelected && familleVoix === "piper" ? " selected" : ""}`;
     row.tabIndex = 0;
     row.dataset.pvid = voice.id;
     row.setAttribute("role", "button");
@@ -513,6 +503,7 @@
     const voice = piperVoices.find((v) => v.id === id);
     if (!voice) return;
     piperSelected = id;
+    familleVoix = "piper";
     if (locuteur !== null) piperSpeaker = locuteur;
     else if (voice.locuteurs > 1) {
       const defaut = Object.values(voice.locuteur_noms || {})[0];
@@ -524,6 +515,7 @@
     document.querySelectorAll(".piper-row").forEach((r) => {
       r.classList.toggle("selected", r.dataset.pvid === id);
     });
+    document.querySelectorAll(".voice-row").forEach((r) => r.classList.remove("selected"));
     updateGenerateState();
     if (!silent) setVoiceStatus(`Voix ${voice.nom} prête — écris ton texte.`);
   }
@@ -536,7 +528,7 @@
       if (!response.ok) throw new Error(payload.detail || "suppression impossible");
       if (piperSelected === voice.id) { piperSelected = null; piperSpeaker = 0; }
       notify(`Voix ${voice.nom} supprimée du cache.`);
-      await refreshPiperVoices();
+      await refreshVoices();
     } catch (error) {
       notify(`Suppression impossible : ${error.message}`, "error");
     }
@@ -550,8 +542,20 @@
     stopperApercu();
     $("catalogOverlay").hidden = true;
     $("catalogOverlay").textContent = "";
-    if (moteurActif === "piper") refreshPiperVoices();
+    refreshVoices();               // les voix téléchargées rejoignent la section Piper
     libraryVoices = null;          // les options livres incluent les voix Piper
+  }
+
+  /* Depuis Modèles : ouvre la bibliothèque de voix sur la section Piper. */
+  function voirVoixPiper() {
+    appliquerVue("voices");
+    window.setTimeout(() => {
+      const section = document.querySelector('.voice-section[data-famille="piper"]');
+      if (!section) return;
+      section.scrollIntoView({ behavior: "smooth", block: "center" });
+      section.classList.add("flash");
+      window.setTimeout(() => section.classList.remove("flash"), 1900);
+    }, 80);
   }
 
   async function ouvrirCatalogue() {
@@ -717,36 +721,74 @@
     await rafraichir();
   }
 
+  /* La bibliothèque montre toujours les deux familles, en sections : les
+     clones de l'utilisateur puis les voix Piper prêtes à l'emploi. */
   function renderVoices() {
     const list = $("voiceList");
     list.textContent = "";
-    if (!voices.length) {
-      const empty = document.createElement("div");
-      empty.className = "voice-empty";
-      empty.innerHTML = `${ICON_MIC}<strong>Aucune voix en cabine.</strong><p>Importe un clip (m4a, mp3, wav…) ou enregistre-toi :<br>la transcription part toute seule.</p>`;
-      const actions = document.createElement("div");
-      actions.className = "empty-actions";
-      const importer = document.createElement("button");
-      importer.className = "pill-light";
-      importer.type = "button";
-      importer.textContent = "Importer un clip";
-      importer.addEventListener("click", () => $("fichier").click());
-      const micro = document.createElement("button");
-      micro.className = "pill-light";
-      micro.type = "button";
-      micro.innerHTML = '<span class="rec-dot" aria-hidden="true"></span>Enregistrer';
-      micro.addEventListener("click", toggleRecording);
-      actions.append(importer, micro);
-      empty.appendChild(actions);
-      list.appendChild(empty);
-      return;
+
+    const sectionClones = document.createElement("div");
+    sectionClones.className = "voice-section";
+    sectionClones.dataset.famille = "clones";
+    sectionClones.appendChild(enteteSectionVoix(
+      "Mes voix", String(voices.length), "Tes clones : clips importés et enregistrements"));
+    if (voices.length) {
+      voices.forEach((voice) => sectionClones.appendChild(voiceRow(voice)));
+    } else {
+      const vide = document.createElement("div");
+      vide.className = "voice-section-vide";
+      vide.textContent = "Aucune voix clonée pour l'instant — importe un clip ou enregistre-toi ci-dessous.";
+      sectionClones.appendChild(vide);
     }
-    voices.forEach((voice) => list.appendChild(voiceRow(voice)));
+    list.appendChild(sectionClones);
+
+    const sectionPiper = document.createElement("div");
+    sectionPiper.className = "voice-section";
+    sectionPiper.dataset.famille = "piper";
+    const entete = enteteSectionVoix(
+      "Voix Piper", String(piperVoices.length), "Voix prêtes à l'emploi, hors-ligne, sans clonage");
+    const catalogue = document.createElement("button");
+    catalogue.className = "voice-section-add";
+    catalogue.type = "button";
+    catalogue.textContent = "Catalogue";
+    catalogue.title = "Télécharger ou retirer des voix Piper (20–80 Mo la voix)";
+    catalogue.addEventListener("click", ouvrirCatalogue);
+    entete.appendChild(catalogue);
+    sectionPiper.appendChild(entete);
+    if (piperVoices.length) {
+      piperVoices.forEach((voice) => sectionPiper.appendChild(piperRow(voice)));
+    } else {
+      const vide = document.createElement("div");
+      vide.className = "voice-section-vide";
+      vide.textContent = "Aucune voix Piper téléchargée.";
+      const lien = document.createElement("button");
+      lien.className = "pill-light";
+      lien.type = "button";
+      lien.textContent = "Ouvrir le catalogue";
+      lien.addEventListener("click", ouvrirCatalogue);
+      vide.appendChild(document.createElement("br"));
+      vide.appendChild(lien);
+      sectionPiper.appendChild(vide);
+    }
+    list.appendChild(sectionPiper);
+  }
+
+  function enteteSectionVoix(titre, compte, aide) {
+    const entete = document.createElement("div");
+    entete.className = "voice-section-head";
+    const nom = document.createElement("strong");
+    nom.textContent = titre;
+    const puce = document.createElement("span");
+    puce.className = "voice-section-count";
+    puce.textContent = compte;
+    puce.title = aide;
+    entete.append(nom, puce);
+    return entete;
   }
 
   function voiceRow(voice) {
     const row = document.createElement("div");
-    row.className = `voice-row${voice.id === selectedId ? " selected" : ""}`;
+    row.className = `voice-row${voice.id === selectedId && familleVoix === "clone" ? " selected" : ""}`;
     row.tabIndex = 0;
     row.dataset.vid = voice.id;
     row.setAttribute("role", "button");
@@ -843,6 +885,7 @@
       if (!response.ok) throw new Error(payload.detail || "voix inconnue");
       selectedId = id;
       voiceReady = true;
+      familleVoix = "clone";
       $("transcript").value = payload.transcript || "";
       $("transcript").disabled = false;
       setVoiceStatus(`Voix prête · ${payload.duree} s de référence`, "good");
@@ -1025,14 +1068,14 @@
   async function createTake() {
     if (shuttingDown) return;
     const text = $("texte").value.trim();
-    const voixOk = moteurActif === "piper" ? !!piperSelected : voiceReady;
+    const voixOk = familleVoix === "piper" ? Boolean(piperSelected) : voiceReady;
     if (!voixOk || !text || generating) return;
     setGenerating(true);
     $("resultPanel").classList.remove("show");
     $("progress").style.width = "0%";
     setTakeStatus("La prise entre en cabine…");
 
-    const corps = moteurActif === "piper"
+    const corps = familleVoix === "piper"
       ? { texte: text, vitesse: speed, piper_voix: piperSelected, piper_locuteur: piperSpeaker }
       : { texte: text, vitesse: speed, transcript: $("transcript").value };
     try {
@@ -1212,7 +1255,13 @@
           lien.type = "button";
           lien.textContent = "Catalogue de voix";
           lien.addEventListener("click", ouvrirCatalogue);
-          zone.appendChild(lien);
+          const voir = document.createElement("button");
+          voir.className = "pill-light";
+          voir.type = "button";
+          voir.textContent = "Voir les voix";
+          voir.title = "Ouvre la bibliothèque de voix sur la section Voix Piper";
+          voir.addEventListener("click", voirVoixPiper);
+          zone.append(lien, voir);
         } else {
           const vide = document.createElement("span");
           vide.className = "model-voix-vide";
@@ -2944,20 +2993,6 @@
     });
   }
 
-  function paintVoiceCardMode() {
-    const piper = moteurActif === "piper";
-    $("transcriptDetails").hidden = piper;
-    $("ajouterFichier").hidden = piper;
-    $("ajouterMicro").hidden = piper;
-    $("ouvrirCatalogue").hidden = !piper;
-    const sousTitre = $("demoSub");
-    if (sousTitre) {
-      sousTitre.textContent = piper
-        ? "Choisis une voix du catalogue à gauche, écris à droite, génère la prise"
-        : PANNEAU_AIDE;
-    }
-  }
-
   /* ---------------------- État système & extinction ---------------------- */
   let engineLoading = false;
 
@@ -2971,7 +3006,6 @@
       button.setAttribute("aria-pressed", String(active));
       button.disabled = !system.modele && !system.erreur;
     });
-    paintVoiceCardMode();
   }
 
   async function refreshSystem() {
@@ -2981,10 +3015,7 @@
       const system = await (await fetch("/api/etat")).json();
       const ancienMoteur = moteurActif;
       moteurActif = system.moteur || "";
-      if (moteurActif !== ancienMoteur) { refreshModeles(); refreshVoices(); }
-      if (moteurActif === "piper" && !system.modele && !system.erreur) {
-        setVoiceStatus("Chargement du moteur Piper…");
-      }
+      if (moteurActif !== ancienMoteur) refreshModeles();
       if (system.version) {
         $("version").textContent = system.version;
         $("versionFooter").textContent = system.version;
@@ -3097,7 +3128,6 @@
     $("generer").addEventListener("click", createTake);
     $("stopStudio").addEventListener("click", stopStudio);
     $("hfBouton").addEventListener("click", enregistrerHfToken);
-    $("ouvrirCatalogue").addEventListener("click", ouvrirCatalogue);
     document.querySelectorAll(".engine").forEach((button) => {
       button.addEventListener("click", () => switchEngine(button.dataset.moteur));
     });

@@ -1,6 +1,14 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.49] - 2026-10-18
+
+### Changed
+- La bibliothèque de voix montre toujours **toutes les familles en sections** — « Mes voix » (clones) puis « Voix Piper » — avec une seule voix active toutes familles mêlées : le moteur de synthèse suit automatiquement la voix choisie à la génération.
+
+### Added
+- Bouton **« Voir les voix »** sur la carte Piper de l'onglet Modèles : il ouvre la bibliothèque de voix sur la section « Voix Piper », mise en surbrillance.
+
 ## [2026.10.48] - 2026-10-18
 
 ### Added

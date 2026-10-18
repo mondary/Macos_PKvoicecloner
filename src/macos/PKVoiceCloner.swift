@@ -173,10 +173,10 @@ struct ContentView: View {
                 : "Versions différentes : APP \(studio.appVersion) · SERVEUR \(studio.ecartVersion ?? "—"). Reconstruis l’app pour les synchroniser.")
             Circle().fill(studio.state == nil ? Dashboard.muted : Color.green).frame(width: 6, height: 6)
             Text(studio.message).foregroundStyle(Dashboard.muted).lineLimit(1)
-            Button("Ouvrir le studio web", systemImage: "book") { openWindow(id: "book-studio") }
+            Button("Ouvrir le studio web", systemImage: "macwindow") { openWindow(id: "book-studio") }
                 .buttonStyle(.bordered)
                 .disabled(studio.state == nil)
-                .help(studio.state == nil ? "Démarre le serveur local pour ouvrir le studio web." : "Ouvre le studio web complet dans ton navigateur.")
+                .help(studio.state == nil ? "Démarre le serveur local pour ouvrir l’atelier." : "Raccourci : l’atelier complet dans une fenêtre du studio.")
             if studio.state == nil {
                 Button(studio.powerBusy ? "Patiente…" : "Démarrer", systemImage: "power") { Task { await studio.toggle() } }
                     .buttonStyle(.borderedProminent).tint(Dashboard.ink)
@@ -228,10 +228,24 @@ struct ContentView: View {
     }
 
     private var heading: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text("TON ESPACE DE CRÉATION").font(.system(size: 9, design: .monospaced)).tracking(1.5).foregroundStyle(Dashboard.muted)
-            Text(section == "Vue d’ensemble" ? "Le studio vocal." : section).font(.system(size: 27, weight: .semibold)).tracking(-0.8)
-            Text("Tes voix, tes mots. Crée un nouvel audio, entièrement sur ce Mac.").font(.system(size: 12)).foregroundStyle(Dashboard.muted)
+        HStack(alignment: .bottom, spacing: 24) {
+            VStack(alignment: .leading, spacing: 7) {
+                Text("TON ESPACE DE CRÉATION").font(.system(size: 9, design: .monospaced)).tracking(1.5).foregroundStyle(Dashboard.muted)
+                Text(section == "Vue d’ensemble" ? "Le studio vocal." : section).font(.system(size: 27, weight: .semibold)).tracking(-0.8)
+                Text("Tes voix, tes mots. Crée un nouvel audio, entièrement sur ce Mac.").font(.system(size: 12)).foregroundStyle(Dashboard.muted)
+            }
+            Spacer(minLength: 24)
+            VStack(alignment: .trailing, spacing: 7) {
+                Button("Ouvrir le studio web", systemImage: "macwindow") { openWindow(id: "book-studio") }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Dashboard.ink)
+                    .controlSize(.large)
+                    .disabled(studio.state == nil)
+                    .help(studio.state == nil
+                        ? "Démarre le studio pour ouvrir l’atelier : voix, texte, livres et modèles."
+                        : "L’atelier complet du studio — voix, texte, livres et modèles — dans une fenêtre du studio.")
+                Text("Voix, texte, livres et modèles").font(.system(size: 10)).foregroundStyle(Dashboard.muted)
+            }
         }.padding(.bottom, 6)
     }
 
@@ -289,8 +303,6 @@ struct ContentView: View {
             HStack(spacing: 8) {
                 Button("Voir le journal", systemImage: "doc.text.magnifyingglass") { studio.openLog() }
                     .buttonStyle(.bordered).disabled(studio.root == nil)
-                Button("Ouvrir le studio web", systemImage: "book") { openWindow(id: "book-studio") }
-                    .buttonStyle(.bordered).disabled(studio.state == nil)
                 Spacer(minLength: 12)
                 Menu {
                     ForEach(studio.voices) { voice in

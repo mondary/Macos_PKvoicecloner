@@ -69,7 +69,7 @@ The FTP-ready website is self-contained in [`store/website/`](store/website/): u
 3. Select a voice, type your text on the right, set the speed if needed, **Generate**
 4. Listen, download, repeat — clones stay available on next launch
 5. At the end of a session, click **Power off** at the top right: the Python server and VoxCPM stop and release their memory.
-6. Click **Open web studio** at the top of the window to open `http://127.0.0.1:8809` in your browser. The server must be running; the book library and EPUB editor are currently available in this web interface.
+6. Click **Open web studio** — the app's main action, a large button at the top of the overview with a shortcut in the sticky top bar. It opens the full workshop (voices, text, books, models) in a studio window; the server must be running.
 
 ### Terminal
 

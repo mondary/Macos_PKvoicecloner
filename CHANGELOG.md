@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.54] - 2026-10-18
+
+### Changed
+- **« Ouvrir le studio web » devient l'action principale de l'app** : un grand bouton plein en tête de la Vue d'ensemble (avec la ligne « Voix, texte, livres et modèles »), doublé d'un raccourci dans la barre fixe du haut. Le doublon qui traînait dans État du studio est supprimé, et l'icône comme l'aide disent enfin ce que le bouton fait : ouvrir l'atelier dans une fenêtre du studio.
+
 ## [2026.10.53] - 2026-10-18
 
 ### Fixed

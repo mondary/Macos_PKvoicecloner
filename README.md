@@ -68,7 +68,7 @@ Le site publiable prêt pour FTP est autonome dans [`store/website/`](store/webs
 - **Bibliothèque de voix** : importer un audio, enregistrer au micro, sélectionner une voix, l’écouter ; menu **…** pour renommer ou supprimer.
 - **Modèles** : installer un moteur du catalogue pris en charge, l’activer ; menu **…** pour renommer ou supprimer ses poids locaux. Les installations et erreurs sont visibles.
 - **Texte vers voix** : éditer le transcript, régler la vitesse, générer, puis écouter ou exporter le WAV.
-- **Ouvrir le studio web** : le bouton en haut de la fenêtre ouvre `http://127.0.0.1:8809` dans le navigateur ; le serveur doit être démarré. La bibliothèque de livres et l'éditeur EPUB sont actuellement disponibles dans cette interface web.
+- **Ouvrir le studio web** : c'est **l'action principale de l'app** — un grand bouton en tête de la Vue d'ensemble, doublé d'un raccourci dans la barre fixe du haut ; il ouvre l'atelier complet (voix, texte, livres, modèles) dans une fenêtre du studio. Le serveur doit être démarré.
 - Les erreurs apparaissent dans la page avec un accès au journal du serveur.
 
 ## 🧠 Utilisation

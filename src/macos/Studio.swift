@@ -362,6 +362,15 @@ struct StudioError: LocalizedError {
         }
     }
 
+    /// Éteint un modèle actif : le moteur TTS est déchargé, les autres
+    /// catégories repassent à « aucun modèle actif ».
+    func deactivate(_ model: Model) async {
+        await perform {
+            _ = try await self.request("api/modeles/\(model.id)/desactiver", method: "POST")
+            try await self.refreshLibrary()
+        }
+    }
+
     func saveHFToken() async {
         await perform { _ = try await self.request("api/hf/token", method: "POST", json: ["token": self.hfToken]) }
     }

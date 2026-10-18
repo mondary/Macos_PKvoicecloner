@@ -54,6 +54,17 @@ def charger_en_fond() -> dict:
     return {"installe": True, **_etat}
 
 
+def decharger() -> None:
+    """Éteint Laya : libère le modèle et son état (réactivable à tout moment)."""
+    global _agent
+    import gc
+    with _verrou_predict:
+        with _verrou_etat:
+            _agent = None
+            _etat.update(pret=False, chargement=False, erreur=None)
+    gc.collect()
+
+
 def _charger() -> None:
     global _agent
     try:

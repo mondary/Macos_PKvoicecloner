@@ -19,7 +19,7 @@ struct ContentView: View {
     @State private var deleteName = ""
     @State private var section = "Vue d’ensemble"
     @State private var settingsSection: PKSettingsSection = .general
-    private let sections = [("Vue d’ensemble", "square.grid.2x2"), ("Bibliothèque de voix", "waveform"), ("Texte vers voix", "text.justify"), ("Livres", "books.vertical"), ("Modèles", "cpu")]
+    private let sections = [("Vue d’ensemble", "square.grid.2x2")]
 
     var body: some View {
         Group {
@@ -57,14 +57,6 @@ struct ContentView: View {
                             overview
                 } else if studio.state == nil {
                             welcome
-                        } else if section == "Bibliothèque de voix" {
-                            voices
-                        } else if section == "Texte vers voix" {
-                            VStack(alignment: .leading, spacing: 16) { editor; prises }
-                        } else if section == "Livres" {
-                            livres
-                        } else if section == "Modèles" {
-                            models
                         }
                         HStack(alignment: .center, spacing: 6) {
                             Image(systemName: "lock.fill")
@@ -239,6 +231,7 @@ struct ContentView: View {
                 diagnostics.frame(maxWidth: .infinity, alignment: .topLeading)
                 recentActivity.frame(maxWidth: .infinity, alignment: .topLeading)
             }
+            models
         }
     }
 
@@ -519,8 +512,15 @@ struct ContentView: View {
                         Text(model.taille).foregroundStyle(Dashboard.muted)
                         if model.etat == "en_cours" { ProgressView().controlSize(.small); Text("Installation…") }
                         else if model.installe {
-                            Button(model.actif == true || (category == "tts" && studio.state?.moteur == model.moteur && studio.state?.modele == true) ? "Actif" : "Activer") { Task { await studio.activate(model) } }
-                                .disabled(controlsLocked || model.actif == true || (category == "tts" && studio.state?.moteur == model.moteur && studio.state?.modele == true))
+                            let actif = model.actif == true || (category == "tts" && studio.state?.moteur == model.moteur && studio.state?.modele == true)
+                            if actif {
+                                Button("Désactiver") { Task { await studio.deactivate(model) } }
+                                    .disabled(controlsLocked)
+                                    .help("Éteint ce modèle et libère sa mémoire — réactivable à tout moment")
+                            } else {
+                                Button("Activer") { Task { await studio.activate(model) } }
+                                    .disabled(controlsLocked)
+                            }
                         } else {
                             Button(model.etat == "erreur" ? "Réessayer" : "Installer", systemImage: "arrow.down.circle") { Task { await studio.install(model) } }.disabled(controlsLocked)
                         }

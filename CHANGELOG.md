@@ -1,6 +1,20 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.50] - 2026-10-18
+
+### Changed
+- L'app macOS redevient le tableau de bord du studio : **Vue d'ensemble réunit les tuiles et la gestion des modèles** (installer, activer, désactiver, renommer, supprimer) ; le studio web reste le poste de travail complet et la navigation native redondante (voix, texte, livres, modèles) disparaît.
+- Une voix Piper multi-locuteurs affiche **une ligne par locuteur** (`upmc · jessica`, `upmc · pierre`) au lieu d'une liste déroulante ; l'aperçu ▶ suit le locuteur de la ligne.
+
+### Added
+- **Désactiver** un modèle actif : le moteur TTS est déchargé et sa mémoire libérée (Piper, VoxCPM2…), la transcription et Laya peuvent aussi être éteints — plus jamais de modèle actif sans bouton pour l'arrêter.
+- **Tonalité** dans l'éditeur du studio web : curseur en demi-tons (−6 à +6) appliqué à la génération, en plus de la vitesse.
+
+### Fixed
+- « Désactiver » veut dire éteint : aucune bascule implicite ne recharge un moteur dans le dos ; une génération sans moteur chargé est refusée immédiatement avec un message clair, et une activation explicite rouvre la voie.
+- La génération sans moteur chargé n'attend plus trois minutes avant d'échouer.
+
 ## [2026.10.49] - 2026-10-18
 
 ### Changed

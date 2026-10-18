@@ -1,6 +1,7 @@
 """HTTP contracts against temporary storage; no model download or user-data changes."""
 import importlib.util
 import io
+import json
 import os
 import sys
 import time
@@ -31,7 +32,7 @@ class StudioContracts(unittest.TestCase):
         for p in self.patches: p.start()
         server.voix_courante.clear(); server.jobs.clear(); server.installations.clear(); server.transcripts.clear()
         server.modele = None; server.moteur_pret = None; server.erreur_modele = None
-        server.moteur_actif = 'voxcpm2'; server._piper_catalogue_cache = None
+        server.moteur_actif = 'voxcpm2'; server.moteur_eteint = False; server._piper_catalogue_cache = None
         self.client = TestClient(server.app)
 
     def tearDown(self):
@@ -80,8 +81,72 @@ class StudioContracts(unittest.TestCase):
         (self.root / 'data').mkdir(exist_ok=True)
         (self.root / 'data/moteurs_actifs.json').write_text('{"transcription":"unknown"}')
         with patch.object(server, 'PROJET', self.root):
-            with self.assertRaisesRegex(RuntimeError, 'moteur de transcription inconnu'):
+            with self.assertRaisesRegex(RuntimeError, 'aucun modèle de transcription actif'):
                 server.transcrire(self.root / 'clip.wav')
+        # un modèle explicitement désactivé produit le même message clair
+        (self.root / 'data/moteurs_actifs.json').write_text('{"transcription":null}')
+        with patch.object(server, 'PROJET', self.root):
+            with self.assertRaisesRegex(RuntimeError, 'aucun modèle de transcription actif'):
+                server.transcrire(self.root / 'clip.wav')
+
+    def test_desactivation_modele_eteint_le_moteur(self):
+        server.moteur_actif = 'voxcpm2'; server.moteur_pret = 'voxcpm2'; server.modele = object()
+        self.assertTrue(self.client.get('/api/etat').json()['modele'])
+        response = self.client.post('/api/modeles/voxcpm2/desactiver')
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertIsNone(server.modele)
+        self.assertIsNone(server.moteur_pret)
+        self.assertFalse(self.client.get('/api/etat').json()['modele'])
+        self.assertEqual(self.client.post('/api/modeles/inconnu/desactiver').status_code, 404)
+
+    def test_generation_refusee_sans_moteur_charge(self):
+        self.assertEqual(self.client.post('/api/generer', json={'texte': 'Bonjour', 'tonalite': 99}).status_code, 400)
+        self.assertEqual(self.client.post('/api/generer', json={'texte': 'Bonjour', 'tonalite': 'haut'}).status_code, 400)
+        audio = io.BytesIO(); sf.write(audio, np.zeros(1600), 16000, format='WAV')
+        with patch.object(server, 'transcrire', return_value='Bonjour'):
+            vid = self.client.post('/api/voix', files={'audio': ('reference.wav', audio.getvalue(), 'audio/wav')}).json()['id']
+        self.assertEqual(self.client.post(f'/api/voix/{vid}/choisir').status_code, 200)
+        server.modele = None; server.moteur_pret = None
+        reponse = self.client.post('/api/generer', json={'texte': 'Bonjour le monde'})
+        self.assertEqual(reponse.status_code, 409)
+        self.assertIn('aucun moteur', reponse.json()['detail'])
+
+    def test_desactivation_transcription_efface_le_moteur_actif(self):
+        (self.root / 'data').mkdir(exist_ok=True)
+        (self.root / 'data/moteurs_actifs.json').write_text('{"transcription":"whisper"}')
+        server.moteur_asr = 'whisper'
+        with patch.object(server, 'PROJET', self.root):
+            reponse = self.client.post('/api/modeles/whisper-large-v3/desactiver')
+        self.assertEqual(reponse.status_code, 200, reponse.text)
+        self.assertIsNone(json.loads((self.root / 'data/moteurs_actifs.json').read_text())['transcription'])
+        self.assertIsNone(server.moteur_asr)
+
+    def test_filtres_audio_vitesse_et_tonalite(self):
+        self.assertEqual(server._filtres_audio(1.0, 0.0, 1.0, 16000), [])
+        self.assertEqual(server._filtres_audio(1.2, 0.0, 1.2, 16000), ['atempo=1.200000'])
+        # Piper : la vitesse est déjà native (length_scale), pas de double atempo
+        self.assertEqual(server._filtres_audio(1.2, 0.0, 1.0, 16000), [])
+        haut = server._filtres_audio(1.0, 12.0, 1.0, 16000)
+        self.assertEqual(haut, ['asetrate=32000', 'aresample=16000', 'atempo=0.500000'])
+        # au-delà de 2×, atempo se chaîne au lieu de dépasser sa plage
+        self.assertEqual(server._filtres_audio(2.5, 0.0, 2.5, 16000), ['atempo=2.0', 'atempo=1.250000'])
+        self.assertEqual(server._filtres_audio(0.4, 0.0, 0.4, 16000), ['atempo=0.5', 'atempo=0.800000'])
+
+    def test_desactivation_veut_dire_eteint(self):
+        server.moteur_actif = 'piper'; server.moteur_pret = 'piper'; server.modele = {'voix': {}}
+        self.assertEqual(self.client.post('/api/modeles/piper/desactiver').status_code, 200)
+        self.assertTrue(server.moteur_eteint)
+        # même une voix Piper ne relance rien implicitement : message clair
+        with patch.object(server, '_piper_voix_installees',
+                          return_value={'fr_FR-siwis-medium': {'onnx': 'x', 'config': 'y', 'taille_mo': 1}}):
+            reponse = self.client.post('/api/generer', json={
+                'texte': 'Bonjour', 'piper_voix': 'fr_FR-siwis-medium'})
+        self.assertEqual(reponse.status_code, 409)
+        self.assertIn('aucun moteur', reponse.json()['detail'])
+        # une activation explicite rouvre la voie (le chargement réel est simulé)
+        with patch.object(server, 'charger_modele', lambda moteur: None):
+            self.assertEqual(self.client.post('/api/moteur', json={'moteur': 'piper'}).status_code, 202)
+        self.assertFalse(server.moteur_eteint)
 
     def test_model_catalogue_install_rename_delete(self):
         models = self.client.get('/api/modeles').json()['modeles']
@@ -234,7 +299,7 @@ class PiperContracts(unittest.TestCase):
             p.start()
         server.voix_courante.clear(); server.jobs.clear(); server.installations.clear()
         server.modele = None; server.moteur_pret = None; server.erreur_modele = None
-        server.moteur_actif = 'piper'
+        server.moteur_actif = 'piper'; server.moteur_eteint = False
         self.client = TestClient(server.app)
 
     def tearDown(self):

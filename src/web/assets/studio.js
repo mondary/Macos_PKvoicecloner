@@ -18,6 +18,7 @@
   const ICON_TAG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 5.5A2.5 2.5 0 0 1 5.5 3H12l9 9-6.5 6.5-9-9V5.5Z"/><circle cx="8" cy="8" r="1.4"/></svg>';
 
   let speed = 1;
+  let tonalite = 0;                 // demi-tons : -6…+6 (pitch-shift ffmpeg)
   let generating = false;
   let voiceReady = false;
   let shuttingDown = false;
@@ -305,6 +306,13 @@
     updateEstimate();
   }
 
+  function updateTonalite() {
+    tonalite = Number($("tonalite").value);
+    $("tonaliteVal").textContent = tonalite === 0
+      ? "0 demi-ton"
+      : `${tonalite > 0 ? "+" : ""}${tonalite} demi-ton${Math.abs(tonalite) > 1 ? "s" : ""}`;
+  }
+
   function updateEstimate() {
     const text = $("texte").value.trim();
     $("estimation").textContent = text ? `· ≈ ${Math.max(1, Math.round(text.length / 15 / speed))} s` : "";
@@ -453,36 +461,24 @@
     return play;
   }
 
-  function piperRow(voice) {
+  function piperRow(voice, { locuteur = 0, nomLocuteur = "" } = {}) {
     const row = document.createElement("div");
-    row.className = `piper-row${voice.id === piperSelected && familleVoix === "piper" ? " selected" : ""}`;
+    const choisi = voice.id === piperSelected && familleVoix === "piper" && locuteur === piperSpeaker;
+    row.className = `piper-row${choisi ? " selected" : ""}`;
     row.tabIndex = 0;
     row.dataset.pvid = voice.id;
+    row.dataset.plocuteur = String(locuteur);
     row.setAttribute("role", "button");
-    row.setAttribute("aria-label", `Voix ${voice.nom} ${voice.qualite}, ${voice.langue}`);
-    const locuteurs = voice.locuteurs > 1
-      ? Object.entries(voice.locuteur_noms || {}) : null;
+    const designation = `${prettyName(voice.nom)} · ${nomLocuteur || voice.qualite}`;
+    row.setAttribute("aria-label", `Voix ${designation}, ${voice.langue}`);
     row.innerHTML =
       `<span class="check" aria-hidden="true">✓</span>` +
-      `<span class="vname">${prettyName(voice.nom).replace(/</g, "&lt;")} · ${voice.qualite}</span>` +
+      `<span class="vname">${designation.replace(/</g, "&lt;")}</span>` +
       `<span class="piper-meta">` +
-      (locuteurs
-        ? `<select class="piper-speaker" aria-label="Locuteur de la voix ${voice.nom}">` +
-          locuteurs.map(([nom, id]) => `<option value="${id}">${nom}</option>`).join("") +
-          `</select>`
-        : "") +
       `<span class="piper-lang">${voice.langue}</span>` +
       `<span class="piper-badge">${voice.taille_mo} Mo</span></span>`;
 
-    const speakerSelect = row.querySelector(".piper-speaker");
-    if (speakerSelect) {
-      speakerSelect.value = String(voice.id === piperSelected ? piperSpeaker : 0);
-      speakerSelect.addEventListener("click", (event) => event.stopPropagation());
-      speakerSelect.addEventListener("change", () => {
-        selectPiperVoice(voice.id, { locuteur: Number(speakerSelect.value) });
-      });
-    }
-    const play = boutonApercu(voice, voice.id === piperSelected ? piperSpeaker : 0);
+    const play = boutonApercu(voice, locuteur);
     row.appendChild(play);
     const del = document.createElement("button");
     del.className = "vdel";
@@ -491,7 +487,7 @@
     del.innerHTML = ICON_TRASH;
     del.addEventListener("click", (event) => { event.stopPropagation(); deletePiperVoice(voice); });
     row.appendChild(del);
-    const activate = () => selectPiperVoice(voice.id);
+    const activate = () => selectPiperVoice(voice.id, { locuteur });
     row.addEventListener("click", activate);
     row.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") { event.preventDefault(); activate(); }
@@ -513,7 +509,8 @@
     }
     window.localStorage.setItem("pk-voice-studio-piper", id);
     document.querySelectorAll(".piper-row").forEach((r) => {
-      r.classList.toggle("selected", r.dataset.pvid === id);
+      r.classList.toggle("selected",
+        r.dataset.pvid === id && Number(r.dataset.plocuteur) === piperSpeaker);
     });
     document.querySelectorAll(".voice-row").forEach((r) => r.classList.remove("selected"));
     updateGenerateState();
@@ -756,7 +753,16 @@
     entete.appendChild(catalogue);
     sectionPiper.appendChild(entete);
     if (piperVoices.length) {
-      piperVoices.forEach((voice) => sectionPiper.appendChild(piperRow(voice)));
+      piperVoices.forEach((voice) => {
+        // une voix multi-locuteurs déploie une ligne PAR locuteur
+        const noms = Object.entries(voice.locuteur_noms || {});
+        if (noms.length) {
+          noms.forEach(([nom, id]) => sectionPiper.appendChild(
+            piperRow(voice, { locuteur: Number(id), nomLocuteur: nom })));
+        } else {
+          sectionPiper.appendChild(piperRow(voice));
+        }
+      });
     } else {
       const vide = document.createElement("div");
       vide.className = "voice-section-vide";
@@ -1076,8 +1082,8 @@
     setTakeStatus("La prise entre en cabine…");
 
     const corps = familleVoix === "piper"
-      ? { texte: text, vitesse: speed, piper_voix: piperSelected, piper_locuteur: piperSpeaker }
-      : { texte: text, vitesse: speed, transcript: $("transcript").value };
+      ? { texte: text, vitesse: speed, tonalite, piper_voix: piperSelected, piper_locuteur: piperSpeaker }
+      : { texte: text, vitesse: speed, tonalite, transcript: $("transcript").value };
     try {
       const response = await fetch("/api/generer", {
         method: "POST",
@@ -1206,11 +1212,18 @@
         enCours = true;
         actions.appendChild(btn);
       } else if (m.installe) {
-        if (m.actif || (category === "tts" && m.moteur === moteurActif)) {
+        if (m.actif) {
           const actif = document.createElement("span");
           actif.className = "model-actif";
           actif.textContent = "● Actif";
           actions.appendChild(actif);
+          const desactiver = document.createElement("button");
+          desactiver.className = "pill-light";
+          desactiver.type = "button";
+          desactiver.textContent = "Désactiver";
+          desactiver.title = "Éteint ce modèle et libère sa mémoire — réactivable à tout moment";
+          desactiver.addEventListener("click", () => desactiverModele(m.id));
+          actions.appendChild(desactiver);
         } else {
           const activer = document.createElement("button");
           activer.className = "pill-light";
@@ -1341,6 +1354,17 @@
       notify("Modèle activé.");
       refreshModeles();
     } catch (error) { notify(`Activation impossible : ${error.message}`, "error"); }
+  }
+
+  async function desactiverModele(id) {
+    try {
+      const response = await fetch(`/api/modeles/${id}/desactiver`, { method: "POST" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "désactivation impossible");
+      notify("Modèle éteint — sa mémoire est libérée.");
+      refreshModeles();
+      refreshSystem();
+    } catch (error) { notify(`Désactivation impossible : ${error.message}`, "error"); }
   }
 
   async function supprimerModele(id) {
@@ -3120,6 +3144,8 @@
       event.target.value = "";
     });
     $("vitesse").addEventListener("input", updatePace);
+    $("tonalite").addEventListener("input", updateTonalite);
+    updateTonalite();
     $("texte").addEventListener("input", () => {
       window.localStorage.setItem("pk-voice-studio-script", $("texte").value);
       updateEstimate();

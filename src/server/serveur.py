@@ -26,10 +26,12 @@ Endpoints :
   GET  /api/livres/{id}/export      état de l'export M4B
   GET  /api/livres/{id}/fichier     téléchargement du M4B
   POST /api/generer     {texte, vitesse, transcript} -> job id
-                        (moteur piper : {texte, vitesse, piper_voix, piper_locuteur})
+                        (moteur piper : {texte, vitesse, piper_voix, piper_locuteur} ;
+                         tonalite en demi-tons, -12…+12)
   POST /api/moteur      {moteur: voxcpm2|dots|qwen3|pocket|piper} changement de moteur TTS
   GET  /api/modeles     modèles téléchargeables + état installé
   POST /api/modeles/{id}/installer  télécharge les poids (et le paquet pip manquant)
+  POST /api/modeles/{id}/desactiver éteint un modèle actif (moteur TTS déchargé)
   DELETE /api/modeles/{id}          supprime les poids du cache Hugging Face
   GET  /api/piper/catalogue         catalogue des voix Piper (téléchargeables à la carte)
   GET  /api/piper/voix              voix Piper téléchargées sur ce Mac
@@ -86,6 +88,7 @@ for _d in (SORTIES, VOIX, LIVRES, APERCUS, PID_FILE.parent):
     _d.mkdir(parents=True, exist_ok=True)
 
 VITESSE_MIN, VITESSE_MAX = 0.75, 1.5
+TONALITE_MIN, TONALITE_MAX = -12.0, 12.0      # demi-tons (asetrate/atempo, sans rubberband)
 
 VERSION = next(
     (l.split("[", 1)[1].split("]", 1)[0].strip() for l in
@@ -99,6 +102,7 @@ app.mount("/assets", StaticFiles(directory=WEB / "assets"), name="assets")
 modele = None                    # moteur TTS chargé en arrière-plan
 moteur_actif = "voxcpm2"         # "voxcpm2" | "dots" (demandé)
 moteur_lourd = "voxcpm2"         # dernier moteur de clonage demandé (hors Piper)
+moteur_eteint = False            # désactivation explicite : aucune bascule implicite
 moteur_pret = None               # moteur réellement présent dans `modele`
 erreur_modele = None             # échec visible dans les clients
 MOTEUR_LABELS = {"voxcpm2": "VoxCPM2", "dots": "dots.tts"}
@@ -249,8 +253,9 @@ verrou_chargement = threading.Lock()
 
 
 def charger_modele(moteur: str):
-    global moteur_actif, moteur_pret, modele, erreur_modele, moteur_lourd
+    global moteur_actif, moteur_pret, modele, erreur_modele, moteur_lourd, moteur_eteint
     moteur_actif = moteur
+    moteur_eteint = False
     if moteur != "piper":
         moteur_lourd = moteur
     erreur_modele = None
@@ -300,7 +305,7 @@ def convertir_wav(src: Path, dst: Path):
 def transcrire(wav: Path) -> str:
     moteur_asr = _lire_moteurs_actifs().get("transcription", "whisper")
     if moteur_asr not in {"whisper", "parakeet-redux"}:
-        raise RuntimeError(f"moteur de transcription inconnu : {moteur_asr}")
+        raise RuntimeError("aucun modèle de transcription actif — active Whisper ou Parakeet dans Modèles")
     r = subprocess.run(
         [str(PROJET / ".venv-whisper" / "bin" / "python"), str(SRC / "transcrire.py"), str(wav), moteur_asr],
         capture_output=True, text=True, timeout=600,
@@ -800,15 +805,45 @@ def activer_modele(modele_id: str):
     raise HTTPException(400, "catégoriseur non pris en charge")
 
 
+@app.post("/api/modeles/{modele_id}/desactiver")
+def desactiver_modele(modele_id: str):
+    """Éteint un modèle actif : le moteur TTS est déchargé, les autres
+    catégories repassent à « aucun modèle actif » (transcription comprise)."""
+    global moteur_asr, moteur_eteint
+    m = _modele_catalogue(modele_id)
+    if not m:
+        raise HTTPException(404, "modèle inconnu")
+    categorie = m.get("categorie", "tts")
+    if categorie == "tts":
+        if any(j.get("etat") in ("attente", "chargement", "generation") for j in jobs.values()):
+            raise HTTPException(409, "une génération est en cours : réessaie après")
+        decharger_modele()
+        moteur_eteint = True         # éteint veut dire éteint : pas de bascule implicite
+        return {"ok": True, "moteur": None}
+    actifs = _lire_moteurs_actifs()
+    if actifs.get(categorie) == m["moteur"]:
+        actifs[categorie] = None
+        chemin = PROJET / "data" / "moteurs_actifs.json"
+        chemin.parent.mkdir(parents=True, exist_ok=True)
+        chemin.write_text(json.dumps(actifs), encoding="utf-8")
+        if categorie == "transcription":
+            moteur_asr = None
+        if m["moteur"] == "laya":
+            laya_local.decharger()
+    return {"ok": True}
+
+
 @app.post("/api/moteur", status_code=202)
 def changer_moteur(req: dict = Body(...)):
+    global moteur_eteint
     moteur = req.get("moteur")
     if moteur not in CHARGEURS:
         raise HTTPException(400, "moteur inconnu")
-    if moteur == moteur_actif and modele is not None:
+    if moteur == moteur_actif and (modele is not None or verrou_chargement.locked()):
         return {"ok": True, "moteur": moteur}
     if any(j.get("etat") in ("attente", "chargement", "generation") for j in jobs.values()):
         raise HTTPException(409, "une génération est en cours : réessaie après")
+    moteur_eteint = False
     decharger_modele()
     threading.Thread(target=charger_modele, args=(moteur,), daemon=True).start()
     return {"ok": True, "moteur": moteur}
@@ -948,6 +983,12 @@ def lancer_generation(req: dict = Body(...)):
         raise HTTPException(400, "vitesse invalide")
     if not (VITESSE_MIN <= vitesse <= VITESSE_MAX):
         raise HTTPException(400, f"vitesse entre {VITESSE_MIN} et {VITESSE_MAX}")
+    try:
+        tonalite = float(req.get("tonalite") or 0.0)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "tonalité invalide")
+    if not (TONALITE_MIN <= tonalite <= TONALITE_MAX):
+        raise HTTPException(400, f"tonalité entre {TONALITE_MIN:g} et {TONALITE_MAX:g} demi-tons")
     reference = None
     piper = None
     piper_voix = str(req.get("piper_voix") or "")
@@ -983,6 +1024,8 @@ def lancer_generation(req: dict = Body(...)):
         raise HTTPException(400, "aucune voix définie : choisis ou enregistre un audio d'abord")
     if erreur_modele and not _cible_implicite(piper):
         raise HTTPException(503, f"Le modèle n’a pas pu être chargé : {erreur_modele}")
+    if moteur_eteint:
+        raise HTTPException(409, "aucun moteur n’est chargé — active un modèle dans l’onglet Modèles")
     if any(j.get("etat") in ("attente", "chargement", "generation") for j in jobs.values()):
         raise HTTPException(409, "une génération est déjà en cours")
     cible = _cible_implicite(piper)
@@ -992,18 +1035,53 @@ def lancer_generation(req: dict = Body(...)):
         # restauré pour un clone — les livres mélangent les deux familles)
         decharger_modele()
         threading.Thread(target=charger_modele, args=(cible,), daemon=True).start()
+    elif modele is None and not verrou_chargement.locked():
+        raise HTTPException(409, "aucun moteur n’est chargé — active un modèle dans l’onglet Modèles")
     job = uuid.uuid4().hex[:10]
     jobs[job] = {"etat": "attente", "debut": time.time()}
     threading.Thread(
         target=executer_generation,
         args=(job, texte, vitesse, (req.get("transcript") or "").strip(), reference),
-        kwargs={"piper": piper},
+        kwargs={"piper": piper, "tonalite": tonalite},
         daemon=True,
     ).start()
     return {"job": job}
 
 
-def executer_generation(job, texte, vitesse, transcript, reference=None, piper=None):
+def _atempo(vitesse: float) -> list[str]:
+    """atempo n'accepte que 0,5–2,0 : on chaîne les étages au besoin."""
+    etages: list[str] = []
+    reste = vitesse
+    while reste > 2.0:
+        etages.append("atempo=2.0")
+        reste /= 2.0
+    while reste < 0.5:
+        etages.append("atempo=0.5")
+        reste /= 0.5
+    if abs(reste - 1.0) > 0.001:
+        etages.append(f"atempo={reste:.6f}")
+    return etages
+
+
+def _filtres_audio(vitesse: float, tonalite: float, vitesse_wav: float, sample_rate: int) -> list[str]:
+    """Chaîne ffmpeg : vitesse (atempo) puis tonalité (asetrate/aresample/atempo).
+
+    La tonalité décale le pitch sans toucher à la durée : asetrate change le
+    pitch et la vitesse ensemble, atempo compense la vitesse — pas besoin de
+    rubberband (absent de certains ffmpeg). Piper gère la vitesse nativement
+    (length_scale) : `vitesse_wav` vaut alors 1 pour ne pas doubler l'atempo."""
+    filtres: list[str] = []
+    if abs(vitesse_wav - 1.0) > 0.01:
+        filtres.extend(_atempo(vitesse_wav))
+    if abs(tonalite) > 0.01:
+        facteur = 2 ** (tonalite / 12)
+        filtres.append(f"asetrate={int(round(sample_rate * facteur))}")
+        filtres.append(f"aresample={sample_rate}")
+        filtres.extend(_atempo(1.0 / facteur))
+    return filtres
+
+
+def executer_generation(job, texte, vitesse, transcript, reference=None, piper=None, tonalite=0.0):
     try:
         # Normalisation française commune : « M. » → Monsieur, « Louis XVI » →
         # « Louis seize », « 1789 » → « mille sept cent… ». Le texte affiché
@@ -1078,10 +1156,11 @@ def executer_generation(job, texte, vitesse, transcript, reference=None, piper=N
             brute = SORTIES / f"{job}_brute.wav"
             sf.write(brute, wav, sample_rate, subtype="PCM_16")
             final = SORTIES / f"{job}.wav"
-            if not vitesse_native and abs(vitesse - 1.0) > 0.01:
+            filtres = _filtres_audio(vitesse, tonalite, 1.0 if vitesse_native else vitesse, sample_rate)
+            if filtres:
                 subprocess.run(
                     ["ffmpeg", "-y", "-loglevel", "error", "-i", str(brute),
-                     "-filter:a", f"atempo={vitesse}", str(final)],
+                     "-filter:a", ",".join(filtres), str(final)],
                     check=True,
                 )
                 brute.unlink()

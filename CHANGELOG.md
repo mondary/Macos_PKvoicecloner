@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.57] - 2026-10-18
+
+### Added
+- **Lien APK direct à chaque livraison Android** : le workflow Android Reader publie désormais l’APK versionné sur la prerelease `pk-<version>` (ex. `PK-Reader-2026.10.52-debug.apk`), téléchargeable publiquement depuis un téléphone ; le résumé du run affiche le lien.
+
 ## [2026.10.56] - 2026-10-18
 
 ### Changed

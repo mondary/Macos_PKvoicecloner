@@ -1,5 +1,10 @@
 # PK Reader Android
 
+## [2026.10.52] - 2026-10-18
+
+### Changed
+- **APK publié en release à chaque build** : le workflow crée (ou met à jour) la prerelease `pk-<version>` avec l’APK `PK-Reader-<version>-debug.apk` en pièce jointe — lien direct téléchargeable depuis le téléphone, sans session GitHub ni ZIP d’artefact à décompresser. Le résumé du run affiche le lien.
+
 ## [2026.10.51] - 2026-10-18
 
 ### Changed

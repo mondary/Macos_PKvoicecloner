@@ -1,0 +1,76 @@
+name: Android Reader
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/android-reader, dev, main]
+    paths:
+      - 'android/**'
+      - 'src/mobile/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'capacitor.config.ts'
+      - 'vite.config.ts'
+      - '.github/workflows/android-reader.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-reader-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - run: pnpm install --frozen-lockfile
+      - name: Verify book imports and gateway
+        run: |
+          pnpm test
+          python3 -m unittest discover -s src/mobile/tests -p 'test_*.py'
+      - run: pnpm mobile:prepare
+      - run: pnpm android:deps
+      - name: Compile APK and Android tests
+        working-directory: android
+        run: ./gradlew assembleDebug assembleDebugAndroidTest lintDebug --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PK-Reader-Android-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Verify offline synthesis and playback service
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disable-animations: true
+          script: cd android && ./gradlew connectedDebugAndroidTest --stacktrace
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Android-check-reports
+          path: |
+            android/app/build/reports/
+            android/app/build/outputs/androidTest-results/

@@ -1,0 +1,30 @@
+{
+  "name": "pk-reader",
+  "version": "2026.10.47",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.22.0",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "mobile:prepare": "pnpm build && cap sync android",
+    "test": "vitest run",
+    "android:deps": "node src/mobile/scripts/native-deps.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/core": "8.5.3",
+    "@fontsource/dm-sans": "5.3.0",
+    "@fontsource/literata": "5.3.0",
+    "fflate": "0.8.3",
+    "lucide": "1.59.0",
+    "pdfjs-dist": "6.4.299"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3",
+    "typescript": "~5.9.3",
+    "vite": "8.3.4",
+    "vitest": "^4.0.0",
+    "jsdom": "^27.0.0"
+  }
+}

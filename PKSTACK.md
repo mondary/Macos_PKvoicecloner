@@ -25,6 +25,9 @@
 
 ## Skills récemment appliquées
 
+- `capacitor-pnpm-setup` / `frontend-design` / `nosdk-cloud-builds` — PK Reader Android : interface originale dans `src/mobile`, service de lecture natif, modèles Piper, passerelle mobile et APK/test émulateur GitHub Actions. Version Android suivie séparément dans `src/mobile/CHANGELOG.md`.
+- `ego-browser` / `ego-browser-user-policy` — références Readexa et contrôle de l’interface mobile dans un TaskSpace isolé.
+- `pk-commits` — commits Android ciblés, documentation et version CalVer mobile.
 - `macos-menu-and-settings` / `macos-build` / `pk-commits` — coordination de la fenêtre SwiftUI du studio : réouverture après fermeture, restauration après minimisation et conservation des demandes Réglages/À propos/mises à jour, en 2026.10.46-dev.
 - `pk-app-release` / `publish-macos-sparkle` / `pkhomebrew` / `dmgly-dmg-install` — promotion de la version Dev validée en Stable 2026.10.45, archives signées, DMG, installateur, appcast et cask synchronisés.
 - `macos-menu-and-settings` / `macos-build` — menu contextuel de la barre des menus et fond homogène de la page À propos ; compilation native et contrôle visuel.

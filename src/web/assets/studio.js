@@ -1218,7 +1218,7 @@
           actif.textContent = "● Actif";
           actions.appendChild(actif);
           const desactiver = document.createElement("button");
-          desactiver.className = "pill-light";
+          desactiver.className = "model-desactiver";
           desactiver.type = "button";
           desactiver.textContent = "Désactiver";
           desactiver.title = "Éteint ce modèle et libère sa mémoire — réactivable à tout moment";
@@ -1226,9 +1226,10 @@
           actions.appendChild(desactiver);
         } else {
           const activer = document.createElement("button");
-          activer.className = "pill-light";
+          activer.className = "model-activer";
           activer.type = "button";
           activer.textContent = "Activer";
+          activer.title = "Charge ce modèle en mémoire pour pouvoir l'utiliser";
           activer.addEventListener("click", () => category === "tts" ? switchEngine(m.moteur) : activerModele(m.id));
           actions.appendChild(activer);
         }
@@ -1242,10 +1243,11 @@
         }
       } else {
         const btn = document.createElement("button");
-        btn.className = "model-delete";
+        btn.className = m.etat === "erreur" ? "model-relancer" : "model-installer";
         btn.type = "button";
         btn.textContent = m.etat === "erreur" ? "Réessayer" : "Installer";
         if (m.etat === "erreur") btn.title = `Échec : ${m.erreur || "erreur"} — clique pour réessayer`;
+        else btn.title = "Télécharge les poids dans le cache local, puis active le modèle";
         btn.addEventListener("click", () => installerModele(m.id));
         actions.appendChild(btn);
       }

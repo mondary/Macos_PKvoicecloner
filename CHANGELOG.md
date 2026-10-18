@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.56] - 2026-10-18
+
+### Changed
+- **Modèles du studio web : une couleur par action**, alignée sur l'app native. **Installer** est un vrai bouton plein — ce n'était qu'un lien souligné avec un survol rouge, l'action principale passait complètement inaperçue ; **Activer** passe au vert, **Désactiver** reste neutre, **Réessayer** (après un échec) s'affiche en rouge.
+
 ## [2026.10.55] - 2026-10-18
 
 ### Changed

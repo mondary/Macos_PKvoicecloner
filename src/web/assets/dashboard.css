@@ -284,6 +284,18 @@ body.book-focus .books-head,body.book-focus .book-drop{display:none!important}
 .play.loading svg{opacity:.25}.play.playing{color:var(--coral-deep);border-color:var(--coral)}.piper-row .play{width:28px;height:28px;margin-left:0}.catalog-row .play{width:30px;height:30px;margin-left:0;flex:none}.model-voix-puce .play{margin-left:0}
 .automatiser-btn{border-color:var(--coral);color:var(--coral-deep)}.automatiser-btn:hover:not(:disabled){background:var(--coral-tint)}
 .model-actions{display:flex;gap:6px;align-items:center;flex:none}
+/* Modèles : une couleur par action — installer (plein, on ne peut pas le manquer),
+   activer (vert), désactiver (neutre), réessayer (rouge). */
+.model-installer{border-radius:5px;background:var(--ink);color:#fff;border:1px solid var(--ink);font:600 10px var(--sans);padding:5px 10px}
+.model-installer:hover{background:#27272a}
+.model-activer{border-radius:5px;border:1px solid #86efac;background:#f0fdf4;color:#15803d;font:600 10px var(--sans);padding:5px 10px}
+.model-activer:hover{background:#dcfce7}
+.model-desactiver{border-radius:5px;border:1px solid var(--line-2);background:#fff;color:var(--ink-2);font:10px var(--sans);padding:5px 9px}
+.model-desactiver:hover{background:var(--soft)}
+.model-relancer{border-radius:5px;border:1px solid #fecaca;background:#fef2f2;color:#b91c1c;font:600 10px var(--sans);padding:5px 10px}
+.model-relancer:hover{background:#fee2e2}
+.model-downloads .model-delete{border:1px solid var(--line);border-radius:5px;background:var(--soft);color:var(--faint);font:10px var(--sans);padding:5px 9px;text-decoration:none}
+.model-downloads .model-delete:hover{color:var(--faint)}
 .model-actif{color:#16a34a;font-weight:600;font-size:11px}
 .model-suppr{border:1px solid var(--line-2);border-radius:5px;background:white;color:var(--ink-2);font:10px var(--sans);padding:4px 8px;cursor:pointer}
 .model-suppr:hover{border-color:#b91c1c;color:#b91c1c}

@@ -32,6 +32,13 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - name: Lire la version de l'application
+        id: version
+        run: |
+          VERSION=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' package.json | head -1)
+          test -n "$VERSION" || { echo "Version introuvable dans package.json"; exit 1; }
+          echo "name=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version de l'application : $VERSION"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -51,10 +58,18 @@ jobs:
       - name: Compile APK and Android tests
         working-directory: android
         run: ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug --stacktrace
+      - name: Vérifier le nom et la version de l'APK
+        run: |
+          APK="android/app/build/outputs/apk/debug/PK-Reader-${{ steps.version.outputs.name }}-debug.apk"
+          if [ ! -f "$APK" ]; then echo "APK introuvable : $APK"; find android/app/build/outputs/apk -name '*.apk'; exit 1; fi
+          AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt2 | sort | tail -1)
+          "$AAPT" dump badging "$APK" | grep -E '^package:'
+          "$AAPT" dump badging "$APK" | grep -q "versionName='${{ steps.version.outputs.name }}'" \
+            || { echo "Le versionName de l'APK ne correspond pas à ${{ steps.version.outputs.name }}"; exit 1; }
       - uses: actions/upload-artifact@v4
         with:
-          name: PK-Reader-Android-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: PK-Reader-${{ steps.version.outputs.name }}-debug
+          path: android/app/build/outputs/apk/debug/PK-Reader-*-debug.apk
           if-no-files-found: error
       - name: Enable emulator acceleration
         run: |

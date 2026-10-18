@@ -4,7 +4,9 @@ PK Reader est l’application de lecture personnelle du projet. Elle importe des
 
 ## Installer
 
-Le workflow **Android Reader** construit un APK de développement pour Android 8+ en ARM64 et x86_64. L’artefact `PK-Reader-Android-debug` contient `app-debug.apk`. Ce paquet sert aux essais ; il n’est pas publié sur Google Play.
+Le workflow **Android Reader** construit un APK de développement pour Android 8+ en ARM64 et x86_64. L’artefact porte le numéro de version : `PK-Reader-2026.10.51-debug` contient `PK-Reader-2026.10.51-debug.apk`. Ce paquet sert aux essais ; il n’est pas publié sur Google Play.
+
+**Vérifier la version** — le même numéro se lit partout : nom du fichier APK, nom de l’artefact GitHub, écran Android **Paramètres → Applications → PK Reader**, et dans l’app en bas de la bibliothèque et dans **Réglages → À propos**. Le workflow refuse un APK dont le `versionName` ne correspond pas à ce numéro.
 
 Après compilation, l’APK récupéré localement se trouve dans `releases/android/`. Copiez-le sur le téléphone, ouvrez-le et autorisez l’installation depuis l’application utilisée pour l’ouvrir.
 
@@ -34,7 +36,10 @@ La passerelle est indépendante du serveur principal et s’arrête avec Ctrl-C.
 - **+** : importer plusieurs livres ou coller un texte.
 - Toucher une phrase : choisir le point de départ.
 - Lecture / pause, phrase précédente / suivante, vitesse 0,75×–3×.
-- Bouton chapitres : navigation et signets.
+- **Chapitre précédent / suivant** dans l’en-tête, ou la liste complète des chapitres et les signets.
+- **Pages ou défilement** : par défaut le chapitre se tourne page à page — au doigt, avec les flèches en bas, ou au clavier — et le chapitre s’ouvre sur sa page de titre ; Apparence propose le défilement continu.
+- **Barre « en cours »** : quand vous quittez la phrase lue en tournant les pages ou en défilant, la barre du bas montre la phrase en cours de lecture et y ramène d’un geste ; le suivi automatique reprend alors.
+- **Changer de voix sans quitter le lecteur** : la pastille de voix ouvre une feuille listant clones, voix Piper installées et voix du téléphone, appliquées aussitôt.
 - Minuteur : arrêt après 5, 15, 30, 45 ou 60 minutes.
 - Thèmes clair, papier et nuit ; taille de texte ajustable.
 - Notifications et écran verrouillé : commandes du service audio Android.

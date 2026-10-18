@@ -1,6 +1,12 @@
 apply plugin: 'com.android.application'
 apply plugin: 'org.jetbrains.kotlin.android'
 
+/* Version unique pour le paquet : package.json est la source de vérité.
+   On peut la forcer ponctuellement avec -PpkVersionName / -PpkVersionCode. */
+def pkPackage = new groovy.json.JsonSlurper().parse(file('../../package.json'))
+def pkVersionName = (project.findProperty('pkVersionName') ?: pkPackage.version).toString()
+def pkVersionCode = ((project.findProperty('pkVersionCode') ?: pkVersionName.replaceAll('[^0-9]', '')) as String).toInteger()
+
 android {
     namespace = "fr.pk.reader"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -8,8 +14,8 @@ android {
         applicationId "fr.pk.reader"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 20261049
-        versionName "2026.10.49"
+        versionCode pkVersionCode
+        versionName pkVersionName
         ndk { abiFilters 'arm64-v8a', 'x86_64' }
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -23,6 +29,15 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+/* Le fichier APK porte la version : PK-Reader-2026.10.51-debug.apk */
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.outputs.each { output ->
+            output.outputFileName.set("PK-Reader-${pkVersionName}-${variant.buildType}.apk")
         }
     }
 }

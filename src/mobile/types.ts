@@ -11,10 +11,10 @@ export interface Voice {
 }
 export interface Settings {
   voice: string; rate: number; theme: 'light' | 'dark' | 'paper';
-  fontSize: number; server: string; token: string;
+  fontSize: number; layout: 'pages' | 'scroll'; server: string; token: string;
 }
 export interface Playback {
   bookId: string; index: number; playing: boolean; loading: boolean;
   error?: string; sleepAt?: number; preparing?: boolean; prepared?: number; total?: number;
 }
-export const defaults: Settings = { voice: 'system:default', rate: 1, theme: 'light', fontSize: 22, server: '', token: '' };
+export const defaults: Settings = { voice: 'system:default', rate: 1, theme: 'light', fontSize: 22, layout: 'pages', server: '', token: '' };

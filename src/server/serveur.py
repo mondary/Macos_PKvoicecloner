@@ -693,6 +693,107 @@ def piper_apercu(vid: str, locuteur: int = 0):
     return FileResponse(cible, media_type="audio/wav")
 
 
+# --------------------------------------------------- attribution automatique
+
+# Genre deviné des voix Piper : les noms de locuteurs français sont parlants.
+_GENRES_PIPER = {
+    "siwis": "femme", "tom": "homme", "gilles": "homme", "upmc": "inconnu",
+    "jessica": "femme", "pierre": "homme", "sophie": "femme", "marie": "femme",
+    "lea": "femme", "léa": "femme", "paul": "homme", "jean": "homme",
+}
+
+
+def _genre_piper(voix_id: str, locuteur: str = "") -> str:
+    nom = (locuteur or "").strip().lower()
+    if nom in _GENRES_PIPER:
+        return _GENRES_PIPER[nom]
+    base = voix_id.split("-", 1)[1].split("-", 1)[0].lower() if "-" in voix_id else voix_id.lower()
+    return _GENRES_PIPER.get(base, "inconnu")
+
+
+def _candidats_voix() -> list[dict]:
+    """Voix disponibles pour l'attribution automatique : clones puis Piper.
+
+    Une voix Piper multi-locuteurs devient un candidat par locuteur, avec le
+    genre deviné d'après son nom (jessica → femme, pierre → homme)."""
+    candidats = [{"ref": v["id"], "nom": v.get("nom") or v["id"], "genre": "inconnu", "famille": "clone"}
+                 for v in liste_voix()["voix"]]
+    for vid, info in sorted(_piper_voix_installees().items()):
+        noms: dict[str, int] = {}
+        try:
+            noms = json.loads(Path(info["config"]).read_text(encoding="utf-8")).get("speaker_id_map") or {}
+        except (OSError, json.JSONDecodeError, TypeError):
+            noms = {}
+        base = vid.split("-", 1)[1].split("-", 1)[0] if "-" in vid else vid
+        if len(noms) > 1:
+            for nom, ident in sorted(noms.items(), key=lambda item: item[1]):
+                candidats.append({"ref": f"piper:{vid}:{ident}", "nom": f"{base} · {nom}",
+                                  "genre": _genre_piper(vid, nom), "famille": "piper"})
+        else:
+            candidats.append({"ref": f"piper:{vid}", "nom": base,
+                              "genre": _genre_piper(vid), "famille": "piper"})
+    return candidats
+
+
+def _attribution_auto(projet: dict) -> dict:
+    """Attribue une voix aux rôles qui n'en ont pas : genre d'abord, réutilisation en dernier recours.
+
+    Le narrateur passe en premier, puis les personnages par importance. Une
+    association manuelle est conservée et réserve sa voix ; une association
+    posée par une précédente automatisation est recalculée."""
+    cast = projet.get("cast") or []
+    assigns = dict(projet.get("voix_assignees") or {})
+    candidats = _candidats_voix()
+    if not cast or not candidats:
+        return {"attribues": 0, "reutilisations": 0, "manquants": len(cast)}
+    auto = set(projet.get("auto_assigne") or [])
+    for role in cast:                         # l'automatisation refait ses propres choix
+        if role["id"] in auto:
+            assigns.pop(role["id"], None)
+    manuels = {rid for rid in assigns}        # ce qui reste est un réglage manuel
+    ordre = {"principal": 0, "secondaire": 1, "figurant": 2}
+    roles = sorted(cast, key=lambda r: (0 if r.get("role") == "narrateur" else 1,
+                                        ordre.get(r.get("importance", "secondaire"), 1)))
+    utilises: dict[str, int] = {}
+    for role in cast:
+        ref = assigns.get(role.get("id"))
+        if ref:
+            utilises[ref] = utilises.get(ref, 0) + 1
+    attribues = reutilisations = 0
+    for role in roles:
+        if assigns.get(role.get("id")):
+            continue
+        genre = role.get("genre", "indetermine")
+        libres = [c for c in candidats if c["ref"] not in utilises]
+        choix = None
+        reutilise = False
+        if genre != "indetermine":
+            choix = next((c for c in libres if c["genre"] == genre), None)
+        if choix is None:
+            choix = next((c for c in libres if c["genre"] == "inconnu"), None)
+        if choix is None and genre != "indetermine":
+            # pas de voix libre du bon genre : mieux vaut réutiliser une voix du
+            # bon genre (la moins sollicitée) que trahir le genre du personnage
+            pool = [c for c in candidats if c["genre"] == genre]
+            if pool:
+                choix = min(pool, key=lambda c: utilises.get(c["ref"], 0))
+                reutilise = True
+        if choix is None:
+            choix = next((c for c in libres), None)
+        if choix is None:
+            choix = min(candidats, key=lambda c: utilises.get(c["ref"], 0))
+            reutilise = True
+        assigns[role["id"]] = choix["ref"]
+        utilises[choix["ref"]] = utilises.get(choix["ref"], 0) + 1
+        if reutilise:
+            reutilisations += 1
+        else:
+            attribues += 1
+    projet["voix_assignees"] = assigns
+    projet["auto_assigne"] = sorted(rid for rid in assigns if rid not in manuels)
+    return {"attribues": attribues, "reutilisations": reutilisations, "manquants": 0}
+
+
 @app.get("/api/audios")
 def liste_audios():
     fichiers = sorted(SORTIES.glob("*.wav"), key=lambda f: f.stat().st_mtime, reverse=True)
@@ -1326,6 +1427,8 @@ def associer_voix_livre(lid: str, req: dict = Body(...)):
     projet = livres.enregistrer_correspondances_voix(LIVRES, _id_livre(lid), correspondances)
     if not projet:
         raise HTTPException(404, "livre inconnu")
+    projet["auto_assigne"] = []      # un réglage manuel reprend la main sur l'automatisation
+    livres._ecrire_projet(LIVRES, _id_livre(lid), projet)
     return {"voix_assignees": projet.get("voix_assignees", {})}
 
 
@@ -1783,6 +1886,75 @@ def lancer_analyse(lid: str, req: dict = Body(default=None)):
         except Exception as erreur:  # noqa: BLE001 — l'état d'erreur doit rester visible dans le projet
             projet["analyse"] = {"etat": "erreur", "erreur": str(erreur)[:300]}
             livres._ecrire_projet(LIVRES, lid, projet)
+        finally:
+            analyses_en_cours.discard(lid)
+
+    threading.Thread(target=tache, daemon=True).start()
+    return {"ok": True, "etat": "en_cours"}
+
+
+@app.post("/api/livres/{lid}/automatiser", status_code=202)
+def automatiser_livre(lid: str, req: dict = Body(default=None)):
+    """Tout automatiser : analyse IA si besoin → découpe phrase par phrase → voix.
+
+    Avec {chapitre: n}, la séquence ne porte que sur ce chapitre ; sans lui,
+    sur tout le livre. L'attribution des voix est automatique (genre des
+    personnages d'abord) et ne remplace jamais une association manuelle."""
+    lid = _id_livre(lid)
+    req = req or {}
+    projet = livres.lire(LIVRES, lid)
+    if not projet:
+        raise HTTPException(404, "livre inconnu")
+    numero = req.get("chapitre")
+    numeros = [int(numero)] if numero else None
+    if numeros and not any(c["num"] in numeros for c in projet["chapitres"]):
+        raise HTTPException(404, "chapitre inconnu")
+    if lid in analyses_en_cours or projet.get("analyse", {}).get("etat") == "en_cours":
+        raise HTTPException(409, "un traitement est déjà en cours pour ce livre — suis la progression sur la carte")
+    besoin_analyse = any((numeros is None or c["num"] in numeros) and c.get("analyse") != "faite"
+                         for c in projet["chapitres"])
+    cfg = _lire_ia() if besoin_analyse else {}
+    if besoin_analyse and not (cfg.get("base_url") and cfg.get("cle") and cfg.get("modele")):
+        raise HTTPException(400, "configuration IA absente : renseigne l'endpoint, la clé et le modèle dans Réglages IA")
+    # l'état passe en cours AVANT la réponse : l'interface suit la séquence
+    # entière (analyse → phrases → voix) sans fenêtre où elle croirait avoir fini
+    projet["analyse"] = {"etat": "en_cours", "phase": "préparation de l'automatisation",
+                         "courant": 0, "total": 0}
+    livres._ecrire_projet(LIVRES, lid, projet)
+
+    def tache():
+        analyses_en_cours.add(lid)
+        try:
+            if besoin_analyse:
+                livres.analyser_livre(LIVRES, lid, cfg, numeros=numeros)
+            etat = livres.lire(LIVRES, lid) or projet
+            cibles = [c for c in etat["chapitres"]
+                      if (numeros is None or c["num"] in numeros) and c.get("analyse") == "faite"]
+            etat["analyse"] = {"etat": "en_cours", "phase": "découpage phrase par phrase",
+                               "courant": 0, "total": len(cibles)}
+            livres._ecrire_projet(LIVRES, lid, etat)
+            for avance, chapitre in enumerate(cibles, 1):
+                try:
+                    livres.redecouper_chapitre(LIVRES, lid, chapitre["num"])
+                except livres.LivreErreur:
+                    pass    # chapitre vide ou jamais taggé : on passe
+                etat = livres.lire(LIVRES, lid) or etat
+                etat["analyse"] = {"etat": "en_cours", "phase": "découpage phrase par phrase",
+                                   "courant": avance, "total": len(cibles)}
+                livres._ecrire_projet(LIVRES, lid, etat)
+            etat = livres.lire(LIVRES, lid) or etat
+            etat["analyse"] = {"etat": "en_cours", "phase": "attribution automatique des voix",
+                               "courant": 0, "total": 1}
+            livres._ecrire_projet(LIVRES, lid, etat)
+            rapport = _attribution_auto(etat)
+            etat["analyse"] = {"etat": "faite",
+                               "chapitres": sum(1 for c in etat["chapitres"] if c.get("analyse") == "faite"),
+                               "attribution_auto": rapport}
+            livres._ecrire_projet(LIVRES, lid, etat)
+        except Exception as erreur:  # noqa: BLE001 — l'état d'erreur doit rester visible dans le projet
+            etat = livres.lire(LIVRES, lid) or projet
+            etat["analyse"] = {"etat": "erreur", "erreur": str(erreur)[:300]}
+            livres._ecrire_projet(LIVRES, lid, etat)
         finally:
             analyses_en_cours.discard(lid)
 

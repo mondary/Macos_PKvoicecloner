@@ -1,6 +1,12 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.51] - 2026-10-18
+
+### Added
+- **Tout automatiser** (studio web) : un bouton par chapitre ou pour tout le livre enchaîne la séquence complète — analyse IA si nécessaire, découpe phrase par phrase, puis **attribution automatique des voix** selon le genre des personnages (le narrateur d'abord, voix féminines/masculines respectées, réutilisation des voix quand la distribution est trop courte).
+- Les associations de voix faites à la main sont conservées ; à la fin, la notification indique combien de voix ont été attribuées et combien ont été réutilisées.
+
 ## [2026.10.50] - 2026-10-18
 
 ### Changed

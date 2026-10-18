@@ -148,6 +148,60 @@ class StudioContracts(unittest.TestCase):
             self.assertEqual(self.client.post('/api/moteur', json={'moteur': 'piper'}).status_code, 202)
         self.assertFalse(server.moteur_eteint)
 
+    def test_genre_piper_devine_par_nom(self):
+        self.assertEqual(server._genre_piper('fr_FR-siwis-medium'), 'femme')
+        self.assertEqual(server._genre_piper('fr_FR-upmc-medium', 'pierre'), 'homme')
+        self.assertEqual(server._genre_piper('fr_FR-upmc-medium', 'jessica'), 'femme')
+        self.assertEqual(server._genre_piper('fr_FR-mls-medium'), 'inconnu')
+
+    def test_attribution_auto_par_genre_puis_reutilisation(self):
+        projet = {"cast": [
+            {"id": "narrateur", "nom": "Narrateur", "role": "narrateur", "genre": "femme", "importance": "principal"},
+            {"id": "marc", "nom": "Marc", "role": "personnage", "genre": "homme", "importance": "principal"},
+            {"id": "lea", "nom": "Léa", "role": "personnage", "genre": "femme", "importance": "secondaire"},
+            {"id": "np1", "nom": "Voix inconnue 1", "role": "personnage", "genre": "homme", "importance": "figurant"},
+        ], "voix_assignees": {}}
+        candidats = [{"ref": "clone-f", "nom": "Narratrice", "genre": "femme", "famille": "clone"},
+                     {"ref": "piper:fr_FR-upmc-medium:1", "nom": "upmc · pierre", "genre": "homme", "famille": "piper"}]
+        with patch.object(server, '_candidats_voix', return_value=candidats):
+            rapport = server._attribution_auto(projet)
+        self.assertEqual(rapport, {"attribues": 2, "reutilisations": 2, "manquants": 0})
+        # chaque rôle reçoit une voix de son genre, le narrateur d'abord
+        self.assertEqual(projet["voix_assignees"]["narrateur"], "clone-f")
+        self.assertEqual(projet["voix_assignees"]["marc"], "piper:fr_FR-upmc-medium:1")
+        self.assertEqual(projet["voix_assignees"]["lea"], "clone-f")
+        self.assertEqual(projet["voix_assignees"]["np1"], "piper:fr_FR-upmc-medium:1")
+        # une association manuelle est conservée et réserve sa voix
+        projet2 = {"cast": projet["cast"], "voix_assignees": {"marc": "clone-f"}}
+        with patch.object(server, '_candidats_voix', return_value=candidats):
+            rapport2 = server._attribution_auto(projet2)
+        self.assertEqual(projet2["voix_assignees"]["marc"], "clone-f")
+        self.assertEqual(rapport2["attribues"], 1)
+        self.assertEqual(rapport2["reutilisations"], 2)
+        # sans voix disponible, on le dit au lieu d'inventer
+        with patch.object(server, '_candidats_voix', return_value=[]):
+            self.assertEqual(server._attribution_auto({"cast": projet["cast"], "voix_assignees": {}}),
+                             {"attribues": 0, "reutilisations": 0, "manquants": 4})
+        # pas de voix libre du bon genre : réutiliser plutôt que trahir le genre
+        projet3 = {"cast": [
+            {"id": "a", "nom": "A", "role": "personnage", "genre": "homme", "importance": "principal"},
+            {"id": "b", "nom": "B", "role": "personnage", "genre": "homme", "importance": "secondaire"},
+        ], "voix_assignees": {}}
+        candidats3 = [{"ref": "h1", "nom": "Pierre", "genre": "homme", "famille": "piper"},
+                      {"ref": "f1", "nom": "Jessica", "genre": "femme", "famille": "piper"}]
+        with patch.object(server, '_candidats_voix', return_value=candidats3):
+            rapport3 = server._attribution_auto(projet3)
+        self.assertEqual(projet3["voix_assignees"], {"a": "h1", "b": "h1"})
+        self.assertEqual(rapport3["reutilisations"], 1)
+        self.assertEqual(projet3["auto_assigne"], ["a", "b"])
+        # une attribution automatique précédente est recalculée, une manuelle est gardée
+        projet4 = {"cast": projet3["cast"], "voix_assignees": {"a": "f1", "b": "h1"},
+                   "auto_assigne": ["a"]}
+        with patch.object(server, '_candidats_voix', return_value=candidats3):
+            server._attribution_auto(projet4)
+        self.assertEqual(projet4["voix_assignees"], {"a": "h1", "b": "h1"})
+        self.assertEqual(projet4["auto_assigne"], ["a"])
+
     def test_model_catalogue_install_rename_delete(self):
         models = self.client.get('/api/modeles').json()['modeles']
         self.assertEqual(len(models), 8)

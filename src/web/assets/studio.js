@@ -1699,6 +1699,52 @@
     }
   }
 
+  /* Tout automatiser : analyse IA si besoin → découpe phrase par phrase →
+     attribution automatique des voix (genre des personnages d'abord). */
+  async function automatiserLivre(book, options = {}) {
+    if (shuttingDown) return;
+    const corps = {};
+    if (options.chapitre) corps.chapitre = options.chapitre;
+    try {
+      const response = await fetch(`/api/livres/${book.id}/automatiser`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(corps),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "automatisation impossible");
+      const cibles = corps.chapitre ? [corps.chapitre] : book.chapitres.map((c) => c.num);
+      cibles.forEach((num) => {
+        chapterTexts.delete(`${book.id}:${num}`);
+        chapterDrafts.delete(`${book.id}:${num}`);
+      });
+      notify(corps.chapitre
+        ? `Automatisation du chapitre ${corps.chapitre} lancée : analyse → phrases → voix.`
+        : `Automatisation de « ${book.titre} » lancée : analyse → phrases → voix.`);
+      await refreshBooks();
+      surveillerAnalyses();
+    } catch (error) {
+      notify(`Automatisation impossible : ${error.message}`, "error");
+    }
+  }
+
+  function boutonAutomatiser(book, chapitre = null) {
+    const bouton = document.createElement("button");
+    bouton.className = "pill-light automatiser-btn";
+    bouton.type = "button";
+    bouton.innerHTML = `${ICON_SPARK} ${chapitre ? "Tout automatiser ce chapitre" : "Tout automatiser"}`;
+    bouton.title = "Analyse IA si besoin → découpe phrase par phrase → attribution automatique des voix " +
+                   "(féminine/masculine) ; tes associations manuelles sont conservées";
+    bouton.disabled = book.analyse?.etat === "en_cours";
+    bouton.addEventListener("click", () => {
+      const portee = chapitre ? `le chapitre ${chapitre}` : `tout « ${book.titre} »`;
+      if (window.confirm(`Tout automatiser sur ${portee} ?\n\nAnalyse IA si nécessaire → découpe phrase par phrase → attribution automatique des voix.`)) {
+        automatiserLivre(book, { chapitre });
+      }
+    });
+    return bouton;
+  }
+
   function castChips(book, limit = 0) {
     const div = document.createElement("div");
     div.className = "cast-chips";
@@ -1820,8 +1866,13 @@
         if (!silencieux) {
           const faites = book.chapitres.filter((c) => c.analyse === "faite").length;
           const tokens = book.tokens_ia || book.analyse?.tokens;
+          const attribution = book.analyse?.attribution_auto;
+          const voixAuto = attribution
+            ? ` · ${attribution.attribues} voix attribuée${attribution.attribues > 1 ? "s" : ""} automatiquement` +
+              (attribution.reutilisations ? ` (${attribution.reutilisations} réutilisée${attribution.reutilisations > 1 ? "s" : ""})` : "")
+            : "";
           notify(`Analyse terminée : ${faites}/${book.chapitres.length} chapitres · ` +
-                 `${book.cast.length} voix${tokens ? ` · ${tokens.toLocaleString("fr-FR")} tokens` : ""}`);
+                 `${book.cast.length} voix${tokens ? ` · ${tokens.toLocaleString("fr-FR")} tokens` : ""}${voixAuto}`);
         }
       }
     });
@@ -2156,7 +2207,7 @@
         exporterLivre.disabled = false;
       }
     });
-    actions.append(boutonAnalyse(book), exporterLivre, boutonSuppression(book), exportStatus);
+    actions.append(boutonAutomatiser(book), boutonAnalyse(book), exporterLivre, boutonSuppression(book), exportStatus);
     head.append(cover, infos, actions);
     page.appendChild(head);
     if (book.cast?.length) {
@@ -2326,6 +2377,7 @@
     relance.addEventListener("click", () => analyzeBook(book, {
       chapitre: chapter.num, forcer: analyseFait,
     }));
+    actions.appendChild(boutonAutomatiser(book, chapter.num));
     actions.appendChild(relance);
     if (analyseFait) {
       const verifier = document.createElement("button");

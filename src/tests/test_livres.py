@@ -556,6 +556,64 @@ class AnalyseContracts(unittest.TestCase):
         self.assertEqual(refus.status_code, 400)
         self.assertIn("analys", refus.json()["detail"])
 
+    def test_automatisation_complete_du_chapitre(self):
+        livre = self.livre(CHAPITRES[:1])
+        self.client.post("/api/ia/config", json={
+            "base_url": "https://exemple.test/v1", "cle": "sk-test", "modele": "faux"})
+        # voix simulées pour l'attribution automatique : une femme, un homme
+        candidats = [{"ref": "narratrice", "nom": "Narratrice", "genre": "femme", "famille": "clone"},
+                     {"ref": "piper:fr_FR-upmc-medium:1", "nom": "upmc · pierre", "genre": "homme", "famille": "piper"}]
+        with patch.object(server, "_candidats_voix", return_value=candidats):
+            reponse = self.client.post(f"/api/livres/{livre['id']}/automatiser", json={"chapitre": 1})
+            self.assertEqual(reponse.status_code, 202, reponse.text)
+            projet = {}
+            for _ in range(400):
+                projet = self.client.get(f"/api/livres/{livre['id']}").json()
+                if projet.get("analyse", {}).get("etat") in ("faite", "erreur"):
+                    break
+                time.sleep(0.05)
+        self.assertEqual(projet["analyse"]["etat"], "faite", projet.get("analyse"))
+        chapitre = projet["chapitres"][0]
+        self.assertEqual(chapitre["analyse"], "faite")
+        # découpé phrase par phrase : le chapitre a plusieurs segments taggés
+        self.assertGreaterEqual(chapitre["segments"], 3)
+        texte = self.client.get(f"/api/livres/{livre['id']}/chapitre/1").json()["texte"]
+        lignes = [l for l in texte.splitlines() if l.startswith("///")]
+        self.assertEqual(len(lignes), chapitre["segments"])
+        # attribution automatique : tous les rôles servis, par genre
+        assign = projet["voix_assignees"]
+        genres = {v["id"]: v["genre"] for v in projet["cast"]}
+        self.assertEqual(set(assign), set(genres))
+        genre_voix = {"narratrice": "femme", "piper:fr_FR-upmc-medium:1": "homme"}
+        for role, ref in assign.items():
+            self.assertEqual(genre_voix[ref], genres[role], f"{role} → {ref}")
+        self.assertEqual(projet["analyse"]["attribution_auto"]["attribues"], 2)
+        self.assertEqual(projet["analyse"]["attribution_auto"]["reutilisations"], 2)
+
+    def test_automatisation_sans_ia_quand_tout_est_analyse(self):
+        livre = self.livre(CHAPITRES[:1])
+        livres.analyser_livre(self.root, livre["id"], self.cfg)
+        with patch.object(server, "_candidats_voix", return_value=[
+                {"ref": "clone-f", "nom": "Narratrice", "genre": "femme", "famille": "clone"}]):
+            with patch.object(livres.ia, "appeler", side_effect=AssertionError("IA interdite")):
+                reponse = self.client.post(f"/api/livres/{livre['id']}/automatiser", json={"chapitre": 1})
+                self.assertEqual(reponse.status_code, 202, reponse.text)
+                for _ in range(200):
+                    projet = self.client.get(f"/api/livres/{livre['id']}").json()
+                    if projet.get("analyse", {}).get("etat") in ("faite", "erreur"):
+                        break
+                    time.sleep(0.05)
+        self.assertEqual(projet["analyse"]["etat"], "faite", projet.get("analyse"))
+        self.assertTrue(projet["voix_assignees"])
+
+    def test_automatisation_exige_la_config_ia_si_chapitre_neuf(self):
+        livre = self.livre(CHAPITRES[:1])
+        reponse = self.client.post(f"/api/livres/{livre['id']}/automatiser", json={"chapitre": 1})
+        self.assertEqual(reponse.status_code, 400)
+        self.assertIn("configuration IA", reponse.json()["detail"])
+        self.assertEqual(self.client.post("/api/livres/zzzz/automatiser").status_code, 404)
+        self.assertEqual(self.client.post(f"/api/livres/{livre['id']}/automatiser", json={"chapitre": 9}).status_code, 404)
+
     def test_verifier_attribution_laya(self):
         class AgentFaux:
             def predict(self, state, questions):

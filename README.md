@@ -12,9 +12,9 @@ version **2026.10.47** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANG
 
 ### Android · PK Reader
 
-L’application Android **PK Reader** lit vos EPUB, PDF texte et TXT avec les voix du téléphone, des voix Piper téléchargées ou vos clones PK Voice Studio. Bibliothèque locale, chapitres, signets, thèmes clair/papier/nuit et service audio pour l’écoute en arrière-plan. Les voix clonées nécessitent le Mac pour générer les passages ; les chapitres préparés s’écoutent ensuite hors ligne.
+L’application Android **PK Reader** lit vos EPUB, PDF texte et TXT avec les voix du téléphone, des voix Piper téléchargées ou vos clones PK Voice Studio. Bibliothèque locale, chapitres, signets, thèmes clair/papier/nuit et service audio pour l’écoute en arrière-plan. Lecture **page à page ou en défilement**, barre « en cours » qui garde la phrase lue en vue et changement de voix sans quitter le lecteur. Les voix clonées nécessitent le Mac pour générer les passages ; les chapitres préparés s’écoutent ensuite hors ligne.
 
-[Installation et guide Android](docs/ANDROID.md) · [Builds APK](https://github.com/mondary/Macos_PKvoicecloner/actions/workflows/android-reader.yml) · [Changelog Android](src/mobile/CHANGELOG.md)
+[Installation et guide Android](docs/ANDROID.md) · [Builds APK](https://github.com/mondary/Macos_PKvoicecloner/actions/workflows/android-reader.yml) (artefacts et fichiers nommés par version) · [Changelog Android](src/mobile/CHANGELOG.md)
 
 <img src="store/screenshots/android-reader/library.png" width="230" alt="Aperçu web de la bibliothèque PK Reader" /> <img src="store/screenshots/android-reader/reader.png" width="230" alt="Aperçu web du lecteur PK Reader" />
 
@@ -54,6 +54,7 @@ Le site publiable prêt pour FTP est autonome dans [`store/website/`](store/webs
 - **Livres audio (studio web)** — importe un EPUB, compare l'original au texte structuré phrase par phrase, avec attribution colorée des voix, génération des segments et écoute continue avec respirations selon la ponctuation ; l'éditeur audiobook n'est pas encore intégré à SwiftUI
 - **Lecture fidèle du français** — avant la synthèse, le texte est développé : « M. » → « Monsieur », « Louis XVI » → « Louis seize », « 1789 » en toutes lettres, pourcentages, euros et degrés ; le texte affiché reste celui de l'auteur
 - **Redécouper phrase par phrase** — un chapitre analysé par paragraphes se rescinde en phrases complètes, coupées aux clauses si trop longues, sans nouvelle analyse IA ; les audios du chapitre sont alors régénérés au bon rythme
+- **Tout automatiser** — un clic sur un chapitre ou sur le livre enchaîne analyse IA si besoin → découpe phrase par phrase → attribution automatique des voix selon le genre des personnages (féminine/masculine, narrateur d'abord) ; tes associations manuelles sont conservées et la fin de séquence t'indique ce qui a été attribué
 - **Analyse et voix des livres** — enregistre plusieurs providers OpenAI-compatibles (GLM, DeepSeek, OpenAI ou Ollama local), associe chaque personnage à une voix de la bibliothèque et génère les segments individuellement ou en lot séquentiel ; la page livre affiche l'état des analyses, segments et audios
 - **Contrôle d'attribution local (Laya)** — un petit modèle embarqué (322M, chargé une fois depuis le cache Hugging Face partagé) relit chaque chapitre et signale les segments « narrateur » qui ressemblent à du dialogue : zéro token, zéro cloud après le premier téléchargement
 - **Export audiobook** — « Exporter le chapitre » produit un WAV unique avec les pauses de ponctuation intégrées ; « Exporter l'audiobook » assemble le livre en **M4B chapitré** (pochette, métadonnées), écoutable dans Apple Livres et la plupart des lecteurs

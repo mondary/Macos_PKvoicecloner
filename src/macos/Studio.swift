@@ -3,6 +3,7 @@ import AppKit
 import AVFoundation
 import UniformTypeIdentifiers
 
+struct Prechauffage: Codable { var etat: String?; var moteur: String?; var erreur: String? }
 struct ServerState: Codable {
     var modele: Bool
     var voix: Bool
@@ -12,6 +13,7 @@ struct ServerState: Codable {
     var installes: [String]
     var erreur: String?
     var chargement: Bool?
+    var prechauffage: [String: Prechauffage]?
 }
 struct Voice: Codable, Identifiable { let id: String; let nom: String; let duree: Double?; let transcript: String? }
 struct VoiceResponse: Codable { let voix: [Voice] }
@@ -137,9 +139,19 @@ struct StudioError: LocalizedError {
         guard !powerBusy else { return }
         do {
             state = try JSONDecoder().decode(ServerState.self, from: await request("api/etat", timeout: 5))
+            let prechauffage = state?.prechauffage?["transcription"]
             loadingEngine = state?.chargement == true ? state?.moteur : nil
             failedRefreshes = 0
-            if !busy { message = state?.erreur != nil ? "Moteur indisponible" : state?.modele == true ? "Studio prêt" : state?.chargement == false ? "Choisis un moteur" : "Chargement du modèle…" }
+            if !busy {
+                message = state?.erreur != nil ? "Moteur indisponible"
+                    : state?.modele == true ? "Studio prêt"
+                    : prechauffage?.etat == "en_cours" ? "Préparation de la transcription…"
+                    : state?.chargement == false ? "Choisis un moteur"
+                    : "Chargement du modèle…"
+            }
+            if state?.erreur == nil, prechauffage?.etat == "erreur", let detail = prechauffage?.erreur, !detail.isEmpty, !busy {
+                error = "Préparation de la transcription impossible : \(detail)"
+            }
         } catch {
             failedRefreshes += 1
             if failedRefreshes >= 3 && !generating && !busy { state = nil; message = "Studio déconnecté"; selectedVoiceID = nil }
@@ -359,6 +371,20 @@ struct StudioError: LocalizedError {
         await perform {
             _ = try await self.request("api/modeles/\(model.id)/activer", method: "POST")
             try await self.refreshLibrary()
+        }
+        await refresh()
+    }
+
+    /// Un modèle est en train de charger pour de vrai : installation des poids,
+    /// moteur TTS qui monte en mémoire, ou préchauffage de la transcription.
+    func chargementEnCours(_ model: Model) -> Bool {
+        if model.etat == "en_cours" { return true }
+        switch model.categorie ?? "tts" {
+        case "tts": return state?.chargement == true && state?.moteur == model.moteur
+        case "transcription":
+            let prechauffage = state?.prechauffage?["transcription"]
+            return prechauffage?.etat == "en_cours" && prechauffage?.moteur == model.moteur
+        default: return false
         }
     }
 

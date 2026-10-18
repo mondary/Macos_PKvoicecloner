@@ -34,7 +34,7 @@ The FTP-ready website is self-contained in [`store/website/`](store/website/): u
 
 - **Switchable engines** — **VoxCPM2** (MPS, fast, ~30 languages) and **dots.tts** (2B, high-fidelity 48 kHz cloning, 24 languages): one click in the studio header
 - **Ready-made Piper voices** — a catalogue of 177 voices (30+ languages) downloaded one at a time (20–80 MB), with a one-click listening preview: offline narration without cloning, including inside books where each character can mix a clone and a Piper voice
-- **Models to try** — an **Install** / **Delete** button per optional model (Qwen3-TTS 0.6B, Pocket TTS, Piper): weights land in the local cache and any installed model becomes selectable as a generation engine
+- **Models to try** — an **Install** / **Delete** button per optional model (Qwen3-TTS 0.6B, Pocket TTS, Piper): weights land in the local cache and **Activate really loads the model** (TTS engine into memory, transcription pre-warmed in its own environment) before it becomes selectable as a generation engine
 - **Ultimate cloning** — clip + transcript → timbre, rhythm and style preserved
 - **Voice library** — every imported or recorded clip becomes a persistent clone, reusable across sessions: list, preview, select, delete
 - **Upload or mic** — QuickTime `.m4a`, `.mp3`, `.wav`, `.webm`, or record straight in the page (guided empty state: import or record)
@@ -47,7 +47,7 @@ The FTP-ready website is self-contained in [`store/website/`](store/website/): u
 - **Roadmap** — the "digital double" plan (fast voice cloning, photo → lipsynced video avatar) lives in [TODO.md](TODO.md)
 - **`mavox`** — one-command cloning from the terminal, quoted or not
 - **Native macOS app** — SwiftUI interface: the server starts and stops with the app, automatic Sparkle updates
-- **No-duplicate overview** — voice, model, book and privacy stats; server health, quick voice selection, logs, model installation, recent books and latest generated takes
+- **No-duplicate overview** — voice, model, book and privacy stats; server health, quick voice selection and model installation, with one colour per action: install, activate, deactivate
 - **Book studio inside the native app** — “Open web studio” opens the EPUB library and editor in a macOS app window (WKWebView) while the local server is running
 - **Settings inside the main window (⌘,)** — AI providers and API keys, Hugging Face token, dedicated Credits & inspirations, Project Library, Support/Ko-fi, and About with Stable/Dev channels. The waveform menu bar icon reopens the studio; Dock and menu bar visibility can be configured separately in General.
 - **Aligned navigation, app / web studio** — the same entries on both sides: Overview, Voice library, Text to voice, Books, Models, Settings; the app opens the book studio directly on the chosen book

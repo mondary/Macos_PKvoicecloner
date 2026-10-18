@@ -7,6 +7,12 @@ private enum Dashboard {
     static let muted = Color(red: 0.443, green: 0.443, blue: 0.478)
     static let line = Color(red: 0.894, green: 0.894, blue: 0.906)
     static let soft = Color(red: 0.957, green: 0.957, blue: 0.961)
+    // États d'un modèle : installer (à faire), activer (mise en route), désactiver (extinction),
+    // échec (à reprendre). Une couleur par action, pour ne plus les confondre d'un coup d'œil.
+    static let installer = Color(red: 0.145, green: 0.361, blue: 0.851)
+    static let activer = Color(red: 0.118, green: 0.510, blue: 0.278)
+    static let desactiver = Color(red: 0.712, green: 0.365, blue: 0.043)
+    static let echouer = Color(red: 0.694, green: 0.243, blue: 0.243)
 }
 
 struct ContentView: View {
@@ -43,7 +49,10 @@ struct ContentView: View {
                                     Button("Voir le journal") { studio.openLog() }
                                     if let engine = studio.state?.moteur,
                                        let model = studio.models.first(where: { $0.moteur == engine }) {
-                                        Button(model.installe ? "Activer \(model.label)" : "Installer \(model.label)") { Task { await studio.install(model) } }
+                                        Button(model.installe ? "Activer \(model.label)" : "Installer \(model.label)",
+                                               systemImage: model.installe ? "power" : "arrow.down.circle") { Task { await studio.install(model) } }
+                                            .buttonStyle(.borderedProminent)
+                                            .tint(model.installe ? Dashboard.activer : Dashboard.installer)
                                     }
                                     if studio.error != nil { Button("Masquer") { studio.error = nil } }
                                 }
@@ -200,7 +209,9 @@ struct ContentView: View {
     }
 
     private func loadingDrawer(engine: String) -> some View {
-        let label = ["voxcpm2": "VoxCPM2", "dots": "dots.tts", "qwen3": "Qwen3-TTS", "pocket": "Pocket TTS"][engine] ?? engine
+        let label = ["voxcpm2": "VoxCPM2", "dots": "dots.tts", "qwen3": "Qwen3-TTS", "pocket": "Pocket TTS",
+                     "piper": "Piper", "whisper": "Whisper large-v3", "parakeet-redux": "Parakeet Redux",
+                     "laya": "Laya"][engine] ?? engine
         return HStack(alignment: .top, spacing: 12) {
             ProgressView().controlSize(.small)
             VStack(alignment: .leading, spacing: 4) {
@@ -227,10 +238,7 @@ struct ContentView: View {
     private var overview: some View {
         VStack(alignment: .leading, spacing: 16) {
             stats
-            HStack(alignment: .top, spacing: 16) {
-                diagnostics.frame(maxWidth: .infinity, alignment: .topLeading)
-                recentActivity.frame(maxWidth: .infinity, alignment: .topLeading)
-            }
+            diagnostics
             models
         }
     }
@@ -268,9 +276,13 @@ struct ContentView: View {
                 } else if studio.state?.modele != true,
                           let moteur = studio.state?.moteur,
                           let model = studio.models.first(where: { $0.moteur == moteur }) {
-                    Button(model.installe ? "Activer le moteur" : "Installer le moteur") {
+                    Button(model.installe ? "Activer le moteur" : "Installer le moteur",
+                           systemImage: model.installe ? "power" : "arrow.down.circle") {
                         Task { await studio.install(model) }
-                    }.buttonStyle(.borderedProminent).tint(Dashboard.ink).disabled(controlsLocked)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(model.installe ? Dashboard.activer : Dashboard.installer)
+                    .disabled(controlsLocked)
                 }
             }.padding(12).background(Dashboard.soft).clipShape(RoundedRectangle(cornerRadius: 6))
 
@@ -279,20 +291,20 @@ struct ContentView: View {
                     .buttonStyle(.bordered).disabled(studio.root == nil)
                 Button("Ouvrir le studio web", systemImage: "book") { openWindow(id: "book-studio") }
                     .buttonStyle(.bordered).disabled(studio.state == nil)
-            }.font(.system(size: 11))
-
-            Menu {
-                ForEach(studio.voices) { voice in
-                    Button(voice.nom, systemImage: studio.selectedVoiceID == voice.id ? "checkmark.circle.fill" : "waveform") {
-                        Task { await studio.selectVoice(voice) }
+                Spacer(minLength: 12)
+                Menu {
+                    ForEach(studio.voices) { voice in
+                        Button(voice.nom, systemImage: studio.selectedVoiceID == voice.id ? "checkmark.circle.fill" : "waveform") {
+                            Task { await studio.selectVoice(voice) }
+                        }
                     }
+                } label: {
+                    Label(studio.voices.first(where: { $0.id == studio.selectedVoiceID }).map { "Voix active : \($0.nom)" } ?? "Choisir une voix", systemImage: "waveform")
+                        .lineLimit(1).frame(maxWidth: 340, alignment: .leading)
                 }
-            } label: {
-                Label(studio.voices.first(where: { $0.id == studio.selectedVoiceID }).map { "Voix active : \($0.nom)" } ?? "Choisir une voix", systemImage: "waveform")
-                    .lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .menuStyle(.borderlessButton)
-            .disabled(studio.voices.isEmpty || controlsLocked)
+                .menuStyle(.borderlessButton)
+                .disabled(studio.voices.isEmpty || controlsLocked)
+            }.font(.system(size: 11))
 
             if let missing = studio.models.first(where: { !$0.installe && $0.etat != "en_cours" }) {
                 HStack {
@@ -301,64 +313,13 @@ struct ContentView: View {
                         Text("\(missing.label) · \(missing.taille)").font(.system(size: 10)).foregroundStyle(Dashboard.muted)
                     }
                     Spacer()
-                    Button("Installer") { Task { await studio.install(missing) } }
-                        .buttonStyle(.bordered).disabled(controlsLocked)
+                    Button("Installer", systemImage: "arrow.down.circle") { Task { await studio.install(missing) } }
+                        .buttonStyle(.borderedProminent).tint(Dashboard.installer).disabled(controlsLocked)
                 }
             }
         }.padding(16).frame(maxWidth: .infinity, alignment: .leading).dashboardPanel()
     }
 
-    private var recentActivity: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            panelTitle("Activité récente", subtitle: "Livres importés et dernières prises générées")
-
-            Text("DERNIERS LIVRES EPUB").font(.system(size: 9, weight: .medium, design: .monospaced))
-                .tracking(0.6).foregroundStyle(Dashboard.muted)
-            if studio.books.isEmpty {
-                Text(studio.state == nil ? "Démarre le studio pour voir tes livres." : "Aucun livre préparé pour le moment.")
-                    .font(.system(size: 11)).foregroundStyle(Dashboard.muted)
-            } else {
-                ForEach(studio.books.prefix(3)) { book in
-                    HStack(spacing: 8) {
-                        Image(systemName: "book.closed").foregroundStyle(Dashboard.muted)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(book.titre).font(.system(size: 11, weight: .medium)).lineLimit(1)
-                            Text("\(book.chapitres.count) chapitres · \(book.mots.formatted()) mots")
-                                .font(.system(size: 10)).foregroundStyle(Dashboard.muted)
-                        }
-                        Spacer(minLength: 4)
-                        Button {
-                            windows.ouvrirLivre(book.id, base: studio.baseURL)
-                            openWindow(id: "book-studio")
-                        } label: { Image(systemName: "book") }
-                            .buttonStyle(.borderless).help("Ouvrir ce livre dans le studio des livres")
-                    }.padding(.vertical, 3)
-                }
-            }
-
-            Divider()
-            Text("DERNIÈRES PRISES").font(.system(size: 9, weight: .medium, design: .monospaced))
-                .tracking(0.6).foregroundStyle(Dashboard.muted)
-            if studio.audios.isEmpty {
-                Text("Aucune prise générée pour le moment.").font(.system(size: 11)).foregroundStyle(Dashboard.muted)
-            } else {
-                ForEach(studio.audios.prefix(3)) { audio in
-                    HStack(spacing: 8) {
-                        Image(systemName: "waveform").foregroundStyle(Dashboard.muted)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(audio.nom).font(.system(size: 11, weight: .medium)).lineLimit(1)
-                            Text("\(Int(audio.duree)) s · \(audio.transcript.isEmpty ? "Transcript absent" : String(audio.transcript.prefix(75)))")
-                                .font(.system(size: 10)).foregroundStyle(Dashboard.muted).lineLimit(1)
-                        }
-                        Spacer(minLength: 4)
-                        Button { Task { await studio.play(studio.baseURL.appendingPathComponent("api/audio/\(audio.nom)")) } }
-                            label: { Image(systemName: "play.fill") }
-                            .buttonStyle(.borderless).help("Écouter cette prise")
-                    }.padding(.vertical, 3)
-                }
-            }
-        }.padding(16).frame(maxWidth: .infinity, alignment: .leading).dashboardPanel()
-    }
 
     private func stat(_ title: String, value: String, detail: String, icon: String) -> some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -511,18 +472,26 @@ struct ContentView: View {
                         Spacer()
                         Text(model.taille).foregroundStyle(Dashboard.muted)
                         if model.etat == "en_cours" { ProgressView().controlSize(.small); Text("Installation…") }
+                        else if studio.chargementEnCours(model) { ProgressView().controlSize(.small); Text("Chargement…") }
                         else if model.installe {
                             let actif = model.actif == true || (category == "tts" && studio.state?.moteur == model.moteur && studio.state?.modele == true)
                             if actif {
-                                Button("Désactiver") { Task { await studio.deactivate(model) } }
+                                Button("Désactiver", systemImage: "stop.circle") { Task { await studio.deactivate(model) } }
+                                    .buttonStyle(.bordered).tint(Dashboard.desactiver)
                                     .disabled(controlsLocked)
                                     .help("Éteint ce modèle et libère sa mémoire — réactivable à tout moment")
                             } else {
-                                Button("Activer") { Task { await studio.activate(model) } }
+                                Button("Activer", systemImage: "power") { Task { await studio.activate(model) } }
+                                    .buttonStyle(.borderedProminent).tint(Dashboard.activer)
                                     .disabled(controlsLocked)
+                                    .help("Charge ce modèle en mémoire pour pouvoir l'utiliser")
                             }
                         } else {
-                            Button(model.etat == "erreur" ? "Réessayer" : "Installer", systemImage: "arrow.down.circle") { Task { await studio.install(model) } }.disabled(controlsLocked)
+                            Button(model.etat == "erreur" ? "Réessayer" : "Installer",
+                                   systemImage: model.etat == "erreur" ? "arrow.clockwise" : "arrow.down.circle") { Task { await studio.install(model) } }
+                                .buttonStyle(.borderedProminent)
+                                .tint(model.etat == "erreur" ? Dashboard.echouer : Dashboard.installer)
+                                .disabled(controlsLocked)
                         }
                         Menu {
                             Button("Renommer") { renameValue = model.label; renamePath = "api/modeles/\(model.id)" }

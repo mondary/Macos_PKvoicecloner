@@ -1,6 +1,18 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.53] - 2026-10-18
+
+### Fixed
+- **« Activer » charge vraiment le modèle** : pour la transcription (Whisper, Parakeet), l'activation ne se contentait d'enregistrer un choix — le modèle se charge maintenant pour de bon dans son environnement, les poids montés et vérifiés, et l'attente est visible dans la liste (« Chargement… », message « Préparation de la transcription… »). Un échec de préparation remonte avec sa cause.
+- La liste des modèles montre l'état réel de chargement d'un moteur TTS déjà installé au lieu de laisser le bouton « Activer » affiché pendant le chargement.
+
+## [2026.10.52] - 2026-10-18
+
+### Changed
+- Vue d'ensemble resserrée : **« Activité récente » disparaît** — les livres vivent dans l'onglet Livres et les prises dans leur section — et **État du studio** occupe toute la largeur, voix active comprise.
+- **Une couleur par action sur les modèles** : Installer (bleu), Activer (vert), Désactiver (orange), Réessayer (rouge) — dans la liste des modèles comme dans les raccourcis de l'état du studio.
+
 ## [2026.10.51] - 2026-10-18
 
 ### Added

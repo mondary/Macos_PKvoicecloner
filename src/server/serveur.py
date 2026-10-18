@@ -31,6 +31,9 @@ Endpoints :
   POST /api/moteur      {moteur: voxcpm2|dots|qwen3|pocket|piper} changement de moteur TTS
   GET  /api/modeles     modèles téléchargeables + état installé
   POST /api/modeles/{id}/installer  télécharge les poids (et le paquet pip manquant)
+  POST /api/modeles/{id}/activer    active un modèle et le charge pour de vrai
+                                    (moteur TTS en mémoire, transcription préchauffée
+                                    dans son environnement)
   POST /api/modeles/{id}/desactiver éteint un modèle actif (moteur TTS déchargé)
   DELETE /api/modeles/{id}          supprime les poids du cache Hugging Face
   GET  /api/piper/catalogue         catalogue des voix Piper (téléchargeables à la carte)
@@ -317,6 +320,37 @@ def transcrire(wav: Path) -> str:
     return r.stdout.strip()
 
 
+def prechauffer_transcription(moteur: str):
+    """« Activer » veut dire prêt : le modèle est réellement chargé dans son
+    environnement (poids montés et vérifiés), au lieu d'être seulement coché.
+    La transcription tourne dans son propre venv : le chargement s'y fait donc."""
+    python = PROJET / ".venv-whisper" / "bin" / "python"
+    prechauffages["transcription"] = {"etat": "en_cours", "moteur": moteur}
+    if not python.exists():
+        prechauffages["transcription"] = {
+            "etat": "erreur", "moteur": moteur,
+            "erreur": "environnement .venv-whisper absent : réinstalle le modèle depuis Modèles",
+        }
+        return
+    try:
+        r = subprocess.run(
+            [str(python), str(SRC / "transcrire.py"), "--verifier", moteur],
+            capture_output=True, text=True, timeout=900,
+            env={**os.environ, "HF_HUB_OFFLINE": "0" if moteur == "parakeet-redux" else "1",
+                 "TRANSFORMERS_OFFLINE": "0" if moteur == "parakeet-redux" else "1"},
+        )
+    except Exception as e:  # noqa: BLE001 — l'erreur est affichée dans l'app
+        prechauffages["transcription"] = {"etat": "erreur", "moteur": moteur, "erreur": str(e)[:300]}
+        return
+    if r.returncode != 0:
+        prechauffages["transcription"] = {
+            "etat": "erreur", "moteur": moteur,
+            "erreur": ((r.stderr or "") + (r.stdout or ""))[-300:] or "chargement impossible",
+        }
+        return
+    prechauffages["transcription"] = {"etat": "pret", "moteur": moteur}
+
+
 def duree_audio(f: Path) -> float:
     r = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(f)],
@@ -357,6 +391,7 @@ def etat():
         "modele": modele is not None and moteur_pret == moteur_actif,
         "erreur": erreur_modele,
         "chargement": verrou_chargement.locked(),
+        "prechauffage": prechauffages,
         "voix": bool(voix_courante),
         "moteur": moteur_actif,
         "moteurs": list(CHARGEURS),
@@ -423,6 +458,7 @@ def _est_installe(repo: str) -> bool:
 
 
 installations: dict[str, dict] = {}   # id -> {"etat": en_cours|pret|erreur, "erreur"?}
+prechauffages: dict[str, dict] = {}   # categorie -> {"etat": en_cours|pret|erreur, "moteur", "erreur"?}
 
 
 def _alias_modeles() -> dict:
@@ -900,6 +936,7 @@ def activer_modele(modele_id: str):
     chemin.write_text(json.dumps(actifs), encoding="utf-8")
     if categorie == "transcription":
         moteur_asr = m["moteur"]
+        threading.Thread(target=prechauffer_transcription, args=(m["moteur"],), daemon=True).start()
         return {"ok": True, "moteur": moteur_asr}
     if m["moteur"] == "laya":
         return laya_local.charger_en_fond()
@@ -929,6 +966,7 @@ def desactiver_modele(modele_id: str):
         chemin.write_text(json.dumps(actifs), encoding="utf-8")
         if categorie == "transcription":
             moteur_asr = None
+            prechauffages.pop("transcription", None)
         if m["moteur"] == "laya":
             laya_local.decharger()
     return {"ok": True}

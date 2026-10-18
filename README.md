@@ -34,7 +34,7 @@ Le site publiable prêt pour FTP est autonome dans [`store/website/`](store/webs
 
 - **Moteurs commutables** — **VoxCPM2** (MPS, rapide, ~30 langues) et **dots.tts** (2B, clonage haute fidélité 48 kHz, 24 langues) : un clic dans l'en-tête du studio
 - **Voix Piper prêtes à l'emploi** — un catalogue de 177 voix (30+ langues) téléchargeables à l'unité (20–80 Mo), avec extrait d'écoute en un clic : narration hors ligne sans clonage, y compris dans les livres où chaque personnage peut mêler clone et voix Piper
-- **Modèles à tester** — bouton **Installer** / **Supprimer** pour chaque modèle optionnel (Qwen3-TTS 0,6B, Pocket TTS, Piper) : les poids rejoignent le cache local et tout modèle installé devient sélectionnable comme moteur de génération
+- **Modèles à tester** — bouton **Installer** / **Supprimer** pour chaque modèle optionnel (Qwen3-TTS 0,6B, Pocket TTS, Piper) : les poids rejoignent le cache local et **Activer charge réellement le modèle** (moteur TTS en mémoire, transcription préchauffée dans son environnement) avant qu'il devienne sélectionnable comme moteur de génération
 - **Clonage ultimate** — clip + transcript → timbre, rythme et style préservés
 - **Bibliothèque de voix** — chaque clip importé ou enregistré devient un clone persistant, réutilisable d'une session à l'autre : liste, écoute, sélection, suppression
 - **Upload ou micro** — QuickTime `.m4a`, `.mp3`, `.wav`, `.webm`, ou enregistrement direct dans la page (état vide guidé : importer ou s'enregistrer)
@@ -47,7 +47,7 @@ Le site publiable prêt pour FTP est autonome dans [`store/website/`](store/webs
 - **Feuille de route** — le plan « double numérique » (clonage rapide, avatar photo → vidéo lipsyncé) se lit dans [TODO.md](TODO.md)
 - **`mavox`** — clone en une commande depuis le terminal, texte quoté ou non
 - **App native macOS** — interface native SwiftUI, zéro navigateur : le serveur démarre et s'arrête avec l'app, mises à jour automatiques via Sparkle
-- **Vue d’ensemble sans doublons** — stats des voix, modèles, livres et confidentialité ; état du serveur, activation rapide d’une voix, journal, installation de modèle, livres récents et dernières prises générées
+- **Vue d’ensemble sans doublons** — stats des voix, modèles, livres et confidentialité ; état du serveur, activation rapide d’une voix et installation de modèle, avec une couleur par action : installer, activer, désactiver
 - **Studio livre intégré à l'app native** — bouton « Ouvrir le studio web » : ouvre la bibliothèque EPUB et son éditeur dans une fenêtre de l'app macOS (WKWebView), pendant que le serveur local tourne
 - **Réglages dans la fenêtre principale (⌘,)** — providers IA et clés API, token Hugging Face, Crédits & inspirations, Bibliothèque de projets, Soutenir/Ko-fi et À propos avec canaux Stable/Dev. L’icône waveform de la barre des menus rouvre le studio ; Dock et menu bar se règlent séparément dans Général.
 - **Navigation alignée app / studio web** — mêmes entrées des deux côtés : Vue d'ensemble, Bibliothèque de voix, Texte vers voix, Livres, Modèles, Réglages ; l'app ouvre le studio des livres directement sur le livre choisi

@@ -3,6 +3,7 @@ import importlib.util
 import io
 import os
 import sys
+import time
 import types
 from pathlib import Path
 import subprocess
@@ -30,6 +31,7 @@ class StudioContracts(unittest.TestCase):
         for p in self.patches: p.start()
         server.voix_courante.clear(); server.jobs.clear(); server.installations.clear(); server.transcripts.clear()
         server.modele = None; server.moteur_pret = None; server.erreur_modele = None
+        server.moteur_actif = 'voxcpm2'; server._piper_catalogue_cache = None
         self.client = TestClient(server.app)
 
     def tearDown(self):
@@ -83,7 +85,7 @@ class StudioContracts(unittest.TestCase):
 
     def test_model_catalogue_install_rename_delete(self):
         models = self.client.get('/api/modeles').json()['modeles']
-        self.assertEqual(len(models), 7)
+        self.assertEqual(len(models), 8)
         self.assertTrue(all(not m['installe'] for m in models))
         for model in models:
             mid = model['id']
@@ -193,6 +195,154 @@ class StudioContracts(unittest.TestCase):
         modele = next(m for m in self.client.get('/api/modeles').json()['modeles']
                       if m['id'] == 'pocket-tts')
         self.assertEqual(modele['aide'], 'gated')      # le flag remonte jusqu'à l'UI
+
+
+class PiperContracts(unittest.TestCase):
+    """Catalogue de voix Piper : contrat HTTP avec cache HF simulé."""
+
+    CATALOGUE = {
+        'fr_FR-siwis-medium': {
+            'name': 'siwis',
+            'language': {'code': 'fr_FR', 'family': 'fr', 'name_native': 'Français'},
+            'quality': 'medium', 'num_speakers': 1, 'speaker_id_map': {},
+            'files': {'fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx': {'size_bytes': 63_000_000}},
+        },
+        'fr_FR-upmc-medium': {
+            'name': 'upmc',
+            'language': {'code': 'fr_FR', 'family': 'fr', 'name_native': 'Français'},
+            'quality': 'medium', 'num_speakers': 2, 'speaker_id_map': {'jessica': 0, 'pierre': 1},
+            'files': {'fr/fr_FR/upmc/medium/fr_FR-upmc-medium.onnx': {'size_bytes': 76_000_000}},
+        },
+        'en_US-lessac-high': {
+            'name': 'lessac',
+            'language': {'code': 'en_US', 'family': 'en', 'name_native': 'English'},
+            'quality': 'high', 'num_speakers': 1, 'speaker_id_map': {},
+            'files': {'en/en_US/lessac/high/en_US-lessac-high.onnx': {'size_bytes': 80_000_000}},
+        },
+    }
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.patches = [patch.object(server, 'SORTIES', self.root),
+                        patch.object(server, '_cache_modele', lambda repo: self.root / repo.replace('/', '--')),
+                        patch.object(server, '_piper_catalogue', return_value=self.CATALOGUE),
+                        patch.object(server, '_piper_voix_installees', side_effect=self._scan)]
+        for p in self.patches:
+            p.start()
+        server.voix_courante.clear(); server.jobs.clear(); server.installations.clear()
+        server.modele = None; server.moteur_pret = None; server.erreur_modele = None
+        server.moteur_actif = 'piper'
+        self.client = TestClient(server.app)
+
+    def tearDown(self):
+        self.client.close()
+        for p in reversed(self.patches):
+            p.stop()
+        server.moteur_actif = 'voxcpm2'
+        self.tmp.cleanup()
+
+    def _scan(self):
+        cache = self.root / 'rhasspy--piper-voices' / 'snapshots'
+        installes = {}
+        if not cache.is_dir():
+            return installes
+        for onnx in cache.rglob('*.onnx'):
+            vid = onnx.name[:-len('.onnx')]
+            config = onnx.with_name(onnx.name + '.json')
+            if config.is_file() and onnx.resolve().is_file():
+                installes[vid] = {'onnx': str(onnx), 'config': str(config),
+                                  'taille_mo': round((onnx.stat().st_size + config.stat().st_size) / 1e6, 1)}
+        return installes
+
+    def _simuler_voix(self, vid='fr_FR-siwis-medium'):
+        """Crée onnx + json + blob dans le cache HF simulé."""
+        morceaux = vid.split('-')
+        chemin = (self.root / 'rhasspy--piper-voices' / 'snapshots' / 'abc123'
+                  / morceaux[0][:2] / morceaux[0] / morceaux[1] / morceaux[2])
+        chemin.mkdir(parents=True, exist_ok=True)
+        blobs = self.root / 'rhasspy--piper-voices' / 'blobs'
+        blobs.mkdir(parents=True, exist_ok=True)
+        blob = blobs / 'blob-onnx'
+        blob.write_bytes(b'm' * 63_000_000)
+        (chemin / f'{vid}.onnx').symlink_to(blob)
+        (chemin / f'{vid}.onnx.json').write_text('{"num_speakers": 1}')
+        return chemin
+
+    def test_catalogue_filtres_et_etat(self):
+        payload = self.client.get('/api/piper/catalogue').json()
+        self.assertEqual(payload['total'], 3)
+        self.assertEqual(payload['installees'], 0)
+        self.assertFalse(any(v['telechargee'] for v in payload['voix']))
+        self.assertEqual(self.client.get('/api/piper/catalogue?langue=fr').json()['total'], 2)
+        self.assertEqual(self.client.get('/api/piper/catalogue?q=upmc').json()['total'], 1)
+        # le français d'abord
+        self.assertTrue(self.client.get('/api/piper/catalogue').json()['voix'][0]['langue'].startswith('fr'))
+
+    def test_installation_voix_puis_liste(self):
+        self._simuler_voix()
+        # voix déjà complète : réponse immédiate, aucun thread lancé
+        with patch.object(server.threading, 'Thread') as thread:
+            payload = self.client.post('/api/piper/voix/fr_FR-siwis-medium/installer').json()
+            thread.return_value.start.assert_not_called()
+        self.assertTrue(payload['installe'])
+        voix = self.client.get('/api/piper/voix').json()['voix']
+        self.assertEqual([v['id'] for v in voix], ['fr_FR-siwis-medium'])
+        catalogue = self.client.get('/api/piper/catalogue?langue=fr').json()
+        self.assertEqual(catalogue['installees'], 1)
+        self.assertTrue(catalogue['voix'][0]['telechargee'])
+        # le moteur piper compte comme installé dès la première voix
+        self.assertIn('piper', self.client.get('/api/etat').json()['installes'])
+
+    def test_installation_voix_inconnue_et_suivi(self):
+        self.assertEqual(self.client.post('/api/piper/voix/fr_FR-ghost-medium/installer').status_code, 404)
+        self.assertEqual(self.client.post('/api/piper/voix/invalide/installer').status_code, 404)
+        with patch.object(server.threading, 'Thread') as thread:
+            self.assertEqual(self.client.post('/api/piper/voix/en_US-lessac-high/installer').status_code, 202)
+            thread.return_value.start.assert_called_once()
+        self.assertEqual(server.installations['piper:en_US-lessac-high']['etat'], 'en_cours')
+
+    def test_suppression_voix_retire_blob_et_snapshot(self):
+        chemin = self._simuler_voix('fr_FR-upmc-medium')
+        blob = self.root / 'rhasspy--piper-voices' / 'blobs' / 'blob-onnx'
+        self.assertTrue(blob.exists())
+        self.assertEqual(self.client.delete('/api/piper/voix/fr_FR-upmc-medium').status_code, 200)
+        self.assertFalse((chemin / 'fr_FR-upmc-medium.onnx').exists())
+        self.assertFalse(blob.exists())
+        self.assertEqual(self.client.delete('/api/piper/voix/fr_FR-upmc-medium').status_code, 404)
+
+    def test_generation_piper_valide_la_voix_et_normalise(self):
+        self.assertEqual(self.client.post('/api/generer', json={'texte': 'Bonjour'}).status_code, 400)
+        self.assertEqual(self.client.post('/api/generer', json={
+            'texte': 'Bonjour', 'piper_voix': 'fr_FR-ghost-medium'}).status_code, 400)
+        self._simuler_voix()
+        server.moteur_pret = 'piper'
+        server.modele = {'voix': {}}
+        capturé = {}
+
+        def faux_synthese(texte, config):
+            capturé['texte'] = texte
+            return [types.SimpleNamespace(audio_int16_array=np.zeros(2000, dtype=np.int16),
+                                          sample_rate=22050)]
+
+        faux_piper = types.SimpleNamespace(
+            PiperVoice=types.SimpleNamespace(load=lambda chemin: types.SimpleNamespace(synthesize=faux_synthese)),
+            SynthesisConfig=lambda **kwargs: kwargs)
+        with patch.dict(sys.modules, {'piper': faux_piper}):
+            response = self.client.post('/api/generer', json={
+                'texte': 'Louis XVI promulgua 1789 lois.', 'vitesse': 1.2,
+                'piper_voix': 'fr_FR-siwis-medium', 'piper_locuteur': 1})
+        self.assertEqual(response.status_code, 200, response.text)
+        job = response.json()['job']
+        for _ in range(200):
+            etat = self.client.get(f'/api/job/{job}').json()
+            if etat.get('etat') in ('pret', 'erreur'):
+                break
+            time.sleep(0.05)
+        self.assertEqual(etat['etat'], 'pret', etat)
+        # la synthèse a reçu la forme normalisée, pas la notation imprimée
+        self.assertIn('Louis seize', capturé['texte'])
+        self.assertIn('mille sept cent quatre-vingt-neuf', capturé['texte'])
 
 
 if __name__ == '__main__': unittest.main()

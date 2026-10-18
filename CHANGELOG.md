@@ -1,6 +1,16 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.47] - 2026-10-18
+
+### Added
+- Moteur **Piper** : voix prêtes à l'emploi sans clonage, un catalogue de 177 voix (30+ langues) téléchargées à l'unité (20–80 Mo) dans le cache partagé, avec suivi des téléchargements et suppression individuelle.
+- Les livres peuvent mêler clones et voix Piper : chaque personnage reçoit sa voix, y compris multi-locuteurs, et le moteur de synthèse suit automatiquement la voix demandée.
+
+### Changed
+- Normalisation française avant synthèse : « M. » devient « Monsieur », « Louis XVI » devient « Louis seize », « 1789 » devient « mille sept cent quatre-vingt-neuf », pourcentages, euros et degrés sont développés — le texte affiché dans le studio reste celui de l'utilisateur.
+- « Redécouper phrase par phrase » sur un chapitre : les segments collés par une ancienne analyse sont rescindés en phrases complètes (coupées aux clauses si trop longues), sans nouvelle analyse IA ; les audios du chapitre deviennent à régénérer.
+
 ## [2026.10.46] - 2026-10-07
 
 ### Fixed

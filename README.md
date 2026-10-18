@@ -2,9 +2,9 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.46** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
+version **2026.10.47** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
 
-🎙️ **Studio vocal IA open source — 100 % local.** Ta voix dit n'importe quel texte. Basé sur [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts) et [faster-whisper](https://github.com/SYSTRAN/faster-whisper), sur la puce Apple via MPS. **Aucune donnée ne quitte la machine.**
+🎙️ **Studio vocal IA open source — 100 % local.** Ta voix dit n'importe quel texte. Basé sur [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts), [Piper](https://github.com/OHF-Voice/piper1-gpl) et [faster-whisper](https://github.com/SYSTRAN/faster-whisper), sur la puce Apple via MPS. **Aucune donnée ne quitte la machine.**
 
 ![Bibliothèque de voix](store/website/screenshots/voix-reference@2x.png) ![Génération et résultat](store/website/screenshots/generation-resultat@2x.png)
 
@@ -33,7 +33,8 @@ Le site publiable prêt pour FTP est autonome dans [`store/website/`](store/webs
 ## ✅ Fonctionnalités
 
 - **Moteurs commutables** — **VoxCPM2** (MPS, rapide, ~30 langues) et **dots.tts** (2B, clonage haute fidélité 48 kHz, 24 langues) : un clic dans l'en-tête du studio
-- **Modèles à tester** — bouton **Installer** / **Supprimer** pour chaque modèle optionnel (Qwen3-TTS 0,6B, Pocket TTS) : les poids rejoignent le cache local et tout modèle installé devient sélectionnable comme moteur de génération
+- **Voix Piper prêtes à l'emploi** — un catalogue de 177 voix (30+ langues) téléchargeables à l'unité (20–80 Mo) : narration hors ligne sans clonage, y compris dans les livres où chaque personnage peut mêler clone et voix Piper
+- **Modèles à tester** — bouton **Installer** / **Supprimer** pour chaque modèle optionnel (Qwen3-TTS 0,6B, Pocket TTS, Piper) : les poids rejoignent le cache local et tout modèle installé devient sélectionnable comme moteur de génération
 - **Clonage ultimate** — clip + transcript → timbre, rythme et style préservés
 - **Bibliothèque de voix** — chaque clip importé ou enregistré devient un clone persistant, réutilisable d'une session à l'autre : liste, écoute, sélection, suppression
 - **Upload ou micro** — QuickTime `.m4a`, `.mp3`, `.wav`, `.webm`, ou enregistrement direct dans la page (état vide guidé : importer ou s'enregistrer)
@@ -51,6 +52,8 @@ Le site publiable prêt pour FTP est autonome dans [`store/website/`](store/webs
 - **Réglages dans la fenêtre principale (⌘,)** — providers IA et clés API, token Hugging Face, Crédits & inspirations, Bibliothèque de projets, Soutenir/Ko-fi et À propos avec canaux Stable/Dev. L’icône waveform de la barre des menus rouvre le studio ; Dock et menu bar se règlent séparément dans Général.
 - **Navigation alignée app / studio web** — mêmes entrées des deux côtés : Vue d'ensemble, Bibliothèque de voix, Texte vers voix, Livres, Modèles, Réglages ; l'app ouvre le studio des livres depuis sa section Livres
 - **Livres audio (studio web)** — importe un EPUB, compare l'original au texte structuré phrase par phrase, avec attribution colorée des voix, génération des segments et écoute continue avec respirations selon la ponctuation ; l'éditeur audiobook n'est pas encore intégré à SwiftUI
+- **Lecture fidèle du français** — avant la synthèse, le texte est développé : « M. » → « Monsieur », « Louis XVI » → « Louis seize », « 1789 » en toutes lettres, pourcentages, euros et degrés ; le texte affiché reste celui de l'auteur
+- **Redécouper phrase par phrase** — un chapitre analysé par paragraphes se rescinde en phrases complètes, coupées aux clauses si trop longues, sans nouvelle analyse IA ; les audios du chapitre sont alors régénérés au bon rythme
 - **Analyse et voix des livres** — enregistre plusieurs providers OpenAI-compatibles (GLM, DeepSeek, OpenAI ou Ollama local), associe chaque personnage à une voix de la bibliothèque et génère les segments individuellement ou en lot séquentiel ; la page livre affiche l'état des analyses, segments et audios
 - **Contrôle d'attribution local (Laya)** — un petit modèle embarqué (322M, chargé une fois depuis le cache Hugging Face partagé) relit chaque chapitre et signale les segments « narrateur » qui ressemblent à du dialogue : zéro token, zéro cloud après le premier téléchargement
 - **Export audiobook** — « Exporter le chapitre » produit un WAV unique avec les pauses de ponctuation intégrées ; « Exporter l'audiobook » assemble le livre en **M4B chapitré** (pochette, métadonnées), écoutable dans Apple Livres et la plupart des lecteurs
@@ -105,6 +108,8 @@ uv pip install --python .venv/bin/python -e vendor/VoxCPM
 uv pip install --python .venv-whisper/bin/python faster-whisper 'moondream>=2.4.1'
 # moteur dots.tts (optionnel) — pynini ne compile pas sur macOS, on l'installe sans
 uv pip install --python .venv/bin/python --no-deps dots-tts
+# moteur Piper (optionnel) — voix prêtes à l'emploi, téléchargées ensuite dans le studio
+uv pip install --python .venv/bin/python piper-tts
 uv pip install --python .venv/bin/python huggingface-hub loguru "langcodes[data]" einops "librosa>=0.11.0" "torchaudio>=2.8" torchdiffeq tqdm lingua-language-detector
 
 # Lancer le serveur seul
@@ -145,6 +150,7 @@ Le clonage de voix est interdit pour l'usurpation d'identité. Ce projet est con
 - [Photon](https://moondream.ai/photon) — moteur d'inférence local Moondream
 - [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) — moteur TTS optionnel
 - [Pocket TTS](https://github.com/kyutai-labs/pocket-tts) — moteur TTS optionnel de Kyutai
+- [Piper](https://github.com/OHF-Voice/piper1-gpl) et [piper-voices](https://huggingface.co/rhasspy/piper-voices) — moteur TTS léger et voix prêtes à l'emploi
 - [Laya](https://huggingface.co/convaiinnovations) — catégorisation locale des voix et personnages
 - [Sparkle](https://github.com/sparkle-project/Sparkle) — mises à jour de l'app macOS
 - [Three.js](https://threejs.org/) — runtime 3D MIT historique (v0.3), distribué localement

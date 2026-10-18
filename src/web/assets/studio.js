@@ -21,6 +21,13 @@
   let voices = [];
   let selectedId = null;
 
+  // Voix Piper « prêtes à l'emploi » (catalogue téléchargeable, sans clonage)
+  let piperVoices = [];
+  let piperSelected = window.localStorage.getItem("pk-voice-studio-piper") || null;
+  let piperSpeaker = 0;
+  let catalogueTimer = null;
+  let catalogueEnCours = new Set();
+
   let recorder = null;
   let recordingStream = null;
   let recordingSeconds = 0;
@@ -293,7 +300,8 @@
   }
 
   function updateGenerateState() {
-    $("generer").disabled = shuttingDown || generating || !voiceReady || !$("texte").value.trim();
+    const voixOk = moteurActif === "piper" ? !!piperSelected : voiceReady;
+    $("generer").disabled = shuttingDown || generating || !voixOk || !$("texte").value.trim();
   }
 
   /* ---------------------- Bibliothèque de voix ---------------------- */
@@ -307,10 +315,14 @@
   }
 
   async function refreshVoices(selectId = null) {
+    if (moteurActif === "piper") return refreshPiperVoices();
     try {
       const response = await fetch("/api/voix");
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.detail || "bibliothèque indisponible");
+      // le moteur affiché a pu changer pendant la requête (init, bascule) :
+      // l'affichage suit toujours le moteur courant, jamais la course réseau
+      if (moteurActif === "piper") return refreshPiperVoices();
       voices = payload.voix || [];
     } catch (error) {
       setVoiceStatus(`Bibliothèque indisponible : ${error.message}`, "error");
@@ -335,6 +347,296 @@
     } else if (!selectedId) {
       setVoiceStatus("Sélectionne une voix pour l'activer.");
     }
+  }
+
+  /* ---------------- Voix Piper (catalogue, sans clonage) ---------------- */
+
+  async function loadPiperVoix() {
+    try {
+      const response = await fetch("/api/piper/voix");
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "catalogue indisponible");
+      piperVoices = payload.voix || [];
+    } catch (_) {
+      piperVoices = [];
+    }
+  }
+
+  async function refreshPiperVoices() {
+    await loadPiperVoix();
+    // une bascule vers un moteur de clonage pendant la requête : rendu clone
+    if (moteurActif !== "piper") return refreshVoices();
+    const liste = $("voiceList");
+    liste.textContent = "";
+    const count = piperVoices.length;
+    $("voiceCount").textContent = count ? `${count} voix` : "0 voix";
+    $("voiceFooterCount").textContent = count ? `${count} téléchargée${count > 1 ? "s" : ""}` : "";
+    if (!count) {
+      const empty = document.createElement("div");
+      empty.className = "voice-empty";
+      empty.innerHTML = `${ICON_DOWNLOAD}<strong>Aucune voix du catalogue.</strong><p>Piper lit n'importe quel texte avec des voix prêtes à l'emploi,<br>hors-ligne, sans clonage (~20–80 Mo la voix).</p>`;
+      const actions = document.createElement("div");
+      actions.className = "empty-actions";
+      const bouton = document.createElement("button");
+      bouton.className = "pill-light";
+      bouton.type = "button";
+      bouton.textContent = "Parcourir le catalogue";
+      bouton.addEventListener("click", ouvrirCatalogue);
+      actions.appendChild(bouton);
+      empty.appendChild(actions);
+      liste.appendChild(empty);
+      piperSelected = null;
+      updateGenerateState();
+      setVoiceStatus("Télécharge une voix Piper pour commencer.");
+      return;
+    }
+    piperVoices.forEach((voice) => liste.appendChild(piperRow(voice)));
+    // la sélection persistée (ou la première voix) annonce toujours son état :
+    // sans message, la carte resterait sur « Bibliothèque en chargement… »
+    if (piperSelected && piperVoices.some((v) => v.id === piperSelected)) {
+      selectPiperVoice(piperSelected);
+    } else {
+      selectPiperVoice(piperVoices[0].id);
+    }
+  }
+
+  function piperRow(voice) {
+    const row = document.createElement("div");
+    row.className = `piper-row${voice.id === piperSelected ? " selected" : ""}`;
+    row.tabIndex = 0;
+    row.dataset.pvid = voice.id;
+    row.setAttribute("role", "button");
+    row.setAttribute("aria-label", `Voix ${voice.nom} ${voice.qualite}, ${voice.langue}`);
+    const locuteurs = voice.locuteurs > 1
+      ? Object.entries(voice.locuteur_noms || {}) : null;
+    row.innerHTML =
+      `<span class="check" aria-hidden="true">✓</span>` +
+      `<span class="vname">${prettyName(voice.nom).replace(/</g, "&lt;")} · ${voice.qualite}</span>` +
+      `<span class="piper-meta">` +
+      (locuteurs
+        ? `<select class="piper-speaker" aria-label="Locuteur de la voix ${voice.nom}">` +
+          locuteurs.map(([nom, id]) => `<option value="${id}">${nom}</option>`).join("") +
+          `</select>`
+        : "") +
+      `<span class="piper-lang">${voice.langue}</span>` +
+      `<span class="piper-badge">${voice.taille_mo} Mo</span></span>`;
+
+    const speakerSelect = row.querySelector(".piper-speaker");
+    if (speakerSelect) {
+      speakerSelect.value = String(voice.id === piperSelected ? piperSpeaker : 0);
+      speakerSelect.addEventListener("click", (event) => event.stopPropagation());
+      speakerSelect.addEventListener("change", () => {
+        selectPiperVoice(voice.id, { locuteur: Number(speakerSelect.value) });
+      });
+    }
+    const del = document.createElement("button");
+    del.className = "vdel";
+    del.type = "button";
+    del.setAttribute("aria-label", `Supprimer la voix ${voice.nom} du cache`);
+    del.innerHTML = ICON_TRASH;
+    del.addEventListener("click", (event) => { event.stopPropagation(); deletePiperVoice(voice); });
+    row.appendChild(del);
+    const activate = () => selectPiperVoice(voice.id);
+    row.addEventListener("click", activate);
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); activate(); }
+    });
+    return row;
+  }
+
+  function selectPiperVoice(id, { silent = false, locuteur = null } = {}) {
+    const voice = piperVoices.find((v) => v.id === id);
+    if (!voice) return;
+    piperSelected = id;
+    if (locuteur !== null) piperSpeaker = locuteur;
+    else if (voice.locuteurs > 1) {
+      const defaut = Object.values(voice.locuteur_noms || {})[0];
+      piperSpeaker = defaut ?? 0;
+    } else {
+      piperSpeaker = 0;
+    }
+    window.localStorage.setItem("pk-voice-studio-piper", id);
+    document.querySelectorAll(".piper-row").forEach((r) => {
+      r.classList.toggle("selected", r.dataset.pvid === id);
+    });
+    updateGenerateState();
+    if (!silent) setVoiceStatus(`Voix ${voice.nom} prête — écris ton texte.`);
+  }
+
+  async function deletePiperVoice(voice) {
+    if (!window.confirm(`Supprimer la voix ${voice.nom} (${voice.taille_mo} Mo) du cache ?`)) return;
+    try {
+      const response = await fetch(`/api/piper/voix/${encodeURIComponent(voice.id)}`, { method: "DELETE" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "suppression impossible");
+      if (piperSelected === voice.id) { piperSelected = null; piperSpeaker = 0; }
+      notify(`Voix ${voice.nom} supprimée du cache.`);
+      await refreshPiperVoices();
+    } catch (error) {
+      notify(`Suppression impossible : ${error.message}`, "error");
+    }
+  }
+
+  /* ---------------- Catalogue des voix Piper ---------------- */
+
+  function fermerCatalogue() {
+    clearInterval(catalogueTimer);
+    catalogueTimer = null;
+    $("catalogOverlay").hidden = true;
+    $("catalogOverlay").textContent = "";
+    if (moteurActif === "piper") refreshPiperVoices();
+    libraryVoices = null;          // les options livres incluent les voix Piper
+  }
+
+  async function ouvrirCatalogue() {
+    const overlay = $("catalogOverlay");
+    overlay.textContent = "";
+    const panneau = document.createElement("div");
+    panneau.className = "catalog-panel";
+
+    const head = document.createElement("div");
+    head.className = "catalog-head";
+    const titre = document.createElement("div");
+    titre.innerHTML = "<strong>Catalogue de voix Piper</strong>" +
+      "<span>Voix prêtes à l'emploi, 100 % hors-ligne — un fichier de 20 à 80 Mo par voix.</span>";
+    const close = document.createElement("button");
+    close.className = "catalog-close";
+    close.type = "button";
+    close.setAttribute("aria-label", "Fermer le catalogue");
+    close.textContent = "×";
+    close.addEventListener("click", fermerCatalogue);
+    head.append(titre, close);
+
+    const filtres = document.createElement("div");
+    filtres.className = "catalog-filters";
+    const recherche = document.createElement("input");
+    recherche.type = "search";
+    recherche.placeholder = "Rechercher (siwis, upmc, français…)";
+    const langue = document.createElement("select");
+    langue.setAttribute("aria-label", "Filtrer par langue");
+    filtres.append(recherche, langue);
+
+    const liste = document.createElement("div");
+    liste.className = "catalog-list";
+    const pied = document.createElement("div");
+    pied.className = "catalog-foot";
+    panneau.append(head, filtres, liste, pied);
+    overlay.appendChild(panneau);
+    overlay.hidden = false;
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) fermerCatalogue();
+    });
+    document.addEventListener("keydown", function echap(event) {
+      if (event.key === "Escape" && !overlay.hidden) { fermerCatalogue(); document.removeEventListener("keydown", echap); }
+    });
+    recherche.focus();
+
+    let catalogue = { voix: [] };
+    let langues = new Map();
+
+    async function rafraichir() {
+      const params = new URLSearchParams();
+      if (recherche.value.trim()) params.set("q", recherche.value.trim());
+      if (langue.value && langue.value !== "*") params.set("langue", langue.value);
+      try {
+        const response = await fetch(`/api/piper/catalogue?${params}`);
+        catalogue = await response.json();
+        if (!response.ok) throw new Error(catalogue.detail || "catalogue indisponible");
+      } catch (error) {
+        liste.textContent = "";
+        pied.textContent = `Catalogue indisponible : ${error.message}`;
+        return;
+      }
+      // le filtre langue se construit à partir du premier chargement complet
+      if (!langues.size && !params.toString()) {
+        const compteur = new Map();
+        catalogue.voix.forEach((v) => compteur.set(v.langue_nom || v.langue, (compteur.get(v.langue_nom || v.langue) || 0) + 1));
+        langues.set("*", "Toutes les langues");
+        langue.append(...[...compteur.entries()].sort((a, b) => b[1] - a[1]).map(([nom]) => {
+          const option = document.createElement("option");
+          option.value = nom === "Français" ? "fr" : nom;
+          option.textContent = `${nom} (${compteur.get(nom)})`;
+          return option;
+        }));
+        langue.insertBefore(new Option("Toutes les langues", "*"), langue.firstChild);
+        langue.value = "*";
+      }
+      liste.textContent = "";
+      catalogue.voix.forEach((voice) => liste.appendChild(catalogueRow(voice)));
+      const enCours = catalogue.voix.filter((v) => catalogueEnCours.has(v.id)).length;
+      pied.textContent = `${catalogue.total} voix · ${catalogue.installees} téléchargée${catalogue.installees > 1 ? "s" : ""}` +
+        (enCours ? ` · ${enCours} téléchargement${enCours > 1 ? "s" : ""} en cours…` : "");
+      if (catalogueEnCours.size) {
+        clearInterval(catalogueTimer);
+        catalogueTimer = setInterval(rafraichir, 2500);
+      } else if (catalogueTimer && !params.toString()) {
+        clearInterval(catalogueTimer);
+        catalogueTimer = null;
+      }
+    }
+
+    function catalogueRow(voice) {
+      const row = document.createElement("div");
+      row.className = "catalog-row";
+      const info = document.createElement("div");
+      info.className = "cat-info";
+      const nom = document.createElement("span");
+      nom.className = "cat-nom";
+      nom.textContent = `${prettyName(voice.nom)}${voice.locuteurs > 1 ? ` (${voice.locuteurs} voix)` : ""}`;
+      const meta = document.createElement("div");
+      meta.className = "cat-meta";
+      meta.innerHTML = `<span class="cat-lang">${voice.langue} · ${voice.langue_nom || ""}</span>` +
+        `<span class="cat-qualite">${voice.qualite}</span>` +
+        `<span class="cat-taille">${voice.taille_mo} Mo</span>`;
+      info.append(nom, meta);
+      const bouton = document.createElement("button");
+      bouton.className = "cat-btn";
+      bouton.type = "button";
+      if (catalogueEnCours.has(voice.id)) {
+        bouton.className = "cat-btn";
+        bouton.disabled = true;
+        bouton.textContent = "Téléchargement…";
+      } else if (voice.telechargee) {
+        bouton.className = "cat-btn retirer";
+        bouton.textContent = "Retirer";
+        bouton.addEventListener("click", async () => {
+          bouton.disabled = true;
+          try {
+            const response = await fetch(`/api/piper/voix/${encodeURIComponent(voice.id)}`, { method: "DELETE" });
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload.detail || "suppression impossible");
+            catalogueEnCours.delete(voice.id);
+            notify(`Voix ${voice.nom} retirée du cache.`);
+          } catch (error) {
+            notify(`Suppression impossible : ${error.message}`, "error");
+            bouton.disabled = false;
+          }
+          await rafraichir();
+        });
+      } else {
+        bouton.textContent = `Télécharger · ${voice.taille_mo} Mo`;
+        bouton.addEventListener("click", async () => {
+          bouton.disabled = true;
+          catalogueEnCours.add(voice.id);
+          try {
+            const response = await fetch(`/api/piper/voix/${encodeURIComponent(voice.id)}/installer`, { method: "POST" });
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload.detail || "installation impossible");
+            if (payload.installe) catalogueEnCours.delete(voice.id);
+          } catch (error) {
+            catalogueEnCours.delete(voice.id);
+            notify(`Téléchargement impossible : ${error.message}`, "error");
+          }
+          await rafraichir();
+        });
+      }
+      row.append(info, bouton);
+      return row;
+    }
+
+    recherche.addEventListener("input", rafraichir);
+    langue.addEventListener("change", rafraichir);
+    await rafraichir();
   }
 
   function renderVoices() {
@@ -645,17 +947,21 @@
   async function createTake() {
     if (shuttingDown) return;
     const text = $("texte").value.trim();
-    if (!voiceReady || !text || generating) return;
+    const voixOk = moteurActif === "piper" ? !!piperSelected : voiceReady;
+    if (!voixOk || !text || generating) return;
     setGenerating(true);
     $("resultPanel").classList.remove("show");
     $("progress").style.width = "0%";
     setTakeStatus("La prise entre en cabine…");
 
+    const corps = moteurActif === "piper"
+      ? { texte: text, vitesse: speed, piper_voix: piperSelected, piper_locuteur: piperSpeaker }
+      : { texte: text, vitesse: speed, transcript: $("transcript").value };
     try {
       const response = await fetch("/api/generer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texte: text, vitesse: speed, transcript: $("transcript").value }),
+        body: JSON.stringify(corps),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.detail || "génération impossible");
@@ -915,6 +1221,14 @@
     if (voice) return voice.nom;
     const inconnu = id.match(/^np(\d+)$/i);
     if (inconnu) return `Voix inconnue ${inconnu[1]}`;
+    const piper = String(id).match(/^piper:([^:]+)(?::(\d+))?$/);
+    if (piper) {
+      const voix = piperVoices.find((v) => v.id === piper[1]);
+      if (!voix) return `${piper[1]} (Piper)`;
+      const noms = voix.locuteur_noms || {};
+      const locuteur = piper[2] != null ? Object.keys(noms).find((n) => String(noms[n]) === piper[2]) : null;
+      return `${voix.nom}${locuteur ? ` — ${locuteur}` : ""} (Piper)`;
+    }
     return id;
   }
 
@@ -1459,10 +1773,28 @@
       pending.textContent = "Chargement de la bibliothèque de voix…";
       section.appendChild(pending);
       if (!voicesLoad) {
-        voicesLoad = fetch("/api/voix").then((r) => r.json()).then((p) => {
-          libraryVoices = p.voix || [];
+        // clones de la bibliothèque + voix Piper téléchargées (chaque
+        // locuteur d'une voix multi-locuteurs devient une option)
+        voicesLoad = Promise.all([
+          fetch("/api/voix").then((r) => r.json()).catch(() => ({ voix: [] })),
+          fetch("/api/piper/voix").then((r) => r.json()).catch(() => ({ voix: [] })),
+        ]).then(([clones, piper]) => {
+          const options = (clones.voix || []).map((v) => ({ valeur: v.id, libelle: v.nom }));
+          (piper.voix || []).forEach((v) => {
+            const noms = Object.entries(v.locuteur_noms || {});
+            if (noms.length > 1) {
+              noms.forEach(([nom, id]) => options.push({
+                valeur: `piper:${v.id}:${id}`,
+                libelle: `${v.nom} — ${nom} · Piper (${v.qualite})`,
+              }));
+            } else {
+              options.push({ valeur: `piper:${v.id}`, libelle: `${v.nom} · Piper (${v.qualite})` });
+            }
+          });
+          piperVoices = piper.voix || [];
+          libraryVoices = options;
           renderBooks();
-        }).catch(() => { libraryVoices = []; }).finally(() => { voicesLoad = null; });
+        }).finally(() => { voicesLoad = null; });
       }
       return section;
     }
@@ -1484,8 +1816,8 @@
       select.appendChild(empty);
       libraryVoices.forEach((voice) => {
         const option = document.createElement("option");
-        option.value = voice.id;
-        option.textContent = voice.nom;
+        option.value = voice.valeur;
+        option.textContent = voice.libelle;
         select.appendChild(option);
       });
       select.value = book.voix_assignees?.[role.id] || "";
@@ -1527,7 +1859,7 @@
     if (!libraryVoices.length) {
       const empty = document.createElement("p");
       empty.className = "chapter-stats";
-      empty.textContent = "Aucune voix dans la bibliothèque — ajoute d’abord des voix dans l’onglet Voix.";
+      empty.textContent = "Aucune voix disponible — clone une voix dans l’onglet Voix, ou télécharge une voix Piper dans le catalogue.";
       section.appendChild(empty);
     }
     return section;
@@ -2073,9 +2405,15 @@
     if (button) { button.disabled = true; button.textContent = "…"; }
     if (status) { status.textContent = `Préparation du segment ${index}…`; status.className = "chapter-status"; }
     try {
+      // le moteur suit la voix : Piper pour une voix du catalogue (sans
+      // clonage), le moteur de clonage précédent pour un clone
+      const piper = referenceId.match(/^piper:([^:]+)(?::(\d+))?$/);
+      const corps = piper
+        ? { texte: text, piper_voix: piper[1], piper_locuteur: piper[2] != null ? Number(piper[2]) : 0 }
+        : { texte: text, reference_id: referenceId };
       const response = await fetch("/api/generer", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texte: text, reference_id: referenceId }),
+        body: JSON.stringify(corps),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.detail || "génération impossible");
@@ -2277,9 +2615,14 @@
     splitBtn.type = "button";
     splitBtn.textContent = "Scinder au curseur";
     splitBtn.title = "Coupe le chapitre en deux à la position du curseur (utile pour les EPUB au sommaire cassé)";
+    const redecouperBtn = document.createElement("button");
+    redecouperBtn.className = "pill-light";
+    redecouperBtn.type = "button";
+    redecouperBtn.textContent = "Redécouper phrase par phrase";
+    redecouperBtn.title = "Rescinde chaque segment en phrases complètes, coupées aux clauses si trop longues (les audios générés du chapitre sont invalidés). Utile pour un chapitre analysé par paragraphes : le rythme et la fidélité de lecture s'améliorent.";
     const status = document.createElement("span");
     status.className = "chapter-status";
-    foot.append(saveBtn, splitBtn, status);
+    foot.append(saveBtn, splitBtn, redecouperBtn, status);
 
     edit.append(head, legende, textarea, foot);
 
@@ -2327,6 +2670,25 @@
     });
     saveBtn.addEventListener("click", saveChapter);
     splitBtn.addEventListener("click", splitChapter);
+    redecouperBtn.addEventListener("click", async () => {
+      if (!window.confirm("Redécouper ce chapitre phrase par phrase ? Les audios déjà générés de ce chapitre seront invalidés.")) return;
+      redecouperBtn.disabled = true;
+      try {
+        const response = await fetch(`/api/livres/${book.id}/chapitre/${chapter.num}/reedecouper`, { method: "POST" });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.detail || "redécoupage impossible");
+        for (let num = 1; num <= book.chapitres.length; num += 1) {
+          chapterTexts.delete(`${book.id}:${num}`);
+          chapterDrafts.delete(`${book.id}:${num}`);
+        }
+        notify("Chapitre redécoupé phrase par phrase — le rythme de lecture s'améliore.");
+        await refreshBooks();
+      } catch (error) {
+        notify(`Redécoupage impossible : ${error.message}`, "error");
+      } finally {
+        redecouperBtn.disabled = false;
+      }
+    });
 
     async function saveChapter() {
       if (saveBtn.disabled || saving) return;
@@ -2447,11 +2809,25 @@
     });
   }
 
+  function paintVoiceCardMode() {
+    const piper = moteurActif === "piper";
+    $("transcriptDetails").hidden = piper;
+    $("ajouterFichier").hidden = piper;
+    $("ajouterMicro").hidden = piper;
+    $("ouvrirCatalogue").hidden = !piper;
+    const sousTitre = $("demoSub");
+    if (sousTitre) {
+      sousTitre.textContent = piper
+        ? "Choisis une voix du catalogue à gauche, écris à droite, génère la prise"
+        : PANNEAU_AIDE;
+    }
+  }
+
   /* ---------------------- État système & extinction ---------------------- */
   let engineLoading = false;
 
   function setEngineUI(system) {
-    const labels = { dots: "dots.tts", qwen3: "Qwen3 · 0,6B", pocket: "Pocket TTS", voxcpm2: "VoxCPM2" };
+    const labels = { dots: "dots.tts", qwen3: "Qwen3 · 0,6B", pocket: "Pocket TTS", piper: "Piper", voxcpm2: "VoxCPM2" };
     const label = labels[system.moteur] || system.moteur;
     $("modelPresence").innerHTML = `<i></i>${label}`;
     document.querySelectorAll(".engine").forEach((button) => {
@@ -2460,16 +2836,20 @@
       button.setAttribute("aria-pressed", String(active));
       button.disabled = !system.modele && !system.erreur;
     });
+    paintVoiceCardMode();
   }
 
   async function refreshSystem() {
     if (shuttingDown) return;
-    const labels = { dots: "dots.tts", qwen3: "Qwen3-TTS 0,6B", pocket: "Pocket TTS", voxcpm2: "VoxCPM2" };
+    const labels = { dots: "dots.tts", qwen3: "Qwen3-TTS 0,6B", pocket: "Pocket TTS", piper: "Piper", voxcpm2: "VoxCPM2" };
     try {
       const system = await (await fetch("/api/etat")).json();
       const ancienMoteur = moteurActif;
       moteurActif = system.moteur || "";
-      if (moteurActif !== ancienMoteur) refreshModeles();
+      if (moteurActif !== ancienMoteur) { refreshModeles(); refreshVoices(); }
+      if (moteurActif === "piper" && !system.modele && !system.erreur) {
+        setVoiceStatus("Chargement du moteur Piper…");
+      }
       if (system.version) {
         $("version").textContent = system.version;
         $("versionFooter").textContent = system.version;
@@ -2491,7 +2871,7 @@
         } else if (!system.modele) {
           $("recuperationMoteur").hidden = true;
           engineLoading = true;
-          const labels = { dots: "dots.tts", qwen3: "Qwen3-TTS 0,6B", pocket: "Pocket TTS", voxcpm2: "VoxCPM2" };
+          const labels = { dots: "dots.tts", qwen3: "Qwen3-TTS 0,6B", pocket: "Pocket TTS", piper: "Piper", voxcpm2: "VoxCPM2" };
           setPanelStatus(`Chargement de ${labels[system.moteur] || system.moteur}…`, true);
         } else if (engineLoading) {
           $("recuperationMoteur").hidden = true;
@@ -2517,10 +2897,15 @@
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.detail || "changement impossible");
       engineLoading = true;
-      const labels = { dots: "dots.tts", qwen3: "Qwen3-TTS 0,6B", pocket: "Pocket TTS", voxcpm2: "VoxCPM2" };
-      setPanelStatus(`Chargement de ${labels[moteur] || moteur}…`, true);
-      setTakeStatus("Changement de moteur en cours (~1-2 min)…");
-      notify("Changement de moteur — le chargement prend une à deux minutes.");
+      const labels = { dots: "dots.tts", qwen3: "Qwen3-TTS 0,6B", pocket: "Pocket TTS", piper: "Piper", voxcpm2: "VoxCPM2" };
+      setPanelStatus(moteur === "piper"
+        ? "Ouverture du catalogue de voix…"
+        : `Chargement de ${labels[moteur] || moteur}…`, true);
+      setTakeStatus(moteur === "piper"
+        ? "Chargement du moteur Piper (quelques secondes)…"
+        : "Changement de moteur en cours (~1-2 min)…");
+      if (moteur === "piper") notify("Moteur Piper — prêt en quelques secondes.");
+      else notify("Changement de moteur — le chargement prend une à deux minutes.");
       refreshSystem();
     } catch (error) {
       notify(`Changement impossible : ${error.message}`, "error");
@@ -2577,6 +2962,7 @@
     $("generer").addEventListener("click", createTake);
     $("stopStudio").addEventListener("click", stopStudio);
     $("hfBouton").addEventListener("click", enregistrerHfToken);
+    $("ouvrirCatalogue").addEventListener("click", ouvrirCatalogue);
     document.querySelectorAll(".engine").forEach((button) => {
       button.addEventListener("click", () => switchEngine(button.dataset.moteur));
     });
@@ -2591,6 +2977,7 @@
     bindNavEvents();
     appliquerVue((location.hash || "#studio").slice(1), { pousserAncre: false });
     refreshVoices();
+    loadPiperVoix();          // alimente aussi les associations de voix des livres
     refreshSystem();
     refreshModeles();
     refreshBooks();

@@ -510,6 +510,52 @@ class AnalyseContracts(unittest.TestCase):
         self.assertEqual(livres._slug("Léa-Marie Östër"), "lea-marie-oster")
         self.assertEqual(livres._slug("Narrator"), "narrateur")
 
+    def test_phrases_lisibles_coupe_aux_clauses(self):
+        phrase = ", ".join(["un fragment de phrase assez long"] * 12) + "."
+        morceaux = livres.phrases_lisibles([phrase])
+        self.assertGreater(len(morceaux), 1)
+        self.assertTrue(all(len(m) <= livres.MAX_CARACTERES_SEGMENT for m in morceaux))
+        self.assertEqual(" ".join(morceaux), phrase)        # rien n'est perdu à la coupe
+        # sans espace, la coupe tombe à la limite dure et reste bornée
+        self.assertEqual([len(m) for m in livres.phrases_lisibles(["x" * 400])], [320, 80])
+        self.assertEqual(livres.phrases_lisibles(["Courte."]), ["Courte."])
+
+    def test_redecoupage_par_phrases_sans_ia(self):
+        livre = self.livre(CHAPITRES[:1])
+        livres.analyser_livre(self.root, livre["id"], self.cfg)
+        # une première analyse avait collé le paragraphe entier sur une ligne :
+        # le redécoupage rescinde en phrases (et en clauses) sans rappeler l'IA
+        projet = livres.lire(self.root, livre["id"])
+        fichier = self.root / livre["id"] / projet["chapitres"][0]["fichier"]
+        longue = " ".join(["Il referma la porte et s'approcha de la table"] * 9) + "."
+        fichier.write_text(
+            f"# Premier chapitre\n\n///narrateur Il entra sans un bruit. "
+            f"Elle prit la lettre, la lut deux fois et la reposa. {longue}\n",
+            encoding="utf-8")
+        projet["chapitres"][0]["audio_segments"] = {"1": {"fichier": "vieux.wav", "empreinte": "abc"}}
+        (self.root / livre["id"] / "projet.json").write_text(
+            json.dumps(projet, ensure_ascii=False), encoding="utf-8")
+        server.jobs.clear()
+        with patch.object(livres.ia, "appeler", side_effect=AssertionError("redécoupage sans IA")):
+            reponse = self.client.post(f"/api/livres/{livre['id']}/chapitre/1/reedecouper")
+        self.assertEqual(reponse.status_code, 200, reponse.text)
+        maj = reponse.json()["chapitres"][0]
+        texte = self.client.get(f"/api/livres/{livre['id']}/chapitre/1").json()["texte"]
+        lignes = [l for l in texte.splitlines() if l.startswith("///")]
+        self.assertEqual(maj["segments"], len(lignes))
+        self.assertEqual(lignes[0], "///narrateur Il entra sans un bruit.")
+        self.assertIn("///narrateur Elle prit la lettre, la lut deux fois et la reposa.", lignes)
+        self.assertEqual(len(lignes), 4)                     # la longue phrase est scindée en 2
+        self.assertTrue(all(l.startswith("///narrateur ") for l in lignes))
+        self.assertTrue(all(len(l) - len("///narrateur ") <= livres.MAX_CARACTERES_SEGMENT for l in lignes))
+        self.assertEqual(maj["audio_segments"], {})          # les audios du chapitre sont invalidés
+        # un chapitre jamais analysé est refusé avec un message clair
+        vide = self.root / livre["id"] / projet["chapitres"][0]["fichier"]
+        vide.write_text("# Premier chapitre\n\nAucun tag de voix ici.\n", encoding="utf-8")
+        refus = self.client.post(f"/api/livres/{livre['id']}/chapitre/1/reedecouper")
+        self.assertEqual(refus.status_code, 400)
+        self.assertIn("analys", refus.json()["detail"])
+
     def test_verifier_attribution_laya(self):
         class AgentFaux:
             def predict(self, state, questions):

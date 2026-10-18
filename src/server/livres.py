@@ -571,6 +571,45 @@ def scinder_chapitre(racine: Path, ident: str, numero: int, texte: str, position
     return projet
 
 
+def redecouper_chapitre(racine: Path, ident: str, numero: int) -> dict | None:
+    """Redécoupe un chapitre taggé phrase par phrase, sans nouvelle analyse IA.
+
+    Les premières analyses collaient parfois un paragraphe entier par segment :
+    les moteurs TTS y ajoutent des petits mots ou tronquent la fin, ce qui
+    casse le rythme de lecture. Chaque ligne taggée est ici rescindée en
+    phrases complètes (`_decouper_phrases`), puis les phrases trop longues
+    sont coupées à une frontière de clause (`phrases_lisibles`). Les audios
+    déjà générés du chapitre sont invalidés (les segments ont bougé).
+    """
+    projet = lire(racine, ident)
+    chapitre = next((c for c in projet["chapitres"] if c["num"] == numero), None) if projet else None
+    if not chapitre:
+        return None
+    try:
+        contenu = (racine / ident / chapitre["fichier"]).read_text(encoding="utf-8")
+    except OSError:
+        return None
+    texte = re.sub(r"^# .*\n+", "", contenu, count=1)
+    lignes: list[str] = []
+    for ligne in texte.splitlines():
+        trouve = VOIX_LIGNE.match(ligne.strip())
+        if not trouve:
+            continue
+        id_voix = _slug(trouve.group(1) or trouve.group(2))
+        for phrase in phrases_lisibles(_decouper_phrases(trouve.group(3).strip())):
+            lignes.append(f"///{id_voix} {phrase}")
+    if not lignes:
+        raise LivreErreur("ce chapitre n'a pas encore été analysé : lance d'abord l'analyse IA")
+    tagge = "\n".join(lignes)
+    (racine / ident / chapitre["fichier"]).write_text(
+        f"# {chapitre['titre']}\n\n{tagge}\n", encoding="utf-8")
+    chapitre["segments"] = len(lignes)
+    chapitre["audio_segments"] = {}      # les segments ont bougé : l'audio ne correspond plus
+    _projet(racine, ident).write_text(
+        json.dumps(projet, ensure_ascii=False, indent=2), encoding="utf-8")
+    return projet
+
+
 def chemin_couverture(racine: Path, ident: str) -> Path | None:
     projet = lire(racine, ident)
     if not projet or not projet.get("couverture"):
@@ -691,6 +730,29 @@ def _decouper_phrases(texte: str) -> list[str]:
     return phrases
 
 
+MAX_CARACTERES_SEGMENT = 320   # au-delà, les moteurs ajoutent des mots ou tronquent
+
+
+def phrases_lisibles(phrases: list[str], maxi: int = MAX_CARACTERES_SEGMENT) -> list[str]:
+    """Phrase par phrase ; une phrase trop longue est coupée à une frontière
+    de clause ( ; : , ) pour rester dans les limites sûres des moteurs TTS."""
+    resultat: list[str] = []
+    for phrase in phrases:
+        while len(phrase) > maxi:
+            coupe = 0
+            for separateur in (" ; ", " : ", ", ", " — "):
+                position = phrase.rfind(separateur, 0, maxi)
+                if position > 40:
+                    coupe = position + len(separateur.rstrip())
+            if coupe <= 0:
+                coupe = phrase.rfind(" ", 0, maxi) + 1 or maxi
+            resultat.append(phrase[:coupe].rstrip())
+            phrase = phrase[coupe:].lstrip()
+        if phrase:
+            resultat.append(phrase)
+    return resultat
+
+
 def _echantillon(dossier: Path, projet: dict, taille: int = 9000) -> str:
     """Extraits représentatifs du livre pour détecter la distribution des voix."""
     chapitres = projet["chapitres"]
@@ -790,12 +852,14 @@ def _tagger_morceau(cfg: dict, titre: str, numero: int, index: int, total: int,
                 connus.add(identifiant)
             # Une phrase devient un segment propre, même si le modèle en a fusionné
             # plusieurs sur une seule ligne. Le locuteur est hérité de l'attribution.
-            for phrase in _decouper_phrases(trouve.group(3).strip()):
+            # Les phrases trop longues sont coupées aux clauses (limite sûre des moteurs).
+            for phrase in phrases_lisibles(_decouper_phrases(trouve.group(3).strip())):
                 lignes.append(f"///{identifiant} {phrase}")
         elif trouve:
             continue
         else:
-            lignes.extend(f"///narrateur {phrase}" for phrase in _decouper_phrases(ligne))
+            lignes.extend(f"///narrateur {phrase}"
+                          for phrase in phrases_lisibles(_decouper_phrases(ligne)))
     return lignes
 
 

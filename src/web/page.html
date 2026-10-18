@@ -174,15 +174,15 @@
   }
   .rename-input:focus { outline: none; box-shadow: 0 0 0 2px rgba(223, 93, 69, .25); }
   .voice-row .vmeta { margin-left: auto; flex: 0 0 auto; color: var(--faint); font: .64rem var(--mono); }
-  .voice-row .vdel {
+  .voice-row .vdel, .piper-row .vdel {
     flex: 0 0 auto; width: 26px; height: 26px; display: grid; place-items: center;
     border: 0; border-radius: 50%; background: transparent; color: var(--faint);
     opacity: 0; transition: opacity .15s ease, color .15s ease, background .15s ease;
   }
-  .voice-row:hover .vdel { opacity: 1; }
-  .voice-row .vdel:hover { color: var(--coral-deep); background: var(--coral-tint); }
-  .voice-row .vdel svg { width: 11px; height: 11px; }
-  @media (hover: none) { .voice-row .vdel { opacity: .55; } }
+  .voice-row:hover .vdel, .piper-row:hover .vdel { opacity: 1; }
+  .voice-row .vdel:hover, .piper-row .vdel:hover { color: var(--coral-deep); background: var(--coral-tint); }
+  .voice-row .vdel svg, .piper-row .vdel svg { width: 11px; height: 11px; }
+  @media (hover: none) { .voice-row .vdel, .piper-row .vdel { opacity: .55; } }
 
   .orb {
     width: 12px; height: 12px; flex: 0 0 auto; border-radius: 50%;
@@ -417,6 +417,7 @@
         <button class="engine" type="button" data-moteur="dots" aria-pressed="false" title="dots.tts — clonage haute fidélité, 48 kHz, 24 langues">dots.tts</button>
         <button class="engine" type="button" data-moteur="qwen3" aria-pressed="false" title="Qwen3-TTS 0,6B — clonage vocal multilingue, ~2–3 Go">Qwen3 · 0,6B</button>
         <button class="engine" type="button" data-moteur="pocket" title="Pocket TTS (Kyutai) — clonage vocal léger français, ~0,4 Go">Pocket</button>
+        <button class="engine" type="button" data-moteur="piper" title="Piper — voix prêtes à l'emploi sans clonage, catalogue téléchargeable (20–80 Mo la voix)">Piper</button>
       </div>
     </div>
 
@@ -426,7 +427,7 @@
         <div class="voice-status" id="etatVoix" aria-live="polite">Bibliothèque en chargement…</div>
         <div class="voice-list" id="voiceList"></div>
 
-        <details>
+        <details id="transcriptDetails">
           <summary>Transcript de référence</summary>
           <textarea id="transcript" rows="3" disabled placeholder="Sélectionne une voix pour voir et corriger son transcript."></textarea>
         </details>
@@ -438,6 +439,9 @@
             </button>
             <button class="pill-light" id="ajouterMicro" type="button">
               <span class="rec-dot" aria-hidden="true"></span>Enregistrer
+            </button>
+            <button class="pill-light" id="ouvrirCatalogue" type="button" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M4 19V5a2 2 0 0 1 2-2h13v18H6a2 2 0 0 1-2-2zm0 0a2 2 0 0 1 2-2h13"/></svg>Catalogue de voix
             </button>
           </div>
           <span id="voiceFooterCount"></span>
@@ -578,6 +582,8 @@
 </footer>
 
 </div></div>
+
+<div class="catalog-overlay" id="catalogOverlay" hidden role="dialog" aria-modal="true" aria-label="Catalogue de voix Piper"></div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 

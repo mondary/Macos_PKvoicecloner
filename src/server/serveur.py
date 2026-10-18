@@ -26,10 +26,16 @@ Endpoints :
   GET  /api/livres/{id}/export      état de l'export M4B
   GET  /api/livres/{id}/fichier     téléchargement du M4B
   POST /api/generer     {texte, vitesse, transcript} -> job id
-  POST /api/moteur      {moteur: voxcpm2|dots|qwen3|pocket} changement de moteur TTS
+                        (moteur piper : {texte, vitesse, piper_voix, piper_locuteur})
+  POST /api/moteur      {moteur: voxcpm2|dots|qwen3|pocket|piper} changement de moteur TTS
   GET  /api/modeles     modèles téléchargeables + état installé
   POST /api/modeles/{id}/installer  télécharge les poids (et le paquet pip manquant)
   DELETE /api/modeles/{id}          supprime les poids du cache Hugging Face
+  GET  /api/piper/catalogue         catalogue des voix Piper (téléchargeables à la carte)
+  GET  /api/piper/voix              voix Piper téléchargées sur ce Mac
+  POST /api/piper/voix/{id}/installer   télécharge une voix Piper (202, suivi catalogue)
+  DELETE /api/piper/voix/{id}           supprime une voix Piper du cache
+  POST /api/livres/{id}/chapitre/{n}/reedecouper  phrase par phrase, sans nouvelle analyse IA
   POST /api/arreter     arrêt gracieux du serveur et libération du modèle
   GET  /api/job/{id}    état du job
   GET  /api/audio/{f}   fichier wav généré
@@ -64,6 +70,7 @@ if str(Path(__file__).resolve().parent) not in sys.path:      # livres.py / ia.p
 import ia
 import livres
 import laya_local
+import normalisation
 
 SRC = Path(__file__).resolve().parent
 PROJET = SRC.parent.parent
@@ -89,9 +96,17 @@ app = FastAPI(title="PK Voice Cloner")
 app.mount("/assets", StaticFiles(directory=WEB / "assets"), name="assets")
 modele = None                    # moteur TTS chargé en arrière-plan
 moteur_actif = "voxcpm2"         # "voxcpm2" | "dots" (demandé)
+moteur_lourd = "voxcpm2"         # dernier moteur de clonage demandé (hors Piper)
 moteur_pret = None               # moteur réellement présent dans `modele`
 erreur_modele = None             # échec visible dans les clients
 MOTEUR_LABELS = {"voxcpm2": "VoxCPM2", "dots": "dots.tts"}
+# ------------------------------------------------------------------- Piper TTS
+# Catalogue officiel des voix « prêtes à l'emploi » (sans clonage) : chaque
+# voix est un couple ONNX + JSON (~20–80 Mo) du dépôt rhasspy/piper-voices,
+# téléchargé individuellement dans le cache Hugging Face partagé.
+PIPER_REPO = "rhasspy/piper-voices"
+PIPER_ID_VALIDE = re.compile(r"^[a-z]{2}_[A-Z]{2}-[A-Za-z0-9_]+-(?:x_low|low|medium|high)$")
+_piper_catalogue_cache: dict | None = None
 # Modèles optionnels : paquets pip (nom pip, nom d'import) + dépôt de poids HF.
 MODELES_TELECHARGEABLES = {
     "qwen3-tts": {
@@ -107,6 +122,17 @@ MODELES_TELECHARGEABLES = {
         "label": "Pocket TTS",
         "taille": "~0,4 Go",
         "paquets": (("pocket-tts", "pocket_tts"),),
+    },
+    "piper": {
+        "repo": PIPER_REPO,
+        "moteur": "piper",
+        "label": "Piper (voix prêtes à l'emploi)",
+        "taille": "moteur léger · voix à la carte (~20–80 Mo)",
+        "paquets": (("piper-tts", "piper"),),
+        # le dépôt HF contient les 177 voix du catalogue : on ne télécharge
+        # JAMAIS tout le snapshot, chaque voix s'installe individuellement
+        # (voir /api/piper/voix/{id}/installer).
+        "sans_poids": True,
     },
 }
 MODELES_ASR = {
@@ -201,15 +227,30 @@ def charger_pocket():
     return model.to(torch.device("mps"))
 
 
+def charger_piper():
+    """Moteur Piper : voix TTS prêtes à l'emploi, sans clonage.
+
+    Chaque voix du catalogue est un petit modèle ONNX chargé à la demande
+    (~0,4 s) ; le « chargement du moteur » vérifie donc juste le paquet pip
+    et renvoie un cache de voix chargées."""
+    import piper  # noqa: F401 — installable via Modèles → Piper → Installer
+
+    return {"voix": {}}          # id voix -> PiperVoice chargée
+
+
 MOTEUR_LABELS["qwen3"] = "Qwen3-TTS 0,6B"
 MOTEUR_LABELS["pocket"] = "Pocket TTS"
-CHARGEURS = {"voxcpm2": charger_voxcpm, "dots": charger_dots, "qwen3": charger_qwen, "pocket": charger_pocket}
+MOTEUR_LABELS["piper"] = "Piper"
+CHARGEURS = {"voxcpm2": charger_voxcpm, "dots": charger_dots, "qwen3": charger_qwen,
+             "pocket": charger_pocket, "piper": charger_piper}
 verrou_chargement = threading.Lock()
 
 
 def charger_modele(moteur: str):
-    global moteur_actif, moteur_pret, modele, erreur_modele
+    global moteur_actif, moteur_pret, modele, erreur_modele, moteur_lourd
     moteur_actif = moteur
+    if moteur != "piper":
+        moteur_lourd = moteur
     erreur_modele = None
     print(f">> chargement du moteur {MOTEUR_LABELS[moteur]} (~1-2 min)...", flush=True)
     with verrou_chargement:   # un chargement à la fois, même en cas de double-clic
@@ -320,9 +361,49 @@ def _cache_modele(repo: str) -> Path:
     return Path.home() / ".cache" / "huggingface" / "hub" / f"models--{repo.replace('/', '--')}"
 
 
+def _piper_catalogue() -> dict:
+    """Catalogue officiel des voix Piper (voices.json, mis en cache HF partagé)."""
+    global _piper_catalogue_cache
+    if _piper_catalogue_cache is not None:
+        return _piper_catalogue_cache
+    from huggingface_hub import hf_hub_download
+
+    chemin = hf_hub_download(PIPER_REPO, "voices.json",
+                             token=os.environ.get("HF_TOKEN") or None)
+    _piper_catalogue_cache = json.loads(Path(chemin).read_text(encoding="utf-8"))
+    return _piper_catalogue_cache
+
+
+def _piper_voix_installees() -> dict[str, dict]:
+    """Voix Piper complètes du cache HF : id -> {onnx, config, taille_mo}.
+
+    Un résidu de téléchargement interrompu (blob .incomplete ou JSON absent)
+    ne compte pas comme installé."""
+    racine = _cache_modele(PIPER_REPO) / "snapshots"
+    if not racine.is_dir():
+        return {}
+    installes: dict[str, dict] = {}
+    for onnx in racine.rglob("*.onnx"):
+        vid = onnx.name[: -len(".onnx")]
+        config = onnx.with_name(onnx.name + ".json")
+        if not config.is_file() or not onnx.resolve().is_file():
+            continue
+        try:
+            taille = onnx.stat().st_size + config.stat().st_size
+        except OSError:
+            continue
+        installes[vid] = {"onnx": str(onnx), "config": str(config),
+                          "taille_mo": round(taille / 1_000_000, 1)}
+    return installes
+
+
 def _est_installe(repo: str) -> bool:
     """Vrai si les poids sont en cache : au moins un blob complet > 50 Mo.
-    ponytail: heuristique taille — tous ces modèles TTS dépassent 100 Mo de poids."""
+    ponytail: heuristique taille — tous ces modèles TTS dépassent 100 Mo de poids.
+    Piper fait exception : le dépôt est un catalogue mutualisé, « installé »
+    signifie « au moins une voix complète téléchargée »."""
+    if repo == PIPER_REPO:
+        return bool(_piper_voix_installees())
     blobs = _cache_modele(repo) / "blobs"
     try:
         return any(
@@ -435,6 +516,128 @@ def hf_token(req: dict = Body(...)):
     return {"ok": True, "configure": bool(token)}
 
 
+# ------------------------------------------------------------------ voix Piper
+
+@app.get("/api/piper/catalogue")
+def piper_catalogue(q: str = "", langue: str = "", seulement_installees: bool = False):
+    """Catalogue des voix Piper (177 voix, 30+ langues), avec état de téléchargement."""
+    try:
+        catalogue = _piper_catalogue()
+    except Exception as e:  # noqa: BLE001 — réseau/HF indisponible : liste vide + raison
+        return {"voix": [], "erreur": str(e)[:200]}
+    installes = _piper_voix_installees()
+    q = q.strip().lower()
+    langue = langue.strip().lower()
+    voix = []
+    for vid, meta in catalogue.items():
+        code = meta.get("language", {}).get("code", "")
+        if langue and not (langue in code.lower()
+                           or langue == meta.get("language", {}).get("family", "").lower()
+                           or langue in meta.get("language", {}).get("name_native", "").lower()):
+            continue
+        if seulement_installees and vid not in installes:
+            continue
+        nom = meta.get("name", vid)
+        if q and q not in f"{vid} {nom} {code}".lower():
+            continue
+        taille = sum(f.get("size_bytes", 0) for f in meta.get("files", {}).values())
+        voix.append({
+            "id": vid,
+            "nom": nom,
+            "langue": code,
+            "langue_nom": meta.get("language", {}).get("name_native", code),
+            "qualite": meta.get("quality", ""),
+            "locuteurs": meta.get("num_speakers", 1),
+            "locuteur_noms": meta.get("speaker_id_map", {}),
+            "taille_mo": round(taille / 1_000_000, 1),
+            "telechargee": vid in installes,
+        })
+    voix.sort(key=lambda v: (v["langue"] != "fr_FR", v["langue"], v["nom"], v["qualite"]))
+    return {"voix": voix, "total": len(voix), "installees": len(installes)}
+
+
+@app.get("/api/piper/voix")
+def piper_voix():
+    """Voix Piper téléchargées sur ce Mac (métadonnées du catalogue enrichies)."""
+    try:
+        catalogue = _piper_catalogue()
+    except Exception:  # noqa: BLE001 — hors ligne : métadonnées minimales
+        catalogue = {}
+    voix = []
+    for vid, info in sorted(_piper_voix_installees().items()):
+        meta = catalogue.get(vid, {})
+        voix.append({
+            "id": vid,
+            "nom": meta.get("name", vid.split("-")[1] if "-" in vid else vid),
+            "langue": meta.get("language", {}).get("code", ""),
+            "langue_nom": meta.get("language", {}).get("name_native", ""),
+            "qualite": meta.get("quality", ""),
+            "locuteurs": meta.get("num_speakers", 1),
+            "locuteur_noms": meta.get("speaker_id_map", {}),
+            "taille_mo": info["taille_mo"],
+        })
+    return {"voix": voix, "moteur": "piper" if moteur_pret == "piper" else moteur_actif}
+
+
+def _installer_voix_piper(vid: str):
+    cle = f"piper:{vid}"
+    try:
+        meta = _piper_catalogue()[vid]
+        from huggingface_hub import hf_hub_download
+
+        for chemin in meta.get("files", {}):
+            hf_hub_download(PIPER_REPO, chemin, token=os.environ.get("HF_TOKEN") or None)
+        installations[cle] = {"etat": "pret"}
+        print(f">> voix Piper {vid} installée.", flush=True)
+    except Exception as e:  # noqa: BLE001 — remonté au client via le catalogue
+        installations[cle] = {"etat": "erreur", "erreur": str(e)[:300]}
+
+
+@app.post("/api/piper/voix/{vid}/installer", status_code=202)
+def installer_voix_piper(vid: str):
+    if not PIPER_ID_VALIDE.fullmatch(vid):
+        raise HTTPException(404, "voix Piper inconnue")
+    try:
+        connue = vid in _piper_catalogue()
+    except Exception as e:  # noqa: BLE001 — catalogue injoignable
+        raise HTTPException(503, f"catalogue indisponible : {str(e)[:150]}")
+    if not connue:
+        raise HTTPException(404, "voix Piper inconnue")
+    if vid in _piper_voix_installees():
+        return {"ok": True, "installe": True}
+    cle = f"piper:{vid}"
+    if installations.get(cle, {}).get("etat") != "en_cours":
+        installations[cle] = {"etat": "en_cours"}
+        threading.Thread(target=_installer_voix_piper, args=(vid,), daemon=True).start()
+    return {"ok": True, "etat": "en_cours"}
+
+
+@app.delete("/api/piper/voix/{vid}")
+def supprimer_voix_piper(vid: str):
+    """Supprime UNE voix du cache HF (blob + entrée de snapshot), pas le dépôt entier."""
+    if any(j.get("etat") in ("attente", "chargement", "generation") for j in jobs.values()):
+        raise HTTPException(409, "génération en cours : attends sa fin avant de supprimer")
+    installes = _piper_voix_installees()
+    if vid not in installes:
+        raise HTTPException(404, "voix Piper introuvable dans le cache")
+    if moteur_pret == "piper" and isinstance(modele, dict):
+        modele.get("voix", {}).pop(vid, None)
+    for champ in ("onnx", "config"):
+        chemin = Path(installes[vid][champ])
+        blob = chemin.resolve()
+        chemin.unlink(missing_ok=True)
+        if blob.is_file() and blob.parent.name == "blobs":
+            blob.unlink()
+    dossier = Path(installes[vid]["onnx"]).parent
+    for parent in (dossier, dossier.parent, dossier.parent.parent):
+        try:
+            parent.rmdir()          # ne retire que les dossiers devenus vides
+        except OSError:
+            break
+    installations.pop(f"piper:{vid}", None)
+    return {"ok": True, "supprime": vid}
+
+
 @app.get("/api/audios")
 def liste_audios():
     fichiers = sorted(SORTIES.glob("*.wav"), key=lambda f: f.stat().st_mtime, reverse=True)
@@ -469,7 +672,7 @@ def _installer_modele(modele_id: str):
                 # le serveur tourne déjà : sans ça, l'import peut rester aveugle
                 # au paquet fraîchement installé (caches de finders).
                 importlib.invalidate_caches()
-        if not _est_installe(m["repo"]):
+        if not m.get("sans_poids") and not _est_installe(m["repo"]):
             from huggingface_hub import snapshot_download
 
             snapshot_download(m["repo"], token=os.environ.get("HF_TOKEN") or None)
@@ -671,6 +874,19 @@ def definir_voix(audio: UploadFile = File(...)):
     return {"id": h, "transcript": transcripts[h], "duree": duree_audio(wav), "source": nom}
 
 
+def _cible_implicite(piper: dict | None) -> str | None:
+    """Moteur à charger automatiquement pour cette génération, le cas échéant.
+
+    Une voix Piper alors que Piper n'est pas prêt → bascule vers Piper.
+    Un clone alors que le moteur actif est Piper → retour au dernier moteur
+    de clonage utilisé (moteur_lourd)."""
+    if piper and moteur_pret != "piper":
+        return "piper"
+    if not piper and moteur_actif == "piper" and moteur_pret != moteur_lourd:
+        return moteur_lourd
+    return None
+
+
 @app.post("/api/generer")
 def lancer_generation(req: dict = Body(...)):
     texte = (req.get("texte") or "").strip()
@@ -683,36 +899,67 @@ def lancer_generation(req: dict = Body(...)):
     if not (VITESSE_MIN <= vitesse <= VITESSE_MAX):
         raise HTTPException(400, f"vitesse entre {VITESSE_MIN} et {VITESSE_MAX}")
     reference = None
-    reference_id = str(req.get("reference_id") or "")
-    if reference_id:
-        if not re.fullmatch(r"[a-f0-9]{12,64}", reference_id):
-            raise HTTPException(400, "identifiant de voix invalide")
-        fichier_ref = VOIX / f"ref_{reference_id}.wav"
-        if not fichier_ref.exists():
-            raise HTTPException(404, "voix de bibliothèque introuvable")
-        infos_ref = info_voix(reference_id, fichier_ref)
-        reference = {"id": reference_id, "wav": fichier_ref,
-                     "transcript": infos_ref["transcript"], "source": infos_ref["nom"]}
-    elif voix_courante:
-        reference = dict(voix_courante)
+    piper = None
+    piper_voix = str(req.get("piper_voix") or "")
+    if piper_voix:
+        if not PIPER_ID_VALIDE.fullmatch(piper_voix) or piper_voix not in _piper_voix_installees():
+            raise HTTPException(400, "voix Piper inconnue ou non téléchargée — choisis-en une dans le catalogue")
+        locuteur = req.get("piper_locuteur")
+        if locuteur is not None:
+            try:
+                locuteur = int(locuteur)
+            except (TypeError, ValueError):
+                raise HTTPException(400, "locuteur invalide")
+            else:
+                if locuteur < 0:
+                    raise HTTPException(400, "locuteur invalide")
+        piper = {"voix": piper_voix, "locuteur": locuteur}
+    elif req.get("reference_id") or voix_courante:
+        reference_id = str(req.get("reference_id") or "")
+        if reference_id:
+            if not re.fullmatch(r"[a-f0-9]{12,64}", reference_id):
+                raise HTTPException(400, "identifiant de voix invalide")
+            fichier_ref = VOIX / f"ref_{reference_id}.wav"
+            if not fichier_ref.exists():
+                raise HTTPException(404, "voix de bibliothèque introuvable")
+            infos_ref = info_voix(reference_id, fichier_ref)
+            reference = {"id": reference_id, "wav": fichier_ref,
+                         "transcript": infos_ref["transcript"], "source": infos_ref["nom"]}
+        else:
+            reference = dict(voix_courante)
+    elif moteur_actif == "piper":
+        raise HTTPException(400, "aucune voix Piper sélectionnée — choisis-en une dans le catalogue")
     else:
         raise HTTPException(400, "aucune voix définie : choisis ou enregistre un audio d'abord")
-    if erreur_modele:
+    if erreur_modele and not _cible_implicite(piper):
         raise HTTPException(503, f"Le modèle n’a pas pu être chargé : {erreur_modele}")
     if any(j.get("etat") in ("attente", "chargement", "generation") for j in jobs.values()):
         raise HTTPException(409, "une génération est déjà en cours")
+    cible = _cible_implicite(piper)
+    if cible:
+        # bascule silencieuse : le moteur suit la voix demandée (Piper se
+        # charge en moins d'une seconde ; le moteur de clonage précédent est
+        # restauré pour un clone — les livres mélangent les deux familles)
+        decharger_modele()
+        threading.Thread(target=charger_modele, args=(cible,), daemon=True).start()
     job = uuid.uuid4().hex[:10]
     jobs[job] = {"etat": "attente", "debut": time.time()}
     threading.Thread(
         target=executer_generation,
         args=(job, texte, vitesse, (req.get("transcript") or "").strip(), reference),
+        kwargs={"piper": piper},
         daemon=True,
     ).start()
     return {"job": job}
 
 
-def executer_generation(job, texte, vitesse, transcript, reference=None):
+def executer_generation(job, texte, vitesse, transcript, reference=None, piper=None):
     try:
+        # Normalisation française commune : « M. » → Monsieur, « Louis XVI » →
+        # « Louis seize », « 1789 » → « mille sept cent… ». Le texte affiché
+        # dans le studio reste la référence ; seule la synthèse reçoit la
+        # forme développée.
+        texte = normalisation.normaliser(texte)
         with verrou_gen:
             jobs[job]["etat"] = "chargement"
             deadline = time.monotonic() + 180
@@ -723,44 +970,65 @@ def executer_generation(job, texte, vitesse, transcript, reference=None):
                     raise RuntimeError("Le modèle ne répond pas après trois minutes. Réessaie ou change de moteur.")
                 time.sleep(0.5)
             jobs[job]["etat"] = "generation"
-            reference = reference or dict(voix_courante)
-            ref = str(reference["wav"])
-            transcript = transcript or reference.get("transcript") or ""
-            if moteur_pret == "dots":
-                resultat = modele.generate(
-                    text=texte,
-                    prompt_audio_path=ref,
-                    prompt_text=(transcript or None),
-                )
-                wav = resultat["audio"].float().cpu().squeeze().numpy()
-                sample_rate = resultat["sample_rate"]
-            elif moteur_pret == "qwen3":
-                wavs, sample_rate = modele.generate_voice_clone(
-                    text=texte,
-                    language="French",
-                    ref_audio=ref,
-                    ref_text=(transcript or ""),
-                )
-                wav = wavs[0]
-            elif moteur_pret == "pocket":
-                etat = modele.get_state_for_audio_prompt(ref)
-                wav = modele.generate_audio(etat, texte).float().cpu().squeeze().numpy()
-                sample_rate = modele.sample_rate
+            vitesse_native = False
+            if moteur_pret == "piper":
+                import numpy as np
+                from piper import PiperVoice, SynthesisConfig
+
+                cache_voix = modele["voix"]
+                voix_piper = cache_voix.get(piper["voix"])
+                if voix_piper is None:
+                    voix_piper = PiperVoice.load(_piper_voix_installees()[piper["voix"]]["onnx"])
+                    if len(cache_voix) >= 3:     # cache borné : les voix sont légères
+                        cache_voix.pop(next(iter(cache_voix)))
+                    cache_voix[piper["voix"]] = voix_piper
+                config = SynthesisConfig(length_scale=1.0 / vitesse,
+                                         speaker_id=piper.get("locuteur"))
+                morceaux = list(voix_piper.synthesize(texte, config))
+                if not morceaux:
+                    raise RuntimeError("Piper n’a rien synthétisé (phrase vide ?)")
+                wav = np.concatenate([m.audio_int16_array for m in morceaux])
+                sample_rate = morceaux[0].sample_rate
+                vitesse_native = True          # vitesse déjà gérée par length_scale
             else:
-                kwargs = dict(
-                    text=texte,
-                    reference_wav_path=ref,
-                    cfg_value=2.0,
-                    inference_timesteps=10,
-                )
-                if transcript:
-                    kwargs.update(prompt_wav_path=ref, prompt_text=transcript)
-                wav = modele.generate(**kwargs)
-                sample_rate = modele.tts_model.sample_rate
+                reference = reference or dict(voix_courante)
+                ref = str(reference["wav"])
+                transcript = transcript or reference.get("transcript") or ""
+                if moteur_pret == "dots":
+                    resultat = modele.generate(
+                        text=texte,
+                        prompt_audio_path=ref,
+                        prompt_text=(transcript or None),
+                    )
+                    wav = resultat["audio"].float().cpu().squeeze().numpy()
+                    sample_rate = resultat["sample_rate"]
+                elif moteur_pret == "qwen3":
+                    wavs, sample_rate = modele.generate_voice_clone(
+                        text=texte,
+                        language="French",
+                        ref_audio=ref,
+                        ref_text=(transcript or ""),
+                    )
+                    wav = wavs[0]
+                elif moteur_pret == "pocket":
+                    etat = modele.get_state_for_audio_prompt(ref)
+                    wav = modele.generate_audio(etat, texte).float().cpu().squeeze().numpy()
+                    sample_rate = modele.sample_rate
+                else:
+                    kwargs = dict(
+                        text=texte,
+                        reference_wav_path=ref,
+                        cfg_value=2.0,
+                        inference_timesteps=10,
+                    )
+                    if transcript:
+                        kwargs.update(prompt_wav_path=ref, prompt_text=transcript)
+                    wav = modele.generate(**kwargs)
+                    sample_rate = modele.tts_model.sample_rate
             brute = SORTIES / f"{job}_brute.wav"
-            sf.write(brute, wav, sample_rate)
+            sf.write(brute, wav, sample_rate, subtype="PCM_16")
             final = SORTIES / f"{job}.wav"
-            if abs(vitesse - 1.0) > 0.01:
+            if not vitesse_native and abs(vitesse - 1.0) > 0.01:
                 subprocess.run(
                     ["ffmpeg", "-y", "-loglevel", "error", "-i", str(brute),
                      "-filter:a", f"atempo={vitesse}", str(final)],
@@ -877,6 +1145,21 @@ def scinder_chapitre(lid: str, num: int, req: dict = Body(...)):
     return projet
 
 
+@app.post("/api/livres/{lid}/chapitre/{num}/reedecouper")
+def redecouper_chapitre(lid: str, num: int):
+    """Redécoupe le chapitre phrase par phrase (rythme de lecture), sans IA."""
+    lid = _id_livre(lid)
+    if any(j.get("etat") in ("attente", "chargement", "generation") for j in jobs.values()):
+        raise HTTPException(409, "une génération est en cours : attends sa fin avant de redécouper")
+    try:
+        projet = livres.redecouper_chapitre(LIVRES, lid, num)
+    except livres.LivreErreur as erreur:
+        raise HTTPException(400, str(erreur))
+    if not projet:
+        raise HTTPException(404, "chapitre inconnu")
+    return projet
+
+
 @app.post("/api/livres/{lid}/renommer")
 def renommer_livre(lid: str, req: dict = Body(...)):
     if not any(k in req for k in ("titre", "auteur")):
@@ -897,8 +1180,20 @@ def associer_voix_livre(lid: str, req: dict = Body(...)):
     if not isinstance(correspondances, dict):
         raise HTTPException(400, "associations de voix invalides")
     ids_bibliotheque = {v["id"] for v in liste_voix()["voix"]}
-    if any(voice not in ids_bibliotheque for voice in correspondances.values() if voice):
-        raise HTTPException(400, "une voix sélectionnée n'existe plus dans la bibliothèque")
+    piper_installes = _piper_voix_installees()
+
+    def voix_piper_valide(ref: str) -> bool:
+        m = re.fullmatch(r"piper:([a-z]{2}_[A-Z]{2}-[A-Za-z0-9_]+-(?:x_low|low|medium|high))(?::(\d+))?", ref)
+        return bool(m) and m.group(1) in piper_installes
+
+    for voice in correspondances.values():
+        if not voice:
+            continue
+        if voice.startswith("piper:"):
+            if not voix_piper_valide(voice):
+                raise HTTPException(400, "une voix Piper sélectionnée n'est plus téléchargée")
+        elif voice not in ids_bibliotheque:
+            raise HTTPException(400, "une voix sélectionnée n'existe plus dans la bibliothèque")
     projet = livres.enregistrer_correspondances_voix(LIVRES, _id_livre(lid), correspondances)
     if not projet:
         raise HTTPException(404, "livre inconnu")

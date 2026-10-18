@@ -33,7 +33,7 @@ Le site publiable prêt pour FTP est autonome dans [`store/website/`](store/webs
 ## ✅ Fonctionnalités
 
 - **Moteurs commutables** — **VoxCPM2** (MPS, rapide, ~30 langues) et **dots.tts** (2B, clonage haute fidélité 48 kHz, 24 langues) : un clic dans l'en-tête du studio
-- **Voix Piper prêtes à l'emploi** — un catalogue de 177 voix (30+ langues) téléchargeables à l'unité (20–80 Mo) : narration hors ligne sans clonage, y compris dans les livres où chaque personnage peut mêler clone et voix Piper
+- **Voix Piper prêtes à l'emploi** — un catalogue de 177 voix (30+ langues) téléchargeables à l'unité (20–80 Mo), avec extrait d'écoute en un clic : narration hors ligne sans clonage, y compris dans les livres où chaque personnage peut mêler clone et voix Piper
 - **Modèles à tester** — bouton **Installer** / **Supprimer** pour chaque modèle optionnel (Qwen3-TTS 0,6B, Pocket TTS, Piper) : les poids rejoignent le cache local et tout modèle installé devient sélectionnable comme moteur de génération
 - **Clonage ultimate** — clip + transcript → timbre, rythme et style préservés
 - **Bibliothèque de voix** — chaque clip importé ou enregistré devient un clone persistant, réutilisable d'une session à l'autre : liste, écoute, sélection, suppression
@@ -50,7 +50,7 @@ Le site publiable prêt pour FTP est autonome dans [`store/website/`](store/webs
 - **Vue d’ensemble sans doublons** — stats des voix, modèles, livres et confidentialité ; état du serveur, activation rapide d’une voix, journal, installation de modèle, livres récents et dernières prises générées
 - **Studio livre intégré à l'app native** — bouton « Ouvrir le studio web » : ouvre la bibliothèque EPUB et son éditeur dans une fenêtre de l'app macOS (WKWebView), pendant que le serveur local tourne
 - **Réglages dans la fenêtre principale (⌘,)** — providers IA et clés API, token Hugging Face, Crédits & inspirations, Bibliothèque de projets, Soutenir/Ko-fi et À propos avec canaux Stable/Dev. L’icône waveform de la barre des menus rouvre le studio ; Dock et menu bar se règlent séparément dans Général.
-- **Navigation alignée app / studio web** — mêmes entrées des deux côtés : Vue d'ensemble, Bibliothèque de voix, Texte vers voix, Livres, Modèles, Réglages ; l'app ouvre le studio des livres depuis sa section Livres
+- **Navigation alignée app / studio web** — mêmes entrées des deux côtés : Vue d'ensemble, Bibliothèque de voix, Texte vers voix, Livres, Modèles, Réglages ; l'app ouvre le studio des livres directement sur le livre choisi
 - **Livres audio (studio web)** — importe un EPUB, compare l'original au texte structuré phrase par phrase, avec attribution colorée des voix, génération des segments et écoute continue avec respirations selon la ponctuation ; l'éditeur audiobook n'est pas encore intégré à SwiftUI
 - **Lecture fidèle du français** — avant la synthèse, le texte est développé : « M. » → « Monsieur », « Louis XVI » → « Louis seize », « 1789 » en toutes lettres, pourcentages, euros et degrés ; le texte affiché reste celui de l'auteur
 - **Redécouper phrase par phrase** — un chapitre analysé par paragraphes se rescinde en phrases complètes, coupées aux clauses si trop longues, sans nouvelle analyse IA ; les audios du chapitre sont alors régénérés au bon rythme

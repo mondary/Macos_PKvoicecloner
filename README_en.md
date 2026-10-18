@@ -33,7 +33,7 @@ The FTP-ready website is self-contained in [`store/website/`](store/website/): u
 ## ✅ Features
 
 - **Switchable engines** — **VoxCPM2** (MPS, fast, ~30 languages) and **dots.tts** (2B, high-fidelity 48 kHz cloning, 24 languages): one click in the studio header
-- **Ready-made Piper voices** — a catalogue of 177 voices (30+ languages) downloaded one at a time (20–80 MB): offline narration without cloning, including inside books where each character can mix a clone and a Piper voice
+- **Ready-made Piper voices** — a catalogue of 177 voices (30+ languages) downloaded one at a time (20–80 MB), with a one-click listening preview: offline narration without cloning, including inside books where each character can mix a clone and a Piper voice
 - **Models to try** — an **Install** / **Delete** button per optional model (Qwen3-TTS 0.6B, Pocket TTS, Piper): weights land in the local cache and any installed model becomes selectable as a generation engine
 - **Ultimate cloning** — clip + transcript → timbre, rhythm and style preserved
 - **Voice library** — every imported or recorded clip becomes a persistent clone, reusable across sessions: list, preview, select, delete
@@ -50,7 +50,7 @@ The FTP-ready website is self-contained in [`store/website/`](store/website/): u
 - **No-duplicate overview** — voice, model, book and privacy stats; server health, quick voice selection, logs, model installation, recent books and latest generated takes
 - **Book studio inside the native app** — “Open web studio” opens the EPUB library and editor in a macOS app window (WKWebView) while the local server is running
 - **Settings inside the main window (⌘,)** — AI providers and API keys, Hugging Face token, dedicated Credits & inspirations, Project Library, Support/Ko-fi, and About with Stable/Dev channels. The waveform menu bar icon reopens the studio; Dock and menu bar visibility can be configured separately in General.
-- **Aligned navigation, app / web studio** — the same entries on both sides: Overview, Voice library, Text to voice, Books, Models, Settings; the app opens the dedicated book studio from its Books section
+- **Aligned navigation, app / web studio** — the same entries on both sides: Overview, Voice library, Text to voice, Books, Models, Settings; the app opens the book studio directly on the chosen book
 - **Audiobooks (web studio)** — import an EPUB and compare its preserved original with the AI-structured text sentence by sentence, with color-coded voice assignments, segment generation, and continuous playback with punctuation-based breathing pauses; the audiobook editor is not yet part of SwiftUI
 - **Faithful French reading** — before synthesis the text is expanded: “M.” → “Monsieur”, “Louis XVI” → “Louis seize”, “1789” spelled out, percentages, euros and degrees; the text shown in the studio stays the author's
 - **Re-split sentence by sentence** — a chapter analysed by paragraphs is re-cut into full sentences, split at clause boundaries when too long, without a new AI pass; the chapter audio is then regenerated at the right rhythm

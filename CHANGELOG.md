@@ -1,6 +1,16 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.48] - 2026-10-18
+
+### Added
+- Écoute d'aperçu des voix Piper : bouton ▶ dans la bibliothèque de voix, dans le catalogue et dans l'onglet Modèles — l'extrait (phrase d'exemple dans la langue de la voix) est synthétisé une fois puis mis en cache, locuteur compris.
+- L'onglet Modèles décrit chaque famille — text-to-speech, speech-to-text, catégorisation — avec une icône et une phrase d'explication, et la carte Piper liste les voix téléchargées avec leur extrait d'écoute.
+
+### Fixed
+- Ouvrir un livre depuis l'app macOS ouvre le studio des livres **directement sur ce livre** (le bouton « Ouvrir le studio des livres » revient à la bibliothèque).
+- Le fil d'Ariane ne bascule plus sur « Livres » lorsque la section affichée est Vue d'ensemble, Voix, Modèles ou Réglages.
+
 ## [2026.10.47] - 2026-10-18
 
 ### Added

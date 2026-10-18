@@ -13,6 +13,19 @@ final class StudioWindowCoordinator: ObservableObject {
     }
 
     @Published private(set) var request = Request(settingsSection: nil)
+
+    /// Cible du studio des livres : `#livres/<id>` ouvre un livre précis, nil la bibliothèque.
+    @Published var urlStudioLivre: URL?
+
+    /// Ouvre un livre donné dans la fenêtre du studio des livres (lien direct).
+    func ouvrirLivre(_ id: String, base: URL) {
+        urlStudioLivre = URL(string: base.absoluteString + "#livres/\(id)") ?? base
+    }
+
+    /// Reviens à la bibliothèque des livres.
+    func ouvrirBibliotheque() {
+        urlStudioLivre = nil
+    }
     var openStudioWindow: (() -> Void)?
     private weak var window: NSWindow?
     private var closeObserver: NSObjectProtocol?

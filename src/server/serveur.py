@@ -35,6 +35,7 @@ Endpoints :
   GET  /api/piper/voix              voix Piper téléchargées sur ce Mac
   POST /api/piper/voix/{id}/installer   télécharge une voix Piper (202, suivi catalogue)
   DELETE /api/piper/voix/{id}           supprime une voix Piper du cache
+  GET  /api/piper/apercu/{id}           extrait d'écoute d'une voix Piper (?locuteur=N)
   POST /api/livres/{id}/chapitre/{n}/reedecouper  phrase par phrase, sans nouvelle analyse IA
   POST /api/arreter     arrêt gracieux du serveur et libération du modèle
   GET  /api/job/{id}    état du job
@@ -80,7 +81,8 @@ VOIX = PROJET / "data" / "voix"
 LIVRES = PROJET / "data" / "livres"
 FICHIER_IA = PROJET / "data" / "ia.json"
 PID_FILE = PROJET / "data" / "run" / "serveur.pid"
-for _d in (SORTIES, VOIX, LIVRES, PID_FILE.parent):
+APERCUS = PROJET / "data" / "apercus"        # extraits d'écoute des voix (Piper)
+for _d in (SORTIES, VOIX, LIVRES, APERCUS, PID_FILE.parent):
     _d.mkdir(parents=True, exist_ok=True)
 
 VITESSE_MIN, VITESSE_MAX = 0.75, 1.5
@@ -635,7 +637,55 @@ def supprimer_voix_piper(vid: str):
         except OSError:
             break
     installations.pop(f"piper:{vid}", None)
+    for apercu in APERCUS.glob(f"{vid}-*.wav"):   # les extraits d'écoute suivent la voix
+        apercu.unlink(missing_ok=True)
     return {"ok": True, "supprime": vid}
+
+
+# Phrases d'aperçu par langue (le préfixe d'une voix Piper porte la langue : fr_FR-… → fr).
+_APERCUS_PHRASES = {
+    "fr": "Bonjour ! Voici un aperçu de cette voix. Elle lit vos livres à voix haute, avec un rythme naturel et une prononciation soignée.",
+    "en": "Hello! This is a preview of this voice. It reads your books aloud with a natural rhythm and clear pronunciation.",
+    "de": "Hallo! Dies ist ein Eindruck dieser Stimme. Sie liest Ihre Bücher mit natürlichem Rhythmus vor.",
+    "es": "¡Hola! Esta es una muestra de esta voz. Lee sus libros en voz alta con un ritmo natural.",
+    "it": "Ciao! Questa è un'anteprima di questa voce. Legge i tuoi libri ad alta voce con un ritmo naturale.",
+    "pt": "Olá! Esta é uma amostra desta voz. Lê os seus livros em voz alta com um ritmo natural.",
+    "nl": "Hallo! Dit is een voorbeeld van deze stem. Ze leest uw boeken voor met een natuurlijk ritme.",
+    "pl": "Cześć! To jest próbka tego głosu. Czyta książki na głos w naturalnym tempie.",
+    "ru": "Здравствуйте! Это пример этого голоса. Он читает книги вслух в естественном темпе.",
+}
+_apercu_verrou = threading.Lock()
+
+
+@app.get("/api/piper/apercu/{vid}")
+def piper_apercu(vid: str, locuteur: int = 0):
+    """Extrait d'écoute d'une voix Piper : synthèse courte, mise en cache disque.
+
+    Le premier appel synthétise (~1 s), les suivants resservent le fichier :
+    c'est le bouton ▶ des listes de voix (studio, catalogue, modèles)."""
+    if not PIPER_ID_VALIDE.fullmatch(vid):
+        raise HTTPException(404, "voix Piper inconnue")
+    installes = _piper_voix_installees()
+    if vid not in installes:
+        raise HTTPException(404, "télécharge d'abord cette voix depuis le catalogue")
+    locuteur = max(0, min(int(locuteur), 99))
+    phrase = _APERCUS_PHRASES.get(vid.split("_", 1)[0], _APERCUS_PHRASES["en"])
+    empreinte = hashlib.sha1(f"{vid}|{locuteur}|{phrase}".encode()).hexdigest()[:10]
+    cible = APERCUS / f"{vid}-{locuteur}-{empreinte}.wav"
+    if not cible.is_file():
+        with _apercu_verrou:
+            if not cible.is_file():
+                import numpy as np
+                from piper import PiperVoice, SynthesisConfig
+
+                voix = PiperVoice.load(installes[vid]["onnx"])
+                config = SynthesisConfig(speaker_id=locuteur or None)
+                morceaux = list(voix.synthesize(phrase, config))
+                if not morceaux:
+                    raise HTTPException(500, "Piper n’a rien synthétisé pour cet aperçu")
+                wav = np.concatenate([m.audio_int16_array for m in morceaux])
+                sf.write(cible, wav, morceaux[0].sample_rate, subtype="PCM_16")
+    return FileResponse(cible, media_type="audio/wav")
 
 
 @app.get("/api/audios")

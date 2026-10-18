@@ -224,7 +224,9 @@ class PiperContracts(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
+        (self.root / 'apercus').mkdir()
         self.patches = [patch.object(server, 'SORTIES', self.root),
+                        patch.object(server, 'APERCUS', self.root / 'apercus'),
                         patch.object(server, '_cache_modele', lambda repo: self.root / repo.replace('/', '--')),
                         patch.object(server, '_piper_catalogue', return_value=self.CATALOGUE),
                         patch.object(server, '_piper_voix_installees', side_effect=self._scan)]
@@ -310,6 +312,38 @@ class PiperContracts(unittest.TestCase):
         self.assertFalse((chemin / 'fr_FR-upmc-medium.onnx').exists())
         self.assertFalse(blob.exists())
         self.assertEqual(self.client.delete('/api/piper/voix/fr_FR-upmc-medium').status_code, 404)
+
+    def test_apercu_voix_synthetise_puis_sert_le_cache(self):
+        self._simuler_voix()
+        appels = []
+
+        def faux_synthese(texte, config):
+            appels.append({'texte': texte, 'locuteur': getattr(config, 'speaker_id', None)})
+            return [types.SimpleNamespace(audio_int16_array=np.zeros(2205, dtype=np.int16),
+                                          sample_rate=22050)]
+
+        faux_piper = types.SimpleNamespace(
+            PiperVoice=types.SimpleNamespace(load=lambda chemin: types.SimpleNamespace(synthesize=faux_synthese)),
+            SynthesisConfig=lambda **kwargs: types.SimpleNamespace(**kwargs))
+        with patch.dict(sys.modules, {'piper': faux_piper}):
+            premier = self.client.get('/api/piper/apercu/fr_FR-ghost-medium')
+            self.assertEqual(premier.status_code, 404)         # voix non téléchargée
+            self.assertEqual(self.client.get('/api/piper/apercu/pas-un-id').status_code, 404)
+            reponse = self.client.get('/api/piper/apercu/fr_FR-siwis-medium')
+            self.assertEqual(reponse.status_code, 200, reponse.text)
+            self.assertTrue(reponse.content.startswith(b'RIFF'))
+            self.assertIn('Bonjour', appels[0]['texte'])      # phrase française pour fr_FR
+            # le second appel ressort le cache : aucune nouvelle synthèse
+            encore = self.client.get('/api/piper/apercu/fr_FR-siwis-medium')
+            self.assertEqual(encore.status_code, 200)
+            self.assertEqual(len(appels), 1)
+            # multi-locuteurs : le locuteur demandé est honoré
+            upmc = self._simuler_voix('fr_FR-upmc-medium')
+            self.assertEqual(self.client.get('/api/piper/apercu/fr_FR-upmc-medium?locuteur=1').status_code, 200)
+            self.assertEqual(appels[1]['locuteur'], 1)
+            # la suppression de la voix emporte ses extraits
+            self.client.delete('/api/piper/voix/fr_FR-upmc-medium')
+            self.assertEqual(list(server.APERCUS.glob('fr_FR-upmc-medium-*.wav')), [])
 
     def test_generation_piper_valide_la_voix_et_normalise(self):
         self.assertEqual(self.client.post('/api/generer', json={'texte': 'Bonjour'}).status_code, 400)

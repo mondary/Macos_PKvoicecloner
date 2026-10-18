@@ -334,8 +334,11 @@ struct ContentView: View {
                                 .font(.system(size: 10)).foregroundStyle(Dashboard.muted)
                         }
                         Spacer(minLength: 4)
-                        Button { openWindow(id: "book-studio") } label: { Image(systemName: "book") }
-                            .buttonStyle(.borderless).help("Ouvrir les livres dans PK Voice Studio")
+                        Button {
+                            windows.ouvrirLivre(book.id, base: studio.baseURL)
+                            openWindow(id: "book-studio")
+                        } label: { Image(systemName: "book") }
+                            .buttonStyle(.borderless).help("Ouvrir ce livre dans le studio des livres")
                     }.padding(.vertical, 3)
                 }
             }
@@ -642,13 +645,19 @@ struct ContentView: View {
                             .font(.system(size: 10)).foregroundStyle(Dashboard.muted)
                     }
                     Spacer()
-                    Button("Ouvrir") { openWindow(id: "book-studio") }
+                    Button("Ouvrir") {
+                        windows.ouvrirLivre(book.id, base: studio.baseURL)
+                        openWindow(id: "book-studio")
+                    }
                         .buttonStyle(.bordered).controlSize(.small)
-                        .help("Ouvrir ce studio des livres")
+                        .help("Ouvrir ce livre dans le studio des livres")
                 }.padding(.vertical, 3)
                 if book.id != studio.books.last?.id { Divider() }
             }
-            Button("Ouvrir le studio des livres", systemImage: "book") { openWindow(id: "book-studio") }
+            Button("Ouvrir le studio des livres", systemImage: "book") {
+                windows.ouvrirBibliotheque()
+                openWindow(id: "book-studio")
+            }
                 .buttonStyle(.bordered)
                 .disabled(studio.state == nil)
         }.padding(18).frame(maxWidth: .infinity, alignment: .leading).dashboardPanel()
@@ -671,7 +680,20 @@ private struct WebStudioWindow: NSViewRepresentable {
         return view
     }
 
-    func updateNSView(_ view: WKWebView, context: Context) {}
+    func updateNSView(_ view: WKWebView, context: Context) {
+        (view as? StudioWebView)?.naviguer(vers: url)
+    }
+}
+
+/// Fenêtre du studio des livres : suit la cible publiée par le coordinateur —
+/// `#livres/<id>` pour un livre précis, la bibliothèque sinon.
+private struct BookStudioWindow: View {
+    let baseURL: URL
+    @ObservedObject var windows: StudioWindowCoordinator
+
+    var body: some View {
+        WebStudioWindow(url: windows.urlStudioLivre ?? baseURL)
+    }
 }
 
 /// WebView du studio : sans cache HTTP (le serveur local redémarre avec l'app,
@@ -679,7 +701,7 @@ private struct WebStudioWindow: NSViewRepresentable {
 /// avec reconnexion automatique pendant l'arrêt/relance du serveur.
 @MainActor
 private final class StudioWebView: WKWebView, WKNavigationDelegate {
-    private let cible: URL
+    private var cible: URL
     private var tentatives = 0
 
     init(url: URL) {
@@ -689,6 +711,17 @@ private final class StudioWebView: WKWebView, WKNavigationDelegate {
         super.init(frame: .zero, configuration: configuration)
         navigationDelegate = self
         var requete = URLRequest(url: cible)
+        requete.cachePolicy = .reloadIgnoringLocalCacheData
+        load(requete)
+    }
+
+    /// Navigation demandée par la fenêtre (lien direct vers un livre, retour à
+    /// la bibliothèque) : recharge seulement si la cible a vraiment changé.
+    func naviguer(vers nouvelle: URL) {
+        guard nouvelle != cible else { return }
+        cible = nouvelle
+        tentatives = 0
+        var requete = URLRequest(url: nouvelle)
         requete.cachePolicy = .reloadIgnoringLocalCacheData
         load(requete)
     }
@@ -1158,7 +1191,7 @@ private extension View {
                 }
             }
         Window("Studio des livres", id: "book-studio") {
-            WebStudioWindow(url: delegate.studio.baseURL)
+            BookStudioWindow(baseURL: delegate.studio.baseURL, windows: delegate.windows)
                 .frame(minWidth: 1050, idealWidth: 1280, maxWidth: .infinity,
                        minHeight: 680, idealHeight: 860, maxHeight: .infinity)
         }

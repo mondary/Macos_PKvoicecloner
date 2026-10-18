@@ -13,6 +13,9 @@
   const ICON_DOWNLOAD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M12 3v12m0-12 4 4m-4-4-4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>';
   const ICON_ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M5 12h14m0 0-6-6m6 6-6 6"/></svg>';
   const ICON_SPARK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m8 1 .9 2.2L11 4l-2.1.8L8 7l-.9-2.2L5 4l2.1-.8L8 1Zm5 7 .6 1.4L15 10l-1.4.6L13 12l-.6-1.4L11 10l1.4-.6L13 8ZM3 9l.6 1.4L5 11l-1.4.6L3 13l-.6-1.4L1 11l1.4-.6L3 9Z"/></svg>';
+  const ICON_SPEAKER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4h3l4 4V6l-4 4H4z"/><path d="M15 9.5a4 4 0 0 1 0 5M17.6 7a7.5 7.5 0 0 1 0 10"/></svg>';
+  const ICON_WAVE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/></svg>';
+  const ICON_TAG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 5.5A2.5 2.5 0 0 1 5.5 3H12l9 9-6.5 6.5-9-9V5.5Z"/><circle cx="8" cy="8" r="1.4"/></svg>';
 
   let speed = 1;
   let generating = false;
@@ -55,6 +58,10 @@
   let vueActive = "studio";
 
   function appliquerVue(id, { pousserAncre = true } = {}) {
+    // lien direct vers un livre (#livres/<id>) — utilisé par l'app macOS pour
+    // ouvrir le studio des livres directement sur le livre demandé
+    const livre = /^livres\/([A-Za-z0-9_-]+)$/.exec(id || "");
+    if (livre) { pageLivre = livre[1]; id = "books"; }
     if (!VUES[id]) id = "studio";
     vueActive = id;
     document.body.classList.toggle("book-focus", id === "books" && Boolean(pageLivre));
@@ -83,6 +90,7 @@
       history.replaceState(null, "", `#${id}`);
       window.scrollTo(0, 0);
     }
+    if (livre) refreshBooks();     // la page du livre visé se rend dès la liste chargée
   }
 
   function bindNavEvents() {
@@ -362,6 +370,61 @@
     }
   }
 
+  /* ---------- Écoute d'aperçu des voix Piper (un seul lecteur à la fois) ---------- */
+  let apercuAudio = null;
+  let apercuBouton = null;
+
+  function stopperApercu() {
+    if (apercuAudio) { apercuAudio.pause(); apercuAudio = null; }
+    if (apercuBouton) {
+      apercuBouton.innerHTML = ICON_PLAY;
+      apercuBouton.classList.remove("playing", "loading");
+      apercuBouton.disabled = false;
+      apercuBouton = null;
+    }
+  }
+
+  function togglePiperApercu(voice, locuteur, bouton) {
+    if (apercuBouton === bouton && apercuAudio) { stopperApercu(); return; }
+    stopperApercu();
+    const audio = new Audio(`/api/piper/apercu/${encodeURIComponent(voice.id)}?locuteur=${locuteur || 0}`);
+    apercuAudio = audio;
+    apercuBouton = bouton;
+    bouton.classList.add("loading");
+    bouton.disabled = true;
+    const arreter = () => { if (apercuBouton === bouton) stopperApercu(); };
+    audio.addEventListener("playing", () => {
+      if (apercuBouton !== bouton) return;
+      bouton.classList.remove("loading");
+      bouton.classList.add("playing");
+      bouton.disabled = false;
+      bouton.innerHTML = ICON_PAUSE;
+    }, { once: true });
+    audio.addEventListener("ended", arreter);
+    audio.addEventListener("error", () => {
+      arreter();
+      notify("Aperçu indisponible pour cette voix.", "error");
+    });
+    audio.play().catch(() => {
+      arreter();
+      notify("Lecture impossible dans ce navigateur.", "error");
+    });
+  }
+
+  function boutonApercu(voice, locuteur = 0) {
+    const play = document.createElement("button");
+    play.className = "play";
+    play.type = "button";
+    play.title = `Écouter un aperçu de « ${prettyName(voice.nom)} »`;
+    play.setAttribute("aria-label", play.title);
+    play.innerHTML = ICON_PLAY;
+    play.addEventListener("click", (event) => {
+      event.stopPropagation();
+      togglePiperApercu(voice, locuteur, play);
+    });
+    return play;
+  }
+
   async function refreshPiperVoices() {
     await loadPiperVoix();
     // une bascule vers un moteur de clonage pendant la requête : rendu clone
@@ -429,6 +492,8 @@
         selectPiperVoice(voice.id, { locuteur: Number(speakerSelect.value) });
       });
     }
+    const play = boutonApercu(voice, voice.id === piperSelected ? piperSpeaker : 0);
+    row.appendChild(play);
     const del = document.createElement("button");
     del.className = "vdel";
     del.type = "button";
@@ -482,6 +547,7 @@
   function fermerCatalogue() {
     clearInterval(catalogueTimer);
     catalogueTimer = null;
+    stopperApercu();
     $("catalogOverlay").hidden = true;
     $("catalogOverlay").textContent = "";
     if (moteurActif === "piper") refreshPiperVoices();
@@ -630,7 +696,19 @@
           await rafraichir();
         });
       }
-      row.append(info, bouton);
+      row.append(info);
+      if (voice.telechargee) row.append(boutonApercu(voice, 0));
+      else {
+        const play = document.createElement("button");
+        play.className = "play";
+        play.type = "button";
+        play.disabled = true;
+        play.title = "Télécharge la voix pour l'écouter";
+        play.setAttribute("aria-label", play.title);
+        play.innerHTML = ICON_PLAY;
+        row.append(play);
+      }
+      row.append(bouton);
       return row;
     }
 
@@ -1023,24 +1101,47 @@
   async function refreshModeles() {
     if (shuttingDown) return;
     let payload;
+    let voixPiper = { voix: [] };
     try {
-      payload = await (await fetch("/api/modeles")).json();
+      [payload, voixPiper] = await Promise.all([
+        fetch("/api/modeles").then((r) => r.json()),
+        fetch("/api/piper/voix").then((r) => r.json()).catch(() => ({ voix: [] })),
+      ]);
     } catch (_) {
       return;
     }
+    piperVoices = voixPiper.voix || [];
     modelesCatalogue = payload.modeles || [];
     renderOverview();
     const list = $("modelesList");
     list.textContent = "";
     let enCours = false;
-    const groups = { tts: "TEXT-TO-SPEECH", transcription: "SPEECH-TO-TEXT", categorisation: "CATÉGORISATION" };
+    const groups = {
+      tts: { titre: "Text-to-speech", icone: ICON_SPEAKER,
+             aide: "Les moteurs qui lisent ton texte à voix haute — ta voix clonée ou des voix prêtes à l'emploi." },
+      transcription: { titre: "Speech-to-text", icone: ICON_WAVE,
+                       aide: "Les modèles qui recopient un audio en texte — ils transcrivent automatiquement tes clips de clonage." },
+      categorisation: { titre: "Catégorisation", icone: ICON_TAG,
+                        aide: "Les petits modèles d'analyse locale — ils repèrent les dialogues pour vérifier l'attribution des voix." },
+    };
     let lastCategory = "";
     (payload.modeles || []).forEach((m) => {
       const category = m.categorie || "tts";
       if (category !== lastCategory) {
-        const heading = document.createElement("h3");
+        const groupe = groups[category] || { titre: category, icone: "", aide: "" };
+        const heading = document.createElement("div");
         heading.className = "models-category";
-        heading.textContent = groups[category] || category;
+        const icone = document.createElement("span");
+        icone.className = "models-category-icon";
+        icone.innerHTML = groupe.icone;
+        const titres = document.createElement("span");
+        titres.className = "models-category-textes";
+        const titre = document.createElement("strong");
+        titre.textContent = groupe.titre;
+        const aide = document.createElement("small");
+        aide.textContent = groupe.aide;
+        titres.append(titre, aide);
+        heading.append(icone, titres);
         list.appendChild(heading);
         lastCategory = category;
       }
@@ -1093,6 +1194,38 @@
         actions.appendChild(btn);
       }
       item.append(link, actions);
+      // Piper : les voix téléchargées s'écoutent ici même, sans quitter les Modèles
+      if (m.id === "piper") {
+        item.classList.add("model-item-piper");
+        const zone = document.createElement("div");
+        zone.className = "model-voix";
+        if (piperVoices.length) {
+          piperVoices.forEach((voice) => {
+            const puce = document.createElement("span");
+            puce.className = "model-voix-puce";
+            puce.append(boutonApercu(voice, 0),
+                        document.createTextNode(`${prettyName(voice.nom)} · ${voice.qualite}`));
+            zone.appendChild(puce);
+          });
+          const lien = document.createElement("button");
+          lien.className = "pill-light";
+          lien.type = "button";
+          lien.textContent = "Catalogue de voix";
+          lien.addEventListener("click", ouvrirCatalogue);
+          zone.appendChild(lien);
+        } else {
+          const vide = document.createElement("span");
+          vide.className = "model-voix-vide";
+          vide.textContent = "Aucune voix téléchargée pour l'instant.";
+          const lien = document.createElement("button");
+          lien.className = "pill-light";
+          lien.type = "button";
+          lien.textContent = "Ouvrir le catalogue de voix";
+          lien.addEventListener("click", ouvrirCatalogue);
+          zone.append(vide, lien);
+        }
+        item.appendChild(zone);
+      }
       if (m.etat === "erreur") {
         const erreur = document.createElement("div");
         erreur.className = "model-erreur";
@@ -1620,14 +1753,15 @@
       }
     });
     const page = books.find((b) => b.id === pageLivre);
+    if (pageLivre && !page && books.length) pageLivre = null;   // lien direct mort : retour à la liste
     if (page) {
       list.appendChild(renderBookPage(page));
       $("bookDrop").hidden = true;
-      document.querySelector(".breadcrumbs strong").textContent = `Livres / ${page.titre}`;
+      if (vueActive === "books") document.querySelector(".breadcrumbs strong").textContent = `Livres / ${page.titre}`;
     } else {
       books.forEach((book) => list.appendChild(bookCard(book)));
       $("bookDrop").hidden = false;
-      document.querySelector(".breadcrumbs strong").textContent = "Livres";
+      if (vueActive === "books") document.querySelector(".breadcrumbs strong").textContent = "Livres";
     }
     if (books.some((b) => b.analyse?.etat === "en_cours")) surveillerAnalyses();
     renderOverview();
@@ -1879,6 +2013,7 @@
       if (!gardePropre(book)) return;
       pageLivre = null;
       chapitreOuvert = null;
+      history.replaceState(null, "", "#books");
       renderBooks();
     });
     toolbar.append(retour);

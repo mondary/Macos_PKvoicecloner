@@ -11,6 +11,7 @@ import org.junit.Test
 import org.junit.Assert.*
 import org.junit.runner.RunWith
 import java.io.File
+import java.util.concurrent.atomic.AtomicReference
 
 /** A real downloaded Piper model, real PCM and real background service. */
 @RunWith(AndroidJUnit4::class)
@@ -35,12 +36,18 @@ class OfflineReadingTest {
             .put("segments",JSONArray(listOf("Les livres nous accompagnent au fil des jours, dans les trains et dans le calme de nos maisons.","La deuxième phrase doit continuer même lorsque l’écran du lecteur est fermé.","Voici le dernier passage de notre livre de vérification.")))
         File(context.filesDir,"reading-queue.json").writeText(queue.toString())
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            val pageText=AtomicReference("")
+            eventually(30000){
+                scenario.onActivity { it.bridge.webView.evaluateJavascript("document.body.innerText") { value->pageText.set(value) } }
+                pageText.get().contains("Mes livres")
+            }
             scenario.onActivity { it.startForegroundService(Intent(it,ReadingService::class.java).setAction("load")) }
             eventually{ReadingService.savedState(context).optString("bookId")=="integration"}
             scenario.onActivity { it.startForegroundService(Intent(it,ReadingService::class.java).setAction("play")) }
             eventually{val state=ReadingService.savedState(context);state.optBoolean("playing")&&!state.optBoolean("loading")}
             // HOME backgrounds the WebView. The native service must still reach sentence two.
             InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("input keyevent KEYCODE_HOME").close()
+            InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("input keyevent KEYCODE_SLEEP").close()
             eventually(90000){ReadingService.savedState(context).optInt("index")>=1}
             context.startService(Intent(context,ReadingService::class.java).setAction("pause"))
             eventually{!ReadingService.savedState(context).optBoolean("playing")}
@@ -48,6 +55,7 @@ class OfflineReadingTest {
             Thread.sleep(1200)
             assertEquals(position,ReadingService.savedState(context).optInt("index"))
             assertTrue(File(context.filesDir,"audio/integration").listFiles().orEmpty().any{it.extension=="wav"})
+            InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("input keyevent KEYCODE_WAKEUP").close()
         }
         context.stopService(Intent(context,ReadingService::class.java))
     }

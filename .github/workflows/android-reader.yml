@@ -50,7 +50,7 @@ jobs:
       - run: pnpm android:deps
       - name: Compile APK and Android tests
         working-directory: android
-        run: ./gradlew assembleDebug assembleDebugAndroidTest lintDebug --stacktrace
+        run: ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug --stacktrace
       - uses: actions/upload-artifact@v4
         with:
           name: PK-Reader-Android-debug
@@ -69,7 +69,7 @@ jobs:
           target: google_apis
           profile: pixel_6
           disable-animations: true
-          script: cd android && ./gradlew connectedDebugAndroidTest --stacktrace
+          script: cd android && ./gradlew :app:connectedDebugAndroidTest --stacktrace
       - uses: actions/upload-artifact@v4
         if: always()
         with:

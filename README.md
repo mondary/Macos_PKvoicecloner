@@ -10,6 +10,16 @@ version **2026.10.46** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANG
 
 ## 📥 Installation
 
+### Android · PK Reader
+
+L’application Android **PK Reader** lit vos EPUB, PDF texte et TXT avec les voix du téléphone, des voix Piper téléchargées ou vos clones PK Voice Studio. Bibliothèque locale, chapitres, signets, thèmes clair/papier/nuit et service audio pour l’écoute en arrière-plan. Les voix clonées nécessitent le Mac pour générer les passages ; les chapitres préparés s’écoutent ensuite hors ligne.
+
+[Installation et guide Android](docs/ANDROID.md) · [Builds APK](https://github.com/mondary/Macos_PKvoicecloner/actions/workflows/android-reader.yml) · [Changelog Android](src/mobile/CHANGELOG.md)
+
+<img src="store/screenshots/android-reader/library.png" width="230" alt="Aperçu web de la bibliothèque PK Reader" /> <img src="store/screenshots/android-reader/reader.png" width="230" alt="Aperçu web du lecteur PK Reader" />
+
+### macOS · PK Voice Studio
+
 Le canal actuellement vérifié est l’installateur depuis les sources (macOS Apple Silicon). Il prépare l’environnement Python et construit l’app :
 
 ```sh

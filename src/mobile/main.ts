@@ -6,6 +6,8 @@ import '@fontsource/literata/400.css';
 import '@fontsource/literata/500.css';
 import { createIcons, icons } from 'lucide';
 import './style.css';
+import { App } from '@capacitor/app';
+import { SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { library, readSettings, saveSettings } from './storage';
 import { importBook, welcomeBook, chapterAt, minutesLeft } from './books';
 import { audio, native, Reader, modelCatalog } from './engine';
@@ -28,6 +30,8 @@ let importing = false;
 let savedPosition = '';
 let toastTimer: ReturnType<typeof setTimeout>;
 let downloading = false;
+let systemTheme = '';
+let wasPreparing = false;
 const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 const icon = (name: string, cls = '') => `<i data-lucide="${name}" class="${cls}" aria-hidden="true"></i>`;
 const iconButton = (name: string, label: string, action: string, cls = '') => `<button class="icon-button ${cls}" aria-label="${esc(label)}" title="${esc(label)}" data-action="${action}">${icon(name)}</button>`;
@@ -42,7 +46,15 @@ function toast(message: string) {
   toastTimer = setTimeout(()=>el.classList.remove('visible'),5000);
 }
 function decorate() { createIcons({ icons, attrs: { 'stroke-width': 1.7 } }); }
-function savePrefs() { saveSettings(settings); document.documentElement.dataset.theme = settings.theme; document.documentElement.style.setProperty('--reader-size',`${settings.fontSize}px`); }
+function savePrefs() {
+  saveSettings(settings);
+  document.documentElement.dataset.theme = settings.theme;
+  document.documentElement.style.setProperty('--reader-size',`${settings.fontSize}px`);
+  if(native && systemTheme !== settings.theme) {
+    systemTheme = settings.theme;
+    void SystemBars.setStyle({style:settings.theme==='dark'?SystemBarsStyle.Dark:SystemBarsStyle.Light}).catch(()=>{});
+  }
+}
 function cover(book: Book, cls = '') {
   if (book.cover) return `<div class="book-cover image-cover ${cls}"><img src="${esc(book.cover)}" alt="Couverture de ${esc(book.title)}" /></div>`;
   return `<div class="book-cover cover-${book.color} ${cls}"><span class="cover-edition">${book.sample ? 'LE GOÛT DES HISTOIRES' : esc(book.format)}</span><span class="cover-title">${esc(book.title).replace(/\n/g,'<br>')}</span><span class="cover-art" aria-hidden="true"><b></b><b></b><b></b></span><span class="cover-author">${esc(book.sample ? 'PK READER' : book.author)}</span></div>`;
@@ -86,7 +98,7 @@ function voicesView() {
   return `<header class="page-heading"><div><p class="eyebrow">À CHAQUE HISTOIRE, SA VOIX</p><h1>À l’écoute<span>.</span></h1></div><span class="heading-icon">${icon('audio-lines')}</span></header><section class="voice-intro"><span class="voice-orbit">${icon('audio-lines')}</span><div><h2>Le ton juste.<br>Pour tous vos livres.</h2><p>Une voix familière, un nouveau timbre.<br>Choisissez celle que vous aimez entendre.</p></div></section><div class="segmented voice-tabs" role="group" aria-label="Types de voix">${[['neural','À télécharger'],['system','Mon téléphone'],['clone','Mes clones']].map(([id,label])=>`<button data-action="voice-tab" data-id="${id}" class="${voiceTab===id?'active':''}" aria-pressed="${voiceTab===id}">${label}</button>`).join('')}</div><div class="voice-list">${list.map(voiceCard).join('')}</div><p id="download-status" role="status"></p>${voiceTab==='clone'&&!clones.length?`<div class="empty-card">${icon('mic')}<h2>Votre propre voix, dans vos livres.</h2><p>Connectez PK Voice Studio sur votre Mac pour retrouver vos voix clonées et générer les passages à écouter.</p><button class="primary" data-action="nav" data-id="settings">Connecter mon studio ${icon('arrow-right')}</button></div>`:''}${voiceTab==='system'?`<button class="setting-row" data-action="voice-settings"><span>${icon('settings-2')} Installer ou régler les voix Android</span>${icon('arrow-up-right')}</button>`:''}<div class="privacy-note">${icon('wifi-off')}<p>${voiceTab==='neural'?'Un téléchargement, puis la liberté.':'Vous gardez le choix.'}<br><span>${voiceTab==='neural'?'Les voix Piper lisent directement sur votre téléphone.':'Les voix clonées sont générées par votre studio, puis mises en cache.'}</span></p></div>${!native?'<p class="web-note">Aperçu web : les voix du navigateur sont utilisables ici. Les modèles Piper et les voix du studio fonctionnent dans l’app Android.</p>':''}`;
 }
 function settingsView() {
-  return `<header class="page-heading"><div><p class="eyebrow">FAITES COMME CHEZ VOUS</p><h1>À votre rythme<span>.</span></h1></div></header><section class="settings-section"><h2>Le confort de lecture</h2><div class="theme-picker">${[['light','sun','Clair'],['paper','book-open','Papier'],['dark','moon','Nuit']].map(([id,ic,label])=>`<button class="theme-option theme-${id} ${settings.theme===id?'active':''}" data-action="theme" data-id="${id}" aria-pressed="${settings.theme===id}">${icon(ic)}<span>${label}</span></button>`).join('')}</div><button class="setting-row" data-action="appearance"><span>${icon('type')} Taille du texte</span><strong>${settings.fontSize} px ${icon('chevron-right')}</strong></button><button class="setting-row" data-action="speed"><span>${icon('gauge')} Vitesse d’écoute</span><strong>${settings.rate.toLocaleString('fr')}× ${icon('chevron-right')}</strong></button></section><section class="settings-section"><div class="section-heading"><h2>Votre studio vocal</h2><span class="pill">FACULTATIF</span></div><p class="section-description">Retrouvez vos voix clonées depuis PK Voice Studio. Les passages générés restent sur le téléphone pour les prochaines écoutes.</p><form id="studio-form"><label for="server">Adresse du studio</label><input id="server" name="server" type="url" placeholder="http://192.168.1.20:8810" value="${esc(settings.server)}" autocapitalize="none" spellcheck="false" required /><label for="token">Code de connexion</label><input id="token" name="token" type="password" placeholder="Le code affiché par votre Mac" value="${esc(settings.token)}" autocomplete="off" required /><button type="submit" class="primary">${icon('plug')} Connecter le studio</button></form><details class="connection-help"><summary>Comment connecter mon Mac ?</summary><p>Démarrez PK Voice Studio, puis la passerelle mobile depuis le dossier du projet :</p><code>python3 src/server/mobile_gateway.py</code><p>Recopiez l’adresse et le code affichés. Votre téléphone et votre Mac doivent être sur le même réseau. La génération se fait sur le Mac ; l’audio est enregistré sur le téléphone.</p></details></section><section class="settings-section about"><span class="brand-mark">${icon('audio-lines')}</span><div><h2>PK Reader <span>2026.10.48</span></h2><p>Vos livres. Votre rythme. Votre voix.</p></div><a href="https://ko-fi.com/pouark" target="_blank" rel="noopener noreferrer" aria-label="Soutenir PK Reader sur Ko-fi">${icon('heart')}</a></section>`;
+  return `<header class="page-heading"><div><p class="eyebrow">FAITES COMME CHEZ VOUS</p><h1>À votre rythme<span>.</span></h1></div></header><section class="settings-section"><h2>Le confort de lecture</h2><div class="theme-picker">${[['light','sun','Clair'],['paper','book-open','Papier'],['dark','moon','Nuit']].map(([id,ic,label])=>`<button class="theme-option theme-${id} ${settings.theme===id?'active':''}" data-action="theme" data-id="${id}" aria-pressed="${settings.theme===id}">${icon(ic)}<span>${label}</span></button>`).join('')}</div><button class="setting-row" data-action="appearance"><span>${icon('type')} Taille du texte</span><strong>${settings.fontSize} px ${icon('chevron-right')}</strong></button><button class="setting-row" data-action="speed"><span>${icon('gauge')} Vitesse d’écoute</span><strong>${settings.rate.toLocaleString('fr')}× ${icon('chevron-right')}</strong></button></section><section class="settings-section"><div class="section-heading"><h2>Votre studio vocal</h2><span class="pill">FACULTATIF</span></div><p class="section-description">Retrouvez vos voix clonées depuis PK Voice Studio. Les passages générés restent sur le téléphone pour les prochaines écoutes.</p><form id="studio-form"><label for="server">Adresse du studio</label><input id="server" name="server" type="url" placeholder="http://192.168.1.20:8810" value="${esc(settings.server)}" autocapitalize="none" spellcheck="false" required /><label for="token">Code de connexion</label><input id="token" name="token" type="password" placeholder="Le code affiché par votre Mac" value="${esc(settings.token)}" autocomplete="off" required /><button type="submit" class="primary">${icon('plug')} Connecter le studio</button></form><details class="connection-help"><summary>Comment connecter mon Mac ?</summary><p>Démarrez PK Voice Studio, puis la passerelle mobile depuis le dossier du projet :</p><code>python3 src/server/mobile_gateway.py</code><p>Recopiez l’adresse et le code affichés. Votre téléphone et votre Mac doivent être sur le même réseau. La génération se fait sur le Mac ; l’audio est enregistré sur le téléphone.</p></details></section><section class="settings-section about"><span class="brand-mark">${icon('audio-lines')}</span><div><h2>PK Reader <span>2026.10.49</span></h2><p>Vos livres. Votre rythme. Votre voix.</p></div><a href="https://ko-fi.com/pouark" target="_blank" rel="noopener noreferrer" aria-label="Soutenir PK Reader sur Ko-fi">${icon('heart')}</a></section>`;
 }
 function render() {
   savePrefs();
@@ -124,6 +136,8 @@ async function importFiles(files: File[]) {
   fileInput.value='';
 }
 function updatePlayback() {
+  if(wasPreparing && !audio.state.preparing && !audio.state.error && audio.state.prepared===audio.state.total && (audio.state.total ?? 0)>0) toast('Chapitre prêt à être écouté hors ligne.');
+  wasPreparing = !!audio.state.preparing;
   const b = active(); if (!b) { if(audio.state.error) toast(audio.state.error); return; }
   const changed = savedPosition!==`${b.id}:${audio.state.index}`;
   b.position = audio.state.index; b.completed = b.position>=b.segments.length;
@@ -229,6 +243,11 @@ async function init() {
     voices=await audio.voices();
     if(native){models=(await Reader.models()).voices;if(settings.server&&settings.token)void Reader.connect({server:settings.server,token:settings.token}).then(r=>{clones=r.voices;if(screen==='voices')render();}).catch(()=>{});}
     render();await audio.init();
+    if(native) await App.addListener('backButton',()=>{
+      if(sheet.open){sheet.close();return;}
+      if(screen!=='library'){screen='library';render();window.scrollTo(0,0);return;}
+      void App.minimizeApp();
+    });
     if(!native&&'speechSynthesis'in window)speechSynthesis.addEventListener('voiceschanged',()=>{void audio.voices().then(v=>{voices=v;if(screen==='voices')render();});});
   }catch(error){app.innerHTML='<main class="fatal"><h1>La bibliothèque ne peut pas s’ouvrir.</h1><p>Fermez puis relancez l’application. Vérifiez que le stockage de l’app est autorisé.</p></main>';toast(error instanceof Error?error.message:String(error));}
 }

@@ -1,5 +1,11 @@
 # PK Reader Android
 
+## [2026.10.49] - 2026-10-18
+
+- Tests Android ciblés sur le module applicatif ; vérification du démarrage du lecteur et de la lecture écran éteint.
+- Bouton Retour Android, barres système adaptées au thème, écran de lancement et message de fin de préparation.
+- Documentation FR/EN et captures de l’interface mobile ; import EPUB/PDF, chapitres, signets et reprise contrôlés dans le navigateur.
+
 ## [2026.10.48] - 2026-10-18
 
 - Build Android : installation explicite des SDK actuels, retrait des tests générés par le scaffold et prise en compte des marges système Android.

@@ -41,6 +41,8 @@ Le site publiable prêt pour FTP est autonome dans [`store/website/`](store/webs
 - **Transcription auto** — Whisper large-v3 (multilingue) par défaut, ou Parakeet Redux (~178 Mo) en option ; transcript éditable avant génération
 - **Gestionnaire de modèles** — choisis dans l'interface les moteurs de synthèse, transcription et catégorisation ; installe puis active le modèle voulu sans passer par le terminal
 - **Vitesse** 0,75×–1,5× — étirement temporel pur, le pitch reste intact
+- **Lecture au fil de l’eau** — **Lire** à côté de Générer : le texte s’écoute pendant qu’il se synthétise, phrase par phrase. Une voix Piper part instantanément (0,13 s par phrase mesuré) ; une voix clonée démarre dès sa première phrase (~8 s, cache de voix compris) et les suivantes se préparent pendant l’écoute — plus besoin d’attendre la prise entière pour entendre le début
+- **Un chapitre se lit en direct** — étape ④ du chapitre : « Lire en direct » lit le chapitre avec la voix de chaque personnage, sans générer un seul segment ; la génération garde son rôle, l’export
 - **Modèle résident, à la demande** — chargé une fois pendant la session ; **Éteindre** libère sa mémoire dès que tu as fini
 - **Offline** — modèles en cache local, aucun appel réseau
 - **Versions toujours visibles** — versions de l'app et du serveur affichées dans la barre fixe du haut, à côté de l'état du studio ; un écart est signalé. Le studio web affiche sa version en pied de page

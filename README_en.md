@@ -41,6 +41,8 @@ The FTP-ready website is self-contained in [`store/website/`](store/website/): u
 - **Auto transcription** — Whisper large-v3 (multilingual) by default, or Parakeet Redux (~178 MB) as an option; edit the transcript before generating
 - **Model manager** — choose TTS, transcription and categorization engines in the UI; install and activate the model you want without using the terminal
 - **Speed** 0.75×–1.5× — pure time-stretch, pitch stays untouched
+- **Live reading** — **Lire** next to Generate: the text plays while it is synthesised, sentence by sentence. A Piper voice starts instantly (0.13 s per sentence measured); a cloned voice starts at its first sentence (~8 s, voice cache included) and the rest is prepared during playback — no more waiting for the whole take to hear the beginning
+- **A chapter reads live** — step ④ of a chapter: “Lire en direct” reads it with each character’s voice, without generating a single segment; generation keeps its role, export
 - **On-demand resident model** — loaded once for a session; **Power off** releases its memory when you are done
 - **Offline** — models cached locally, no network calls
 - **Always-visible versions** — app and server versions appear in the sticky top bar beside studio status, with a mismatch warning; the web studio version remains in its footer

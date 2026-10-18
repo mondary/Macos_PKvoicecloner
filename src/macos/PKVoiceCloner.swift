@@ -395,15 +395,30 @@ struct ContentView: View {
                 Slider(value: $studio.speed, in: 0.75...1.5, step: 0.05).frame(maxWidth: 120).accessibilityLabel("Vitesse de diction")
                 Text(String(format: "%.2f×", studio.speed)).font(.system(size: 10, design: .monospaced))
                 Spacer()
+                Button(studio.reading ? "Arrêter" : "Lire", systemImage: studio.reading ? "stop.fill" : "waveform") {
+                    if studio.reading { studio.stopReading() } else { Task { await studio.lire() } }
+                }
+                .disabled(controlsLocked || studio.state?.modele != true || studio.selectedVoiceID == nil || studio.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .help("Lit le texte au fil de l’eau : la première phrase s’écoute dès qu’elle est prête, sans attendre la prise entière")
                 Button(studio.generating ? "Génération…" : "Générer", systemImage: "play.fill") { Task { await studio.generate() } }
                     .buttonStyle(.borderedProminent).tint(Dashboard.ink)
                     .disabled(controlsLocked || studio.state?.modele != true || studio.selectedVoiceID == nil || studio.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            if studio.reading {
+                HStack(spacing: 8) {
+                    Image(systemName: "waveform").foregroundStyle(Dashboard.muted)
+                    Text(studio.readingTotal > 0 ? "Lecture · phrase \(studio.readingPhrase) / \(studio.readingTotal)" : "Lecture au fil de l’eau…")
+                        .font(.system(size: 11, weight: .medium))
+                    if studio.readingTotal > 0 {
+                        ProgressView(value: Double(studio.readingPhrase), total: Double(studio.readingTotal)).frame(maxWidth: 160).controlSize(.small)
+                    }
+                }
             }
             if studio.generating { ProgressView().controlSize(.small) }
             Text(studio.generationStatus).font(.system(size: 11)).foregroundStyle(Dashboard.muted)
             if studio.generating { generationDrawer }
             if studio.state?.modele != true || studio.selectedVoiceID == nil || studio.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Text(studio.state?.modele != true ? "Le modèle doit être prêt." : studio.selectedVoiceID == nil ? "Sélectionne une voix dans la bibliothèque." : "Écris un texte pour activer Générer.")
+                Text(studio.state?.modele != true ? "Le modèle doit être prêt." : studio.selectedVoiceID == nil ? "Sélectionne une voix dans la bibliothèque." : "Écris un texte pour activer Lire et Générer.")
                     .font(.system(size: 11)).foregroundStyle(Dashboard.muted)
             }
             if let url = studio.resultURL {

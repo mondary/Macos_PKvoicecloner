@@ -461,12 +461,23 @@
             <span id="tonaliteVal">0 demi-ton</span>
           </div>
           <span id="estimation"></span>
+          <button class="live-read" id="lire" type="button" aria-pressed="false" disabled>
+            <span class="live-dot" aria-hidden="true"></span><span id="lireLabel">Lire</span>
+          </button>
           <button class="generate" id="generer" type="button" disabled>
             <svg class="spark" viewBox="0 0 16 16" aria-hidden="true"><path d="m8 1 .9 2.2L11 4l-2.1.8L8 7l-.9-2.2L5 4l2.1-.8L8 1Zm5 7 .6 1.4L15 10l-1.4.6L13 12l-.6-1.4L11 10l1.4-.6L13 8ZM3 9l.6 1.4L5 11l-1.4.6L3 13l-.6-1.4L1 11l1.4-.6L3 9Z"/></svg><span class="spin" aria-hidden="true"></span><span id="genererLabel">Générer</span>
           </button>
         </div>
         <div class="render-progress" aria-hidden="true"><i id="progress"></i></div>
         <div class="take-status" id="etatGen" aria-live="polite">Sélectionne une voix et écris ton texte.</div>
+        <div class="live-panel" id="livePanel" hidden>
+          <div class="live-head">
+            <span class="live-wave" aria-hidden="true"><b></b><b></b><b></b><b></b></span>
+            <div><strong id="liveTitre">Lecture au fil de l’eau</strong><small id="liveDetail">La première phrase arrive dès qu’elle est prête.</small></div>
+            <button type="button" class="pill-light" id="liveStop">Arrêter</button>
+          </div>
+          <div class="live-progress" aria-hidden="true"><i id="liveBar"></i></div>
+        </div>
         <div id="recuperationMoteur" class="take-status error" hidden>
           <span id="erreurMoteur"></span>
           <button type="button" class="secondary" id="installerDependance">Installer le composant manquant</button>

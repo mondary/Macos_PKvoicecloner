@@ -20,6 +20,7 @@
   let speed = 1;
   let tonalite = 0;                 // demi-tons : -6…+6 (pitch-shift ffmpeg)
   let generating = false;
+  let lectureLive = null;           // lecture au fil de l'eau en cours (voir plus bas)
   let voiceReady = false;
   let shuttingDown = false;
   let voices = [];
@@ -320,7 +321,12 @@
 
   function updateGenerateState() {
     const voixOk = familleVoix === "piper" ? Boolean(piperSelected) : voiceReady;
-    $("generer").disabled = shuttingDown || generating || !voixOk || !$("texte").value.trim();
+    const pret = !shuttingDown && !generating && Boolean(voixOk) && Boolean($("texte").value.trim());
+    $("generer").disabled = !pret || Boolean(lectureLive);
+    $("lire").disabled = shuttingDown || generating || !voixOk
+      || (!lectureLive && !$("texte").value.trim());
+    $("lire").setAttribute("aria-pressed", String(Boolean(lectureLive)));
+    $("lireLabel").textContent = lectureLive ? "Arrêter" : "Lire";
   }
 
   /* ---------------------- Bibliothèque de voix ---------------------- */
@@ -926,10 +932,10 @@
   }
 
   function bindPreviewEvents() {
-    previewAudio.addEventListener("play", () => { $("resultat").pause(); paintPlayButtons(); paintTakeButtons(); });
+    previewAudio.addEventListener("play", () => { $("resultat").pause(); if (lectureLive) arreterLecture(); paintPlayButtons(); paintTakeButtons(); });
     previewAudio.addEventListener("pause", () => { paintPlayButtons(); paintTakeButtons(); });
     previewAudio.addEventListener("ended", () => { paintPlayButtons(); paintTakeButtons(); });
-    $("resultat").addEventListener("play", () => previewAudio.pause());
+    $("resultat").addEventListener("play", () => { previewAudio.pause(); if (lectureLive) arreterLecture(); });
   }
 
   async function deleteVoice(id) {
@@ -1143,6 +1149,190 @@
         notify(`Rendu interrompu : ${error.message}`, "error");
       }
     }, 1000);
+  }
+
+  /* ---------------------- Lecture au fil de l'eau ---------------------- */
+  // Le texte se lit pendant qu'il se synthétise : le serveur le découpe en
+  // phrases, la première s'écoute dès qu'elle est prête, les suivantes se
+  // préparent pendant ce temps. La voix clonée garde son cache chaud d'une
+  // phrase à l'autre ; une voix Piper répond en une fraction de seconde.
+  const liveAudio = new Audio();
+  const livePrefetch = new Map();
+
+  function liveStatut(message, tone = "") {
+    $("liveDetail").textContent = message;
+    $("liveDetail").className = tone;
+  }
+
+  function liveBouton(actif) {
+    updateGenerateState();
+    if (actif) $("lireLabel").textContent = "Arrêter";
+  }
+
+  function arreterLecture() {
+    const courant = lectureLive;
+    lectureLive = null;
+    liveAudio.pause();
+    liveAudio.removeAttribute("src");
+    livePrefetch.forEach((audio) => { audio.src = ""; });
+    livePrefetch.clear();
+    $("livePanel").hidden = true;
+    liveBouton(false);
+    if (courant) fetch(`/api/lire/${courant.id}/arreter`, { method: "POST" }).catch(() => {});
+  }
+
+  async function attendrePhrase(id, index) {
+    for (let essai = 0; essai < 2400; essai += 1) {   // ~12 minutes au pire
+      if (!lectureLive || lectureLive.id !== id) return null;
+      const response = await fetch(`/api/lire/${id}`);
+      const etat = await response.json();
+      if (!response.ok) throw new Error(etat.detail || "lecture interrompue");
+      if (etat.etat === "erreur") throw new Error(etat.erreur || "synthèse impossible");
+      if (etat.etat === "arrete") return null;
+      if ((etat.prets || 0) > index) return etat;
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+    throw new Error("la synthèse ne répond plus");
+  }
+
+  function precharger(id, index) {
+    if (livePrefetch.has(index)) return;
+    const audio = new Audio();
+    audio.preload = "auto";
+    audio.src = `/api/lire/${id}/${index}`;
+    livePrefetch.set(index, audio);
+  }
+
+  async function jouerLecture() {
+    const lecture = lectureLive;
+    if (!lecture) return;
+    for (let index = 0; index < lecture.total; index += 1) {
+      if (lectureLive !== lecture) return;
+      $("liveTitre").textContent = `Lecture · phrase ${index + 1} / ${lecture.total}`;
+      liveStatut(index === 0 ? "La première phrase arrive…" : "La suite se prépare…");
+      const etat = await attendrePhrase(lecture.id, index);
+      if (!etat || lectureLive !== lecture) return;
+      const secondes = etat.secondes != null ? ` · préparée en ${String(etat.secondes).replace(".", ",")} s` : "";
+      liveStatut(`${lecture.moteur === "piper" ? "Voix Piper" : "Voix clonée"}${secondes}`);
+      livePrefetch.delete(index);
+      liveAudio.src = `/api/lire/${lecture.id}/${index}`;
+      await new Promise((resolve, reject) => {
+        liveAudio.addEventListener("ended", resolve, { once: true });
+        liveAudio.addEventListener("error", () => reject(new Error("lecture audio impossible")), { once: true });
+        liveAudio.play().catch(reject);
+      });
+      if (lectureLive !== lecture) return;
+      $("liveBar").style.width = `${Math.round(((index + 1) / lecture.total) * 100)}%`;
+      if (index + 1 < lecture.total) precharger(lecture.id, index + 1);
+    }
+    if (lectureLive === lecture) {
+      lectureLive = null;
+      liveBouton(false);
+      liveStatut("Lecture terminée.", "saved");
+      $("liveTitre").textContent = "Lecture au fil de l’eau";
+      setTimeout(() => { if (!lectureLive) $("livePanel").hidden = true; }, 2500);
+    }
+  }
+
+  // Lecture d'un chapitre de livre au fil de l'eau : chaque phrase part avec la
+  // voix de son rôle, sans génération préalable ni attente du chapitre entier.
+  async function lireChapitre(book, chapterNum, lignes, bouton, statut) {
+    const cle = `${book.id}:${chapterNum}`;
+    if (lectureLive?.chapitre === cle) { arreterLecture(); bouton.textContent = "Lire en direct"; return; }
+    if (lectureLive) arreterLecture();
+    if (chapterPlaybackAudio) { chapterPlaybackAudio.pause(); chapterPlaybackAudio = null; }
+    if (!lignes.length) {
+      statut.className = "chapter-status dirty";
+      statut.textContent = "Passe en vue comparaison pour lire le chapitre en direct.";
+      return;
+    }
+    const segments = lignes.map((ligne) => {
+      const speaker = ligne.dataset.speaker;
+      const referenceId = book.voix_assignees?.[speaker] || "";
+      const reglages = reglagesVoix(book, speaker);
+      const texte = ligne.querySelector(".cl-text")?.textContent || "";
+      const piper = referenceId.match(/^piper:([^:]+)(?::(\d+))?$/);
+      return piper
+        ? { texte, piper_voix: piper[1], piper_locuteur: Number(piper[2] || 0), ...reglages }
+        : { texte, reference_id: referenceId, ...reglages };
+    }).filter((segment) => segment.texte.trim() && (segment.piper_voix || segment.reference_id));
+    if (!segments.length) {
+      statut.className = "chapter-status dirty";
+      statut.textContent = "Aucune voix associée aux rôles du chapitre.";
+      return;
+    }
+    bouton.textContent = "Arrêter la lecture";
+    statut.className = "chapter-status";
+    statut.textContent = "Préparation de la lecture…";
+    try {
+      const response = await fetch("/api/lire", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ segments }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "lecture impossible");
+      lectureLive = { id: payload.lecture, total: payload.total, moteur: payload.moteur, chapitre: cle };
+      await jouerLectureChapitre(lectureLive, statut);
+      if (!lectureLive) return;               // arrêt demandé par l'utilisateur
+      statut.className = "chapter-status saved";
+      statut.textContent = "Lecture du chapitre terminée.";
+      lectureLive = null;
+    } catch (error) {
+      lectureLive = null;
+      statut.className = "chapter-status dirty";
+      statut.textContent = `Lecture impossible : ${error.message}`;
+    } finally {
+      bouton.textContent = "Lire en direct";
+    }
+  }
+
+  async function jouerLectureChapitre(lecture, statut) {
+    for (let index = 0; index < lecture.total; index += 1) {
+      if (lectureLive !== lecture) return;
+      statut.textContent = `Lecture · phrase ${index + 1} / ${lecture.total}`;
+      const etat = await attendrePhrase(lecture.id, index);
+      if (!etat || lectureLive !== lecture) return;
+      livePrefetch.delete(index);
+      liveAudio.src = `/api/lire/${lecture.id}/${index}`;
+      await new Promise((resolve, reject) => {
+        liveAudio.addEventListener("ended", resolve, { once: true });
+        liveAudio.addEventListener("error", () => reject(new Error("lecture audio impossible")), { once: true });
+        liveAudio.play().catch(reject);
+      }).catch(() => {});
+      if (lectureLive !== lecture) return;
+      if (index + 1 < lecture.total) precharger(lecture.id, index + 1);
+    }
+  }
+
+  async function demarrerLecture() {    if (lectureLive) { arreterLecture(); return; }
+    if (shuttingDown || generating) return;
+    const text = $("texte").value.trim();
+    const voixOk = familleVoix === "piper" ? Boolean(piperSelected) : voiceReady;
+    if (!text || !voixOk) return;
+    const corps = familleVoix === "piper"
+      ? { texte: text, vitesse: speed, tonalite, piper_voix: piperSelected, piper_locuteur: piperSpeaker }
+      : { texte: text, vitesse: speed, tonalite, transcript: $("transcript").value };
+    $("resultat").pause();
+    previewAudio.pause();
+    $("livePanel").hidden = false;
+    $("liveBar").style.width = "0%";
+    $("liveTitre").textContent = "Lecture au fil de l’eau";
+    liveStatut("Préparation de la lecture…");
+    try {
+      const response = await fetch("/api/lire", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corps),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "lecture impossible");
+      lectureLive = { id: payload.lecture, total: payload.total, moteur: payload.moteur };
+      liveBouton(true);
+      await jouerLecture();
+    } catch (error) {
+      lectureLive = null;
+      liveBouton(false);
+      liveStatut(`Lecture impossible : ${error.message}`, "error");
+      notify(`Lecture impossible : ${error.message}`, "error");
+    }
   }
 
   /* ---------------------- Modèles téléchargeables ---------------------- */
@@ -2711,8 +2901,17 @@
     batch.addEventListener("click", () => genererLot(0));
     actions.appendChild(ligneEtape(3, "Génération audio", boiteEtape(tester, batch, compteur, generationStatut)));
 
-    // ④ Écoute : le chapitre enchaîné, respirations comprises.
+    // ④ Écoute : d'abord au fil de l'eau (sans générer), puis le chapitre généré.
     const ecouteStatut = statutEtape();
+    const boutonDirect = document.createElement("button");
+    boutonDirect.className = "pill-dark";
+    boutonDirect.type = "button";
+    boutonDirect.textContent = "Lire en direct";
+    boutonDirect.title = "Lit le chapitre au fil de l'eau avec la voix de chaque rôle — aucune génération, la première phrase arrive dès qu'elle est prête";
+    boutonDirect.disabled = !analyseFait;
+    boutonDirect.addEventListener("click", () => {
+      void lireChapitre(book, chapter.num, lignesSegments(), boutonDirect, ecouteStatut);
+    });
     boutonEcoute = document.createElement("button");
     boutonEcoute.className = "pill-light";
     boutonEcoute.type = "button";
@@ -2721,6 +2920,7 @@
     boutonEcoute.disabled = true;
     boutonEcoute.addEventListener("click", async () => {
       ecouteStatut.className = "chapter-status";
+      if (lectureLive) arreterLecture();
       if (chapterPlaybackAudio) {
         chapterPlaybackAudio.pause();
         chapterPlaybackAudio = null;
@@ -2763,7 +2963,7 @@
         boutonEcoute.textContent = "Écouter le chapitre";
       }
     });
-    actions.appendChild(ligneEtape(4, "Écoute", boiteEtape(boutonEcoute, noteEcoute, ecouteStatut)));
+    actions.appendChild(ligneEtape(4, "Écoute", boiteEtape(boutonDirect, boutonEcoute, noteEcoute, ecouteStatut)));
 
     // ⑤ Export : le WAV du chapitre, en dernier.
     const exportStatut = statutEtape();
@@ -3477,6 +3677,8 @@
       updateGenerateState();
     });
     $("generer").addEventListener("click", createTake);
+    $("lire").addEventListener("click", demarrerLecture);
+    $("liveStop").addEventListener("click", arreterLecture);
     $("stopStudio").addEventListener("click", stopStudio);
     $("hfBouton").addEventListener("click", enregistrerHfToken);
     document.querySelectorAll(".engine").forEach((button) => {

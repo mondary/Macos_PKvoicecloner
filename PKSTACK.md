@@ -40,6 +40,12 @@
 - `pk-settings-shell` — reprise des pages About/Support/Project Library de PKmonitor et réglages de présentation app (icônes Dock et barre des menus).
 - `pk-settings-shell` — section Credits dans About, sources utilisées séparées des inspirations; audit des répertoires `vendor/` et sous-modules avant suppression.
 
+- `capacitor-pnpm-setup` / `-pk-COMMIT` — PK Reader : une voix par personnage (rôles, pitch, vitesse, attribution des passages, suggestions locales), SpeechProfile natif et modèles Piper co-résidents ; APK `pk-2026.10.53` publié par le workflow.
+- `-pk-COMMIT` / `frontend-design` / `macos-build` — studio : lecture au fil de l'eau (`/api/lire`, WAV par phrase, arrêt), cache de voix du clonage réutilisé, bouton **Lire** dans le studio web (texte libre et chapitre en direct) et dans l'app native, garde anti-double chargement du modèle ; mesures dans `scripts/bench-voxcpm.py` (Piper 0,13 s/phrase, VoxCPM2 ~7 s/phrase, RTF ≈ 2,3, cache de voix 6,8 s).
+
 ## Limites constatées
+
+- Le `.venv` et `vendor/` du studio étaient absents le 18/10 à 23 h (studio injoignable, `vendor/sparkle` compris) : reconstruits via `install.sh` — VoxCPM vendoré (`cce58a5`), `piper-tts`, `dots-tts`, torch 2.14.1 MPS. Un second chargement du même moteur sur MPS faisait tomber le serveur (assertion Metal) : corrigé et couvert par les tests.
+- Pocket TTS (kyutai) a été écarté de la lecture live : son clonage de voix est protégé sur Hugging Face (acceptation des conditions + `hf auth login` requis) ; ses voix de catalogue ne sont pas celles de l’utilisateur. Le moteur de clonage reste VoxCPM2 (RTF ≈ 2,3 mesuré sur M5, cache de voix inclus).
 
 Le DMG/ZIP v0.6.0 et le cask installent uniquement `PK Voice Cloner.app`. `scripts/build.sh` écrit le chemin du dépôt local dans `Contents/Resources/ProjectRoot.txt`, et `Studio.swift` exige `.venv/bin/python` à la racine du projet. Ils ne forment donc pas une installation autonome sur une autre machine. Un nouveau package intégrant ou provisionnant le serveur et ses dépendances est requis avant d’annoncer DMG/Homebrew comme installables.

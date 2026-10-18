@@ -167,6 +167,8 @@ verrou_gen = threading.Lock()    # une génération à la fois
 transcripts = {}                 # hash audio -> transcript ASR
 voix_courante = {}               # {"id", "wav", "transcript", "source"}
 jobs = {}                        # id -> {etat, fichier?, erreur?, debut}
+CACHES_VOIX: dict[str, tuple] = {}   # voix clonée -> cache de prompt réutilisé (mtime, époque, cache)
+modele_epoch = 0                 # incrémenté à chaque moteur chargé (invalide les caches)
 serveur_http: uvicorn.Server | None = None
 
 
@@ -258,35 +260,71 @@ CHARGEURS = {"voxcpm2": charger_voxcpm, "dots": charger_dots, "qwen3": charger_q
 verrou_chargement = threading.Lock()
 
 
+verrou_modele = threading.Lock()
+chargements_en_cours: set[str] = set()   # moteurs en cours de chargement (un seul par moteur)
+
+
+def chargement_en_cours(moteur: str | None = None) -> bool:
+    """Un (ou ce) moteur est-il en train de charger ? Évite les doublons :
+    deux chargements du même modèle sur MPS se disputent la mémoire et le GPU
+    (assertion Metal au milieu d'une synthèse)."""
+    with verrou_modele:
+        return bool(chargements_en_cours) if moteur is None else moteur in chargements_en_cours
+
+
 def charger_modele(moteur: str):
-    global moteur_actif, moteur_pret, modele, erreur_modele, moteur_lourd, moteur_eteint
-    moteur_actif = moteur
-    moteur_eteint = False
-    if moteur != "piper":
-        moteur_lourd = moteur
-    erreur_modele = None
-    print(f">> chargement du moteur {MOTEUR_LABELS[moteur]} (~1-2 min)...", flush=True)
-    with verrou_chargement:   # un chargement à la fois, même en cas de double-clic
-        try:
-            instance = CHARGEURS[moteur]()
-        except Exception as e:  # noqa: BLE001 — le studio reste utilisable via l'autre moteur
-            if moteur == moteur_actif:
-                erreur_modele = str(e)[:500]
-            print(f">> ÉCHEC chargement {moteur} : {e}", flush=True)
+    global moteur_actif, moteur_pret, modele, erreur_modele, moteur_lourd, moteur_eteint, modele_epoch
+    with verrou_modele:
+        if moteur in chargements_en_cours:
+            return                       # déjà en cours : les demandeurs attendent celui-ci
+        chargements_en_cours.add(moteur)
+    try:
+        moteur_actif = moteur
+        moteur_eteint = False
+        if moteur != "piper":
+            moteur_lourd = moteur
+        erreur_modele = None
+        print(f">> chargement du moteur {MOTEUR_LABELS[moteur]} (~1-2 min)...", flush=True)
+        with verrou_chargement:   # un chargement à la fois, même en cas de double-clic
+            try:
+                instance = CHARGEURS[moteur]()
+            except Exception as e:  # noqa: BLE001 — le studio reste utilisable via l'autre moteur
+                if moteur == moteur_actif:
+                    erreur_modele = str(e)[:500]
+                print(f">> ÉCHEC chargement {moteur} : {e}", flush=True)
+                return
+        if moteur != moteur_actif:  # une bascule plus récente est passée entre-temps
+            del instance
+            gc.collect()
             return
-    if moteur != moteur_actif:  # une bascule plus récente est passée entre-temps
-        del instance
-        gc.collect()
-        return
-    modele = instance
-    moteur_pret = moteur
-    print(">> moteur prêt.", flush=True)
+        modele = instance
+        moteur_pret = moteur
+        modele_epoch += 1
+        CACHES_VOIX.clear()          # les caches de voix appartiennent au moteur précédent
+        print(">> moteur prêt.", flush=True)
+    finally:
+        with verrou_modele:
+            chargements_en_cours.discard(moteur)
+
+
+def _attendre_moteur(moteur: str, delai: float = 180.0) -> None:
+    """Attend le moteur de clonage, et relance son chargement si personne ne s'en occupe."""
+    debut = time.monotonic()
+    while modele is None or moteur_pret != moteur:
+        if erreur_modele:
+            raise RuntimeError(erreur_modele)
+        if time.monotonic() - debut > delai:
+            raise RuntimeError("Le modèle ne répond pas après trois minutes. Réessaie ou change de moteur.")
+        if not chargement_en_cours():
+            threading.Thread(target=charger_modele, args=(moteur,), daemon=True).start()
+        time.sleep(0.5)
 
 
 def decharger_modele():
     global modele, moteur_pret
     modele = None
     moteur_pret = None
+    CACHES_VOIX.clear()
     gc.collect()
     try:
         import torch
@@ -1188,10 +1226,13 @@ def lancer_generation(req: dict = Body(...)):
     if any(j.get("etat") in ("attente", "chargement", "generation") for j in jobs.values()):
         raise HTTPException(409, "une génération est déjà en cours")
     cible = _cible_implicite(piper)
-    if cible:
+    if cible and not verrou_gen.locked():
         # le moteur de clonage manque : chargement en arrière-plan, sans
         # rien décharger — les voix Piper restent résidentes à côté, un
-        # livre qui mélange clone et Piper ne recharge plus à chaque segment
+        # livre qui mélange clone et Piper ne recharge plus à chaque segment.
+        # Jamais pendant une synthèse en cours : deux charges de front font
+        # tomber MPS (assertion Metal au milieu d'une génération) ; c'est la
+        # demande suivante qui relancera le chargement si besoin.
         threading.Thread(target=charger_modele, args=(cible,), daemon=True).start()
     elif modele is None and not piper and not verrou_chargement.locked():
         raise HTTPException(409, "aucun moteur n’est chargé — active un modèle dans l’onglet Modèles")
@@ -1272,13 +1313,7 @@ def executer_generation(job, texte, vitesse, transcript, reference=None, piper=N
             else:
                 jobs[job]["etat"] = "chargement"
                 depart_attente = time.monotonic()
-                deadline = depart_attente + 180
-                while modele is None or moteur_pret != moteur_actif:
-                    if erreur_modele:
-                        raise RuntimeError(erreur_modele)
-                    if time.monotonic() > deadline:
-                        raise RuntimeError("Le modèle ne répond pas après trois minutes. Réessaie ou change de moteur.")
-                    time.sleep(0.5)
+                _attendre_moteur(moteur_actif)
                 attente = time.monotonic() - depart_attente
                 jobs[job]["etat"] = "generation"
                 reference = reference or dict(voix_courante)
@@ -1305,16 +1340,27 @@ def executer_generation(job, texte, vitesse, transcript, reference=None, piper=N
                     wav = modele.generate_audio(etat, texte).float().cpu().squeeze().numpy()
                     sample_rate = modele.sample_rate
                 else:
-                    kwargs = dict(
-                        text=texte,
-                        reference_wav_path=ref,
-                        cfg_value=2.0,
-                        inference_timesteps=10,
-                    )
-                    if transcript:
-                        kwargs.update(prompt_wav_path=ref, prompt_text=transcript)
-                    wav = modele.generate(**kwargs)
-                    sample_rate = modele.tts_model.sample_rate
+                    # Cache de voix réutilisé : la référence n'est plus ré-encodée
+                    # à chaque segment (build_prompt_cache coûtait ~7 s par appel).
+                    reference = dict(reference, transcript=transcript)
+                    tts = getattr(modele, "tts_model", None)
+                    if hasattr(tts, "build_prompt_cache") and hasattr(tts, "_generate_with_prompt_cache"):
+                        flux = tts._generate_with_prompt_cache(
+                            target_text=texte, prompt_cache=_cache_voix(reference),
+                            cfg_value=2.0, inference_timesteps=10, streaming=False)
+                        try:
+                            final_wav = next(flux)[0]
+                        finally:
+                            flux.close()
+                        wav = final_wav.squeeze(0).cpu().numpy()
+                        sample_rate = tts.sample_rate
+                    else:                      # moteur sans cache de prompt : chemin historique
+                        kwargs = dict(text=texte, reference_wav_path=ref,
+                                      cfg_value=2.0, inference_timesteps=10)
+                        if transcript:
+                            kwargs.update(prompt_wav_path=ref, prompt_text=transcript)
+                        wav = modele.generate(**kwargs)
+                        sample_rate = modele.tts_model.sample_rate
             brute = SORTIES / f"{job}_brute.wav"
             fin_synthese = time.monotonic()
             sf.write(brute, wav, sample_rate, subtype="PCM_16")
@@ -1354,6 +1400,273 @@ def audio(fichier: str):
     if not f.exists():
         raise HTTPException(404, "fichier introuvable")
     return FileResponse(f, media_type="audio/wav", filename=f.name)
+
+
+# ------------------------------------------------------- lecture au fil de l'eau
+# Le studio lit comme le téléphone : le texte est découpé en phrases, chaque
+# phrase part dans son propre WAV dès qu'elle est prête, et la synthèse des
+# suivantes continue pendant que la précédente s'écoute. Deux différences
+# décisives avec « Générer » (qui rend un seul WAV pour tout le texte) :
+#   • le cache de voix du clonage est construit UNE fois pour toute la lecture
+#     (l'encodage de la référence coûtait plusieurs secondes à chaque appel) ;
+#   • la synthèse est streamée : le premier son arrive avant la fin de la phrase.
+# La lecture Piper est immédiate ; une voix clonée lit dès que sa premier phrase
+# est prête, avec la qualité du moteur de clonage.
+
+LECTURES: dict[str, dict] = {}          # id -> état de la lecture en cours
+LECTURE_DOSSIER = SORTIES / "lectures"
+LECTURES_GARDEES = 2                    # au-delà, la plus ancienne est arrêtée
+verrou_lectures = threading.Lock()
+
+
+def _cache_voix(reference: dict) -> dict:
+    """Cache de voix du clonage, réutilisé d'un segment à l'autre.
+
+    `build_prompt_cache` encode la référence (VAE audio + texte) : ~7 s à
+    chaque appel, payés aujourd'hui pour chaque phrase générée. Le cache est
+    lié au fichier de référence (mtime) et vidé quand le moteur change."""
+    chemin = Path(reference["wav"])
+    try:
+        mtime = chemin.stat().st_mtime
+    except OSError:
+        mtime = 0.0
+    cle = f"{reference.get('id','')}|{chemin}"
+    entree = CACHES_VOIX.get(cle)
+    if entree is not None and entree[0] == mtime and entree[1] == modele_epoch:
+        return entree[2]
+    transcript = (reference.get("transcript") or "").strip()
+    cache = modele.tts_model.build_prompt_cache(
+        prompt_text=transcript or None,
+        prompt_wav_path=str(chemin) if transcript else None,
+        reference_wav_path=str(chemin),
+    )
+    if len(CACHES_VOIX) >= 4:            # quelques voix suffisent, la mémoire reste bornée
+        CACHES_VOIX.pop(next(iter(CACHES_VOIX)))
+    CACHES_VOIX[cle] = (mtime, modele_epoch, cache)
+    return cache
+
+
+def _lecture_texte(texte: str) -> list[str]:
+    """Phrases lisibles d'un texte libre, découpées comme dans les livres."""
+    return livres.phrases_lisibles(livres._decouper_phrases(texte))
+
+
+def _lecture_flux(flux: dict, defaut: dict | None = None) -> dict:
+    """Valide la voix d'une phrase : Piper, clone, vitesse et tonalité.
+
+    `defaut` porte la voix du formulaire ; chaque segment d'un chapitre peut la
+    remplacer (une voix par personnage, comme à la génération)."""
+    flux = {**(defaut or {}), **(flux or {})}
+    try:
+        vitesse = float(flux.get("vitesse") or 1.0)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "vitesse invalide")
+    if not (VITESSE_MIN <= vitesse <= VITESSE_MAX):
+        raise HTTPException(400, f"vitesse entre {VITESSE_MIN} et {VITESSE_MAX}")
+    try:
+        tonalite = float(flux.get("tonalite") or 0.0)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "tonalité invalide")
+    if not (TONALITE_MIN <= tonalite <= TONALITE_MAX):
+        raise HTTPException(400, f"tonalité entre {TONALITE_MIN:g} et {TONALITE_MAX:g} demi-tons")
+    piper = None
+    piper_voix = str(flux.get("piper_voix") or "")
+    if piper_voix:
+        if not PIPER_ID_VALIDE.fullmatch(piper_voix) or piper_voix not in _piper_voix_installees():
+            raise HTTPException(400, "voix Piper inconnue ou non téléchargée — choisis-en une dans le catalogue")
+        locuteur = flux.get("piper_locuteur")
+        if locuteur is not None:
+            try:
+                locuteur = int(locuteur)
+            except (TypeError, ValueError):
+                raise HTTPException(400, "locuteur invalide")
+            if locuteur < 0:
+                raise HTTPException(400, "locuteur invalide")
+        piper = {"voix": piper_voix, "locuteur": locuteur}
+    reference = None
+    if piper is None:
+        reference_id = str(flux.get("reference_id") or "")
+        if reference_id:
+            if not re.fullmatch(r"[a-f0-9]{12,64}", reference_id):
+                raise HTTPException(400, "identifiant de voix invalide")
+            fichier_ref = VOIX / f"ref_{reference_id}.wav"
+            if not fichier_ref.exists():
+                raise HTTPException(404, "voix de bibliothèque introuvable")
+            infos = info_voix(reference_id, fichier_ref)
+            reference = {"id": reference_id, "wav": fichier_ref, "transcript": infos["transcript"]}
+        elif voix_courante:
+            reference = {"id": voix_courante["id"], "wav": voix_courante["wav"],
+                         "transcript": voix_courante.get("transcript", "")}
+        else:
+            raise HTTPException(400, "aucune voix définie : choisis ou enregistre un audio d'abord")
+    return {"piper": piper, "reference": reference, "vitesse": vitesse, "tonalite": tonalite}
+
+
+@app.post("/api/lire")
+def lancer_lecture(req: dict = Body(...)):
+    """Démarre une lecture au fil de l'eau et renvoie ses phrases.
+
+    Corps : `{texte, vitesse, tonalite, piper_voix, piper_locuteur}` pour un
+    texte libre, ou `{segments: [{texte, piper_voix|reference_id, vitesse, tonalite}]}`
+    pour un chapitre (une voix par personnage)."""
+    texte = (req.get("texte") or "").strip()
+    brut = req.get("segments")
+    if isinstance(brut, list) and brut:
+        if len(brut) > 3000:
+            raise HTTPException(400, "chapitre trop long pour une lecture")
+        defaut = {k: v for k, v in req.items() if k != "segments"}   # voix du formulaire
+        phrases = []
+        for element in brut:
+            if not isinstance(element, dict):
+                raise HTTPException(400, "segment invalide")
+            morceau = (element.get("texte") or "").strip()
+            if not morceau:
+                continue
+            flux = _lecture_flux(element, defaut)
+            phrases.extend({"texte": p, "flux": flux} for p in _lecture_texte(morceau))
+    elif texte:
+        if len(texte) > 200_000:
+            raise HTTPException(400, "texte trop long pour une lecture")
+        flux = _lecture_flux(req, None)
+        phrases = [{"texte": p, "flux": flux} for p in _lecture_texte(texte)]
+    else:
+        raise HTTPException(400, "texte vide")
+    if not phrases:
+        raise HTTPException(400, "rien à lire")
+    if moteur_eteint:
+        raise HTTPException(409, "aucun moteur n’est chargé — active un modèle dans l’onglet Modèles")
+    if verrou_gen.locked():
+        raise HTTPException(409, "une génération est déjà en cours")
+    moteur_cible = None
+    if any(p["flux"]["piper"] is None for p in phrases):
+        if erreur_modele and modele is None:
+            raise HTTPException(503, f"Le modèle n’a pas pu être chargé : {erreur_modele}")
+        a_charger = _cible_implicite(None)
+        moteur_cible = a_charger or moteur_pret
+        if a_charger:
+            threading.Thread(target=charger_modele, args=(a_charger,), daemon=True).start()
+    lid = uuid.uuid4().hex[:10]
+    etat = {"id": lid, "etat": "attente", "total": len(phrases), "prets": 0, "index": 0,
+            "erreur": "", "durees": [], "textes": [p["texte"] for p in phrases],
+            "moteur": "piper" if all(p["flux"]["piper"] for p in phrases) else "clonage",
+            "debut": time.time(), "stop": threading.Event()}
+    with verrou_lectures:
+        LECTURES[lid] = etat
+        for ancienne in list(LECTURES):
+            if ancienne != lid and len(LECTURES) > LECTURES_GARDEES:
+                LECTURES[ancienne]["stop"].set()
+                LECTURES.pop(ancienne, None)
+    threading.Thread(target=_executer_lecture, args=(lid, [p["flux"] for p in phrases], moteur_cible), daemon=True).start()
+    return {"lecture": lid, "total": len(phrases), "phrases": etat["textes"], "moteur": etat["moteur"]}
+
+
+def _executer_lecture(lid: str, flux: list[dict], moteur_cible: str | None) -> None:
+    """Synthétise les phrases une à une, dans leur ordre d'écoute."""
+    etat = LECTURES.get(lid)
+    if etat is None:
+        return
+    dossier = LECTURE_DOSSIER / lid
+    dossier.mkdir(parents=True, exist_ok=True)
+    with verrou_gen:                        # un seul moteur chauffe à la fois (MPS)
+        try:
+            if moteur_cible:
+                _attendre_moteur(moteur_cible)
+            for index, reglage in enumerate(flux):
+                if etat["stop"].is_set():
+                    etat["etat"] = "arrete"
+                    return
+                etat["etat"] = "synthese"
+                etat["index"] = index
+                cible = dossier / f"{index:05d}.part.wav"
+                final = dossier / f"{index:05d}.wav"
+                debut = time.monotonic()
+                _synthetiser_phrase(etat["textes"][index], reglage, cible)
+                final.unlink(missing_ok=True)
+                cible.rename(final)
+                etat["durees"].append(round(duree_audio(final), 2))
+                etat["prets"] = index + 1
+                etat["secondes"] = round(time.monotonic() - debut, 2)
+            etat["etat"] = "pret"
+        except Exception as e:  # noqa: BLE001 — remonte au client via /api/lire/{id}
+            etat["etat"] = "erreur"
+            etat["erreur"] = str(e)[:500]
+
+
+def _synthetiser_phrase(texte: str, reglage: dict, cible: Path) -> None:
+    """Une phrase dans un WAV, avec la vitesse et la tonalité demandées."""
+    texte = normalisation.normaliser(texte)
+    import numpy as np
+
+    if reglage["piper"]:
+        from piper import SynthesisConfig
+
+        voix = _voix_piper_chargee(reglage["piper"]["voix"])
+        config = SynthesisConfig(length_scale=1.0 / reglage["vitesse"],
+                                 speaker_id=reglage["piper"].get("locuteur"))
+        morceaux = list(voix.synthesize(texte, config))
+        if not morceaux:
+            raise RuntimeError("Piper n’a rien synthétisé (phrase vide ?)")
+        wav = np.concatenate([m.audio_int16_array for m in morceaux])
+        sample_rate = morceaux[0].sample_rate
+        sf.write(cible, wav, sample_rate, subtype="PCM_16")
+        if abs(reglage["tonalite"]) > 0.01:          # tonalité : ffmpeg sur le WAV
+            filtres = _filtres_audio(1.0, reglage["tonalite"], 1.0, sample_rate)
+            apres = cible.with_suffix(".ft.wav")
+            subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(cible),
+                            "-filter:a", ",".join(filtres), str(apres)], check=True)
+            apres.replace(cible)
+        return
+
+    cache = _cache_voix(reglage["reference"])
+    morceaux = []
+    for wav, _, _ in modele.tts_model._generate_with_prompt_cache(
+            target_text=texte, prompt_cache=cache, cfg_value=2.0,
+            inference_timesteps=10, streaming=True, retry_badcase=False):
+        morceaux.append(wav.squeeze(0).cpu().numpy())
+    if not morceaux:
+        raise RuntimeError("le moteur n’a rien synthétisé (phrase vide ?)")
+    sample_rate = modele.tts_model.sample_rate
+    audio = np.concatenate(morceaux)
+    filtres = _filtres_audio(reglage["vitesse"], reglage["tonalite"], 1.0, sample_rate)
+    if filtres:
+        brute = cible.with_suffix(".brut.wav")
+        sf.write(brute, audio, sample_rate, subtype="PCM_16")
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(brute),
+                        "-filter:a", ",".join(filtres), str(cible)], check=True)
+        brute.unlink(missing_ok=True)
+    else:
+        sf.write(cible, audio, sample_rate, subtype="PCM_16")
+
+
+@app.get("/api/lire/{lid}")
+def etat_lecture(lid: str):
+    etat = LECTURES.get(lid)
+    if etat is None:
+        raise HTTPException(404, "lecture inconnue")
+    return {k: v for k, v in etat.items() if k != "stop"} | {"ecoule": round(time.time() - etat["debut"])}
+
+
+@app.get("/api/lire/{lid}/{index}")
+def fichier_lecture(lid: str, index: int):
+    etat = LECTURES.get(lid)
+    if etat is None:
+        raise HTTPException(404, "lecture inconnue")
+    if index < 0 or index >= etat["total"]:
+        raise HTTPException(404, "phrase inconnue")
+    fichier = LECTURE_DOSSIER / lid / f"{index:05d}.wav"
+    if not fichier.exists():
+        raise HTTPException(404, "cette phrase n’est pas encore prête")
+    return FileResponse(fichier, media_type="audio/wav")
+
+
+@app.post("/api/lire/{lid}/arreter")
+def arreter_lecture(lid: str):
+    etat = LECTURES.get(lid)
+    if etat is None:
+        raise HTTPException(404, "lecture inconnue")
+    etat["stop"].set()
+    etat["etat"] = "arrete"
+    return {"ok": True}
 
 
 # --------------------------------------------------------------- livres/audiobooks

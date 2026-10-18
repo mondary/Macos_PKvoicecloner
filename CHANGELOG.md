@@ -1,6 +1,21 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.60] - 2026-10-19
+
+### Added
+- **Lecture au fil de l’eau** — un bouton **Lire** à côté de Générer : le texte se lit pendant qu’il se synthétise. Le serveur le découpe en phrases, la première s’écoute dès qu’elle est prête et les suivantes se préparent pendant ce temps. Mesuré sur ce Mac : **0,13 s par phrase** avec une voix Piper (instantané), **~8 s pour la première phrase** puis ~7 s par phrase avec une voix clonée (48 kHz, cache de voix compris) — au lieu d’attendre la prise entière.
+- **Lire un chapitre en direct** (studio web, étape ④ Écoute) : le chapitre entier se lit avec la voix de chaque rôle **sans générer un seul segment** — l’écoute avant la génération, puis la génération pour l’export.
+- **Lire dans l’app native** : même bouton dans Texte → Voix, avec « Lecture · phrase 2 / 12 » et un arrêt immédiat.
+- La lecture expose son état (`/api/lire/{id}`), ses phrases en WAV individuel et son arrêt (`/api/lire/{id}/arreter`).
+
+### Changed
+- **Le cache de voix du clonage n’est plus reconstruit à chaque phrase** : l’encodage de la référence (`build_prompt_cache`, ~7 s) est fait une fois par voix et réutilisé par toutes les phrases, à la génération comme à la lecture. Sur un chapitre de 100 segments, c’est des minutes rendues.
+- La lecture utilise la synthèse streamée : le premier morceau audible tombe pendant la phrase au lieu d’attendre sa fin.
+
+### Fixed
+- **Plus de double chargement du modèle** : au démarrage, une génération Piper pouvait lancer un second chargement de VoxCPM2 alors que le premier était en cours — deux modèles de 5 Go sur MPS, et l’assertion Metal qui fait tomber le serveur au milieu d’une synthèse (reproduit). Un moteur ne se charge plus qu’une fois à la fois, et jamais pendant une synthèse.
+
 ## [2026.10.59] - 2026-10-18
 
 ### Fixed

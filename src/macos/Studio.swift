@@ -34,6 +34,8 @@ struct BookResponse: Codable { let livres: [BookProject] }
 struct HFResult: Codable, Identifiable { let repo: String; let telechargements: Int?; let likes: Int?; let gated: Bool?; var id: String { repo } }
 struct HFResponse: Codable { let resultats: [HFResult] }
 struct GenerationJob: Decodable { let etat: String; let fichier: String?; let duree: Double?; let erreur: String?; let ecoule: Double? }
+struct LiveRead: Decodable { let lecture: String; let total: Int; let moteur: String }
+struct LiveState: Decodable { let etat: String; let prets: Int; let total: Int; let index: Int?; let erreur: String? }
 struct IAProfil: Codable, Identifiable {
     let id: String
     let nom: String
@@ -75,6 +77,9 @@ struct StudioError: LocalizedError {
     @Published var loadingEngine: String?
     @Published var playing = false
     @Published var playingVoiceID: String?
+    @Published var reading = false                 // lecture au fil de l'eau
+    @Published var readingPhrase = 0
+    @Published var readingTotal = 0
     @Published var iaProfils: [IAProfil] = []
     private(set) var process: Process?
     private var failedRefreshes = 0
@@ -85,6 +90,8 @@ struct StudioError: LocalizedError {
     private var recordingTimer: Task<Void, Never>?
     private var playbackTimer: Task<Void, Never>?
     private var generationTask: Task<Void, Never>?
+    private var readingTask: Task<Void, Never>?
+    private var readingID: String?
     let baseURL: URL
     let session: URLSession
     let root: URL?
@@ -532,8 +539,75 @@ struct StudioError: LocalizedError {
         }
     }
 
-    func exportAudio() {
-        guard let source = resultURL else { return }
+    /// Lecture au fil de l'eau : le texte part phrase par phrase, la première
+    /// s'écoute dès qu'elle est prête, les suivantes se préparent pendant ce
+    /// temps — la voix clonée garde son cache chaud côté serveur.
+    func lire() async {
+        guard !reading, !generating, !busy, selectedVoiceID != nil,
+              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        stopPlayback()
+        reading = true; error = nil; resultURL = nil
+        readingPhrase = 0; readingTotal = 0
+        let input = text, pace = speed, reference = transcript
+        generationStatus = "Préparation de la lecture…"
+        readingTask = Task {
+            defer { reading = false; readingTask = nil; readingID = nil }
+            do {
+                let created = try JSONDecoder().decode(LiveRead.self, from: await request(
+                    "api/lire", method: "POST",
+                    json: ["texte": input, "vitesse": pace, "tonalite": 0, "transcript": reference]))
+                readingID = created.lecture
+                readingTotal = created.total
+                for index in 0..<created.total {
+                    if Task.isCancelled { return }
+                    var pret = false
+                    while !Task.isCancelled && !pret {
+                        let etat = try JSONDecoder().decode(LiveState.self, from: await generationRequest("api/lire/\(created.lecture)"))
+                        if etat.etat == "erreur" { throw StudioError(message: etat.erreur ?? "La lecture a échoué.") }
+                        if etat.etat == "arrete" { generationStatus = "Lecture arrêtée."; return }
+                        pret = etat.prets > index
+                        if !pret {
+                            generationStatus = index == 0
+                                ? "La première phrase se prépare…"
+                                : "La phrase \(index + 1) se prépare…"
+                            try await Task.sleep(for: .milliseconds(300))
+                        }
+                    }
+                    if Task.isCancelled { return }
+                    let audio = try await generationRequest("api/lire/\(created.lecture)/\(index)", timeout: 120)
+                    if Task.isCancelled { return }
+                    let lecteur = try AVAudioPlayer(data: audio)
+                    player = lecteur
+                    guard lecteur.play() else { throw StudioError(message: "Lecture audio impossible.") }
+                    playing = true; playingVoiceID = "lecture-live"
+                    readingPhrase = index + 1
+                    generationStatus = "Lecture · phrase \(index + 1) / \(created.total)"
+                    while !Task.isCancelled && lecteur.isPlaying { try await Task.sleep(for: .milliseconds(150)) }
+                }
+                if !Task.isCancelled {
+                    playing = false; playingVoiceID = nil
+                    generationStatus = "Lecture terminée · \(created.total) phrases."
+                }
+            } catch {
+                playing = false; playingVoiceID = nil
+                self.error = error.localizedDescription
+                generationStatus = "La lecture n’a pas pu aboutir."
+            }
+        }
+    }
+
+    func stopReading() {
+        let identifiant = readingID
+        readingTask?.cancel(); readingTask = nil; readingID = nil
+        stopPlayback()
+        reading = false; readingPhrase = 0; readingTotal = 0
+        generationStatus = "Lecture arrêtée."
+        if let identifiant {
+            Task { _ = try? await self.request("api/lire/\(identifiant)/arreter", method: "POST") }
+        }
+    }
+
+    func exportAudio() {        guard let source = resultURL else { return }
         let panel = NSSavePanel(); panel.allowedContentTypes = [.wav]; panel.nameFieldStringValue = "pk-voice-studio.wav"
         panel.begin { response in
             guard response == .OK, let target = panel.url else { return }
@@ -574,6 +648,7 @@ struct StudioError: LocalizedError {
     func terminate() {
         endActivity()
         generationTask?.cancel(); recordingTimer?.cancel(); stopPlayback(); recorder?.stop()
+        readingTask?.cancel(); readingTask = nil; readingID = nil; reading = false
         // Only terminate the process started by this app, not an external studio.
         if let process, process.isRunning { process.terminate() }
     }

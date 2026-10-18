@@ -31,6 +31,7 @@ class StudioContracts(unittest.TestCase):
                         patch.object(server, '_cache_modele', lambda repo: self.root / repo.replace('/', '--'))]
         for p in self.patches: p.start()
         server.voix_courante.clear(); server.jobs.clear(); server.installations.clear(); server.transcripts.clear()
+        server.PIPER_VOIX.clear()          # une voix Piper gardée chaude ne doit pas fuir d'un test à l'autre
         server.modele = None; server.moteur_pret = None; server.erreur_modele = None
         server.moteur_actif = 'voxcpm2'; server.moteur_eteint = False; server._piper_catalogue_cache = None
         self.client = TestClient(server.app)
@@ -107,6 +108,12 @@ class StudioContracts(unittest.TestCase):
             vid = self.client.post('/api/voix', files={'audio': ('reference.wav', audio.getvalue(), 'audio/wav')}).json()['id']
         self.assertEqual(self.client.post(f'/api/voix/{vid}/choisir').status_code, 200)
         server.modele = None; server.moteur_pret = None
+        with patch.object(server.threading, 'Thread') as thread:
+            reponse = self.client.post('/api/generer', json={'texte': 'Bonjour le monde'})
+            self.assertEqual(reponse.status_code, 200, reponse.text)
+            thread.return_value.start.assert_called()        # le moteur manquant se charge en fond
+        # « Désactiver veut dire éteint » : un arrêt explicite refuse la génération
+        server.moteur_eteint = True
         reponse = self.client.post('/api/generer', json={'texte': 'Bonjour le monde'})
         self.assertEqual(reponse.status_code, 409)
         self.assertIn('aucun moteur', reponse.json()['detail'])
@@ -218,7 +225,8 @@ class StudioContracts(unittest.TestCase):
             (cache / 'test-weight').write_text('test')
             self.assertEqual(self.client.post(f'/api/modeles/{mid}/renommer', json={'nom': 'Mon moteur'}).status_code, 200)
             self.assertEqual(next(m for m in self.client.get('/api/modeles').json()['modeles'] if m['id'] == mid)['label'], 'Mon moteur')
-            self.assertEqual(self.client.delete(f'/api/modeles/{mid}').status_code, 200)
+            supprime = self.client.delete(f'/api/modeles/{mid}')
+            self.assertEqual(supprime.status_code, 200, supprime.text)
             self.assertFalse(cache.exists())
 
     def test_model_catalogue_groups_and_activation_persists_asr_choice(self):
@@ -352,6 +360,7 @@ class PiperContracts(unittest.TestCase):
         for p in self.patches:
             p.start()
         server.voix_courante.clear(); server.jobs.clear(); server.installations.clear()
+        server.PIPER_VOIX.clear()          # une voix Piper gardée chaude ne doit pas fuir d'un test à l'autre
         server.modele = None; server.moteur_pret = None; server.erreur_modele = None
         server.moteur_actif = 'piper'; server.moteur_eteint = False
         self.client = TestClient(server.app)
@@ -481,21 +490,100 @@ class PiperContracts(unittest.TestCase):
         faux_piper = types.SimpleNamespace(
             PiperVoice=types.SimpleNamespace(load=lambda chemin: types.SimpleNamespace(synthesize=faux_synthese)),
             SynthesisConfig=lambda **kwargs: kwargs)
+        # le patch reste actif pendant la synthèse : elle tourne dans son fil,
+        # un patch refermé trop tôt laisserait le vrai Piper répondre
         with patch.dict(sys.modules, {'piper': faux_piper}):
             response = self.client.post('/api/generer', json={
                 'texte': 'Louis XVI promulgua 1789 lois.', 'vitesse': 1.2,
                 'piper_voix': 'fr_FR-siwis-medium', 'piper_locuteur': 1})
-        self.assertEqual(response.status_code, 200, response.text)
-        job = response.json()['job']
-        for _ in range(200):
-            etat = self.client.get(f'/api/job/{job}').json()
-            if etat.get('etat') in ('pret', 'erreur'):
-                break
-            time.sleep(0.05)
-        self.assertEqual(etat['etat'], 'pret', etat)
+            self.assertEqual(response.status_code, 200, response.text)
+            job = response.json()['job']
+            for _ in range(200):
+                etat = self.client.get(f'/api/job/{job}').json()
+                if etat.get('etat') in ('pret', 'erreur'):
+                    break
+                time.sleep(0.05)
+            self.assertEqual(etat['etat'], 'pret', etat)
         # la synthèse a reçu la forme normalisée, pas la notation imprimée
         self.assertIn('Louis seize', capturé['texte'])
         self.assertIn('mille sept cent quatre-vingt-neuf', capturé['texte'])
+
+
+class LiveReadContracts(PiperContracts):
+    """Lecture au fil de l'eau : phrases découpées, WAV par phrase, arrêt."""
+
+    def _attendre(self, lid, total):
+        for _ in range(400):
+            etat = self.client.get(f'/api/lire/{lid}').json()
+            if etat['etat'] in ('pret', 'arrete', 'erreur') or etat['prets'] >= total:
+                return etat
+            time.sleep(0.02)
+        self.fail(f'lecture non prête : {etat}')
+
+    def test_lecture_decoupe_les_phrases_et_sert_chaque_wav(self):
+        self._simuler_voix()
+        appels = []
+
+        def faux_synthese(texte, config):
+            appels.append(texte)
+            return [types.SimpleNamespace(audio_int16_array=np.zeros(2205, dtype=np.int16),
+                                          sample_rate=22050)]
+
+        faux_piper = types.SimpleNamespace(
+            PiperVoice=types.SimpleNamespace(load=lambda chemin: types.SimpleNamespace(synthesize=faux_synthese)),
+            SynthesisConfig=lambda **kwargs: types.SimpleNamespace(**kwargs))
+        with patch.dict(sys.modules, {'piper': faux_piper}):
+            reponse = self.client.post('/api/lire', json={
+                'texte': 'Première phrase. Deuxième phrase ! Et la troisième ?',
+                'vitesse': 1.0, 'piper_voix': 'fr_FR-siwis-medium'})
+            self.assertEqual(reponse.status_code, 200, reponse.text)
+            lecture = reponse.json()
+            self.assertEqual(lecture['total'], 3)
+            self.assertEqual(lecture['moteur'], 'piper')
+            etat = self._attendre(lecture['lecture'], 3)
+            self.assertEqual(etat['prets'], 3, etat)
+            for index in range(3):
+                phrase = self.client.get(f"/api/lire/{lecture['lecture']}/{index}")
+                self.assertEqual(phrase.status_code, 200, phrase.text)
+                self.assertTrue(phrase.content.startswith(b'RIFF'))
+            self.assertEqual(len(appels), 3)
+            self.assertEqual(self.client.get(f"/api/lire/{lecture['lecture']}/9").status_code, 404)
+            stop = self.client.post(f"/api/lire/{lecture['lecture']}/arreter")
+            self.assertEqual(stop.status_code, 200)
+            self.assertEqual(self.client.get(f"/api/lire/{lecture['lecture']}").json()['etat'], 'arrete')
+            self.assertEqual(self.client.get('/api/lire/inconnue').status_code, 404)
+
+    def test_lecture_valide_la_voix_et_le_texte(self):
+        self._simuler_voix()
+        self.assertEqual(self.client.post('/api/lire', json={'texte': ''}).status_code, 400)
+        self.assertEqual(self.client.post('/api/lire', json={
+            'texte': 'Bonjour', 'piper_voix': 'fr_FR-ghost-medium'}).status_code, 400)
+        self.assertEqual(self.client.post('/api/lire', json={
+            'texte': 'Bonjour', 'piper_voix': 'fr_FR-siwis-medium', 'vitesse': 9}).status_code, 400)
+
+    def test_lecture_d_un_chapitre_garde_la_voix_de_chaque_segment(self):
+        self._simuler_voix()
+        self._simuler_voix('fr_FR-upmc-medium')
+        voix_vues = []
+
+        def faux_synthese(texte, config):
+            voix_vues.append(getattr(config, 'speaker_id', None))
+            return [types.SimpleNamespace(audio_int16_array=np.zeros(2205, dtype=np.int16),
+                                          sample_rate=22050)]
+
+        faux_piper = types.SimpleNamespace(
+            PiperVoice=types.SimpleNamespace(load=lambda chemin: types.SimpleNamespace(synthesize=faux_synthese)),
+            SynthesisConfig=lambda **kwargs: types.SimpleNamespace(**kwargs))
+        with patch.dict(sys.modules, {'piper': faux_piper}):
+            reponse = self.client.post('/api/lire', json={'segments': [
+                {'texte': 'Le narrateur ouvre le récit.', 'piper_voix': 'fr_FR-siwis-medium'},
+                {'texte': 'Le personnage répond.', 'piper_voix': 'fr_FR-upmc-medium', 'piper_locuteur': 1},
+            ]})
+            self.assertEqual(reponse.status_code, 200, reponse.text)
+            lecture = reponse.json()
+            self.assertEqual(lecture['total'], 2)
+            self._attendre(lecture['lecture'], 2)
+            self.assertEqual(voix_vues, [None, 1])       # une voix par rôle, locuteur compris
 
 
 if __name__ == '__main__': unittest.main()

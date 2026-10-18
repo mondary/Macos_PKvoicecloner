@@ -374,3 +374,25 @@ body.book-focus .books-head,body.book-focus .book-drop{display:none!important}
 .voice-section-vide{padding:10px 6px;font-size:12px;color:var(--muted);line-height:1.7}
 .voice-section.flash{animation:voice-flash 1.9s ease}
 @keyframes voice-flash{0%,100%{background:transparent}12%,65%{background:var(--coral-tint);border-radius:10px}}
+
+/* Lecture au fil de l'eau : le texte part phrase par phrase, sans attendre le master. */
+.live-read{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:white;color:var(--ink);border-radius:6px;font:600 12px var(--sans);padding:9px 12px;cursor:pointer}
+.live-read:hover:not(:disabled){background:var(--soft)}
+.live-read:disabled{color:#a1a1aa;cursor:not-allowed}
+.live-read .live-dot{width:7px;height:7px;border-radius:50%;background:#16a34a}
+.live-read[aria-pressed="true"] .live-dot{background:#dc2626;animation:live-pulse 1.2s ease-in-out infinite}
+.live-panel{margin-top:12px;border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:#fafafa}
+.live-head{display:flex;align-items:center;gap:12px}
+.live-head>div{flex:1;min-width:0}
+.live-head strong{display:block;font-size:12px;font-weight:600}
+.live-head small{display:block;font-size:11px;color:var(--muted);margin-top:2px;line-height:1.5}
+.live-wave{display:inline-flex;gap:2px;align-items:flex-end;height:17px;flex-shrink:0}
+.live-wave b{width:3px;height:6px;border-radius:1px;background:var(--ink);animation:live-wave .9s ease-in-out infinite}
+.live-wave b:nth-child(2){animation-delay:.15s}
+.live-wave b:nth-child(3){animation-delay:.3s}
+.live-wave b:nth-child(4){animation-delay:.45s}
+.live-progress{margin-top:10px;height:3px;border-radius:2px;background:var(--soft);overflow:hidden}
+.live-progress i{display:block;height:100%;width:0;background:var(--ink);transition:width .3s ease}
+@keyframes live-wave{0%,100%{height:6px}50%{height:17px}}
+@keyframes live-pulse{50%{opacity:.35}}
+@media(prefers-reduced-motion:reduce){.live-wave b,.live-read .live-dot{animation:none}}

@@ -13,6 +13,8 @@ import { library, readSettings, saveSettings } from './storage';
 import { importBook, welcomeBook, chapterAt, minutesLeft } from './books';
 import { audio, native, Reader, modelCatalog } from './engine';
 import type { Book, Voice } from './types';
+import { openCasting } from './casting-ui';
+import { characterAt, speechProfile } from './casting';
 
 /* ------------------------------------------------------------------ état */
 
@@ -191,7 +193,7 @@ const pageOf = (index: number) => Math.max(0, pages.findIndex(p => p.some(r => r
 
 function readerHeader() {
   const book = current()!;
-  return `<header class="reader-header">${iconButton('arrow-left','Retour à la bibliothèque','back')}<div><span>${esc(book.title.replace(/\n/g,' '))}</span><small>${esc(book.author)}</small></div>${iconButton('text-cursor-input','Apparence du texte','appearance')}</header>`;
+  return `<header class="reader-header">${iconButton('arrow-left','Retour à la bibliothèque','back')}<div><span>${esc(book.title.replace(/\n/g,' '))}</span><small>${esc(book.author)}</small></div>${iconButton('users','Personnages et voix de ce livre','casting')}${iconButton('text-cursor-input','Apparence du texte','appearance')}</header>`;
 }
 function readerSubhead() {
   const book = current()!; const chapter = chapterAt(book); const index = book.chapters.indexOf(chapter);
@@ -212,7 +214,9 @@ function readingPages() {
 function playerHTML() {
   const book = current()!; const chapter = chapterAt(book);
   const isPlaying = audio.state.bookId === book.id && audio.state.playing;
-  return `<section class="player" aria-label="Lecteur audio"><div class="player-top"><button class="voice-chip" data-action="choose-voice">${icon('audio-lines')}<span>${esc(voiceName())}</span>${icon('chevron-down')}</button><button class="sleep-chip ${audio.state.sleepAt?'on':''}" data-action="sleep">${icon('moon')}${audio.state.sleepAt?`${Math.max(1,Math.ceil((audio.state.sleepAt-Date.now())/60000))} min`:'Minuteur'}</button></div><label class="sr-only" for="progress">Position dans le livre</label><input class="progress-slider" id="progress" type="range" min="0" max="${book.segments.length-1}" value="${Math.min(book.position,book.segments.length-1)}" style="--progress:${progress(book)}" /><div class="time-row"><span>${percent(book)} % du livre</span><span>${book.completed?'Lecture terminée':`${minutes(book)} restantes`}</span></div><div class="transport"><button class="speed-button" data-action="speed">${settings.rate.toLocaleString('fr')}<span>×</span></button>${iconButton('skip-back','Phrase précédente','previous')}<button class="play-button ${audio.state.loading?'loading':''}" data-action="toggle" aria-label="${isPlaying?'Mettre en pause':'Lire à voix haute'}">${icon(audio.state.loading?'loader-circle':isPlaying?'pause':'play')}</button>${iconButton('skip-forward','Phrase suivante','next')}${iconButton('download','Préparer ce chapitre hors ligne','prepare')}</div><p class="player-status" aria-live="polite">${esc(audio.state.error || (audio.state.preparing?`Préparation ${audio.state.prepared ?? 0} / ${audio.state.total ?? 0} passages`:audio.state.loading?'La voix prépare le prochain passage…':isPlaying?`${esc(chapter.title)} — laissez l’histoire vous emporter.`:'Touchez une phrase pour choisir le départ.'))}</p></section>`;
+  const speaker = characterAt(book, book.position)?.name || '';
+  const status = audio.state.error || (audio.state.preparing?`Préparation ${audio.state.prepared ?? 0} / ${audio.state.total ?? 0} passages`:audio.state.loading?`${speaker?`${speaker} · `:''}La voix prépare le prochain passage…`:isPlaying?`${speaker?`${esc(speaker)} · `:''}${esc(chapter.title)} — laissez l’histoire vous emporter.`:'Touchez une phrase pour choisir le départ.');
+  return `<section class="player" aria-label="Lecteur audio"><div class="player-top"><button class="voice-chip" data-action="choose-voice">${icon('audio-lines')}<span>${esc(characterAt(book, book.position)?.name || voiceName())}</span>${icon('chevron-down')}</button><button class="sleep-chip ${audio.state.sleepAt?'on':''}" data-action="sleep">${icon('moon')}${audio.state.sleepAt?`${Math.max(1,Math.ceil((audio.state.sleepAt-Date.now())/60000))} min`:'Minuteur'}</button></div><label class="sr-only" for="progress">Position dans le livre</label><input class="progress-slider" id="progress" type="range" min="0" max="${book.segments.length-1}" value="${Math.min(book.position,book.segments.length-1)}" style="--progress:${progress(book)}" /><div class="time-row"><span>${percent(book)} % du livre</span><span>${book.completed?'Lecture terminée':`${minutes(book)} restantes`}</span></div><div class="transport"><button class="speed-button" data-action="speed">${settings.rate.toLocaleString('fr')}<span>×</span></button>${iconButton('skip-back','Phrase précédente','previous')}<button class="play-button ${audio.state.loading?'loading':''}" data-action="toggle" aria-label="${isPlaying?'Mettre en pause':'Lire à voix haute'}">${icon(audio.state.loading?'loader-circle':isPlaying?'pause':'play')}</button>${iconButton('skip-forward','Phrase suivante','next')}${iconButton('download','Préparer ce chapitre hors ligne','prepare')}</div><p class="player-status" aria-live="polite">${esc(status)}</p></section>`;
 }
 function nowBar() {
   return `<aside class="now-bar" id="now-bar" hidden data-action="follow" role="button" tabindex="0" aria-label="Revenir à la phrase en cours"><span class="now-wave" aria-hidden="true"><b></b><b></b><b></b></span><div class="now-copy"><small>EN COURS · <span id="now-chapter"></span></small><p id="now-text"></p></div><span class="now-return">${icon('locate-fixed')}<i>Revenir</i></span></aside>`;
@@ -275,7 +279,8 @@ function syncNowBar() {
   bar.hidden = !visible;
   if (!book || !visible) return;
   const chapter = document.querySelector('#now-chapter'); const text = document.querySelector('#now-text');
-  if (chapter) chapter.textContent = chapterAt(book).title;
+  const speaker = characterAt(book, book.position)?.name;
+  if (chapter) chapter.textContent = [chapterAt(book).title, speaker].filter(Boolean).join(' · ');
   if (text) text.textContent = book.segments[book.position];
 }
 function observePlayer() {
@@ -361,7 +366,8 @@ function render() {
   }
 }
 function modal(title: string, body: string) {
-  sheet.innerHTML = `<div class="sheet-handle"></div><header><h2>${title}</h2>${iconButton('x','Fermer','close')}</header>${body}`;
+  sheet.setAttribute('aria-labelledby', 'sheet-title');
+  sheet.innerHTML = `<div class="sheet-handle"></div><header><h2 id="sheet-title">${title}</h2>${iconButton('x','Fermer','close')}</header>${body}`;
   if (!sheet.open) sheet.showModal(); decorate();
 }
 async function openBook(id: string, listen = false) {
@@ -470,7 +476,8 @@ async function handle(action: string, el: HTMLElement) {
     case 'chapter-next': if (book) { const next = chapterAt(book).end; if (next < book.segments.length) { follow = true; page = 0; await audio.seek(next); render(); window.scrollTo(0, 0); } else { screen = 'library'; render(); } } break;
     case 'bookmark': if (book) { const pos = Math.min(book.position, book.segments.length - 1); book.bookmarks = book.bookmarks.includes(pos) ? book.bookmarks.filter(i => i !== pos) : [...book.bookmarks, pos].sort((a, b) => a - b); await library.save(book); render(); toast(book.bookmarks.includes(pos)?'Passage ajouté aux signets.':'Signet retiré.'); } break;
     case 'voice-tab': voiceTab = id; render(); break;
-    case 'choose-voice': modal('Changer de voix', quickVoiceBody()); break;
+    case 'casting': if (book) await openCasting(book, [...voices, ...models], settings, modal, render); break;
+    case 'choose-voice': modal('Changer de voix', `${book ? '<button class="setting-row" data-action="casting">Une voix par personnage →</button>' : ''}${quickVoiceBody()}`); break;
     case 'select-voice': settings.voice = id; savePrefs(); if (sheet.open) sheet.close(); if (active()) await audio.load(active()!, settings); render(); toast('Voix appliquée à cette écoute.'); break;
     case 'preview': {
       const demo = welcomeBook(); demo.id = 'voice-preview'; demo.title = 'Aperçu de la voix'; demo.segments = ['Fermez les yeux, ouvrez un livre. Je vous accompagne au fil des pages, à votre rythme.'];
@@ -481,7 +488,7 @@ async function handle(action: string, el: HTMLElement) {
       await Reader.installModel({ id }); downloading = true; toast('Téléchargement démarré. Gardez l’app ouverte.'); void pollModels(); break;
     case 'remove-model': if (native) { await audio.pause(); await Reader.removeModel({ id }); if (settings.voice === id) { settings.voice = 'system:default'; savePrefs(); } models = (await Reader.models()).voices; render(); toast('Voix supprimée de cet appareil.'); } break;
     case 'voice-settings': if (native) await Reader.voiceSettings(); else toast('Les réglages des voix Android sont accessibles dans l’APK.'); break;
-    case 'prepare': if (native && book) { if (settings.voice.startsWith('system:')) { toast('Choisissez une voix Piper ou clonée pour préparer un chapitre.'); break; } modal('Emporter ce chapitre',`<p class="sheet-description">Les passages de « ${esc(chapterAt(book).title)} » seront générés et conservés sur le téléphone. Avec une voix clonée, votre Mac doit rester connecté pendant la préparation.</p><button class="primary" data-action="prepare-confirm">${icon('download')} Préparer le chapitre</button>`); } else toast('La préparation hors ligne est disponible dans l’APK Android.'); break;
+    case 'prepare': if (native && book) { if (book.segments.slice(chapterAt(book).start, chapterAt(book).end).some((_, offset) => speechProfile(book, settings, chapterAt(book).start + offset).voice.startsWith('system:'))) { toast('Pour préparer ce chapitre, choisissez une voix Piper pour chaque rôle utilisé.'); break; } modal('Emporter ce chapitre',`<p class="sheet-description">Les passages de « ${esc(chapterAt(book).title)} » seront générés et conservés sur le téléphone. Avec une voix clonée, votre Mac doit rester connecté pendant la préparation.</p><button class="primary" data-action="prepare-confirm">${icon('download')} Préparer le chapitre</button>`); } else toast('La préparation hors ligne est disponible dans l’APK Android.'); break;
     case 'prepare-confirm': if (book) { await Reader.command({ action:'prepare', index:chapterAt(book).start, end:chapterAt(book).end }); sheet.close(); toast('Préparation du chapitre démarrée.'); } break;
     case 'book-menu': { const b = books.find(b => b.id === id); if (b) modal(esc(b.title.replace(/\n/g,' ')),`<button class="setting-row" data-action="open" data-id="${id}"><span>${icon('book-open')} Ouvrir le livre</span></button><button class="setting-row" data-action="clear-audio" data-id="${id}"><span>${icon('hard-drive')} Effacer les audios préparés</span></button><button class="setting-row danger" data-action="delete-confirm" data-id="${id}"><span>${icon('trash-2')} Retirer de la bibliothèque</span></button>`); break; }
     case 'clear-audio': if (native) { await audio.pause(); await Reader.clearAudio({ bookId: id }); toast('Audios de ce livre effacés.'); } else toast('Aucun audio conservé dans cet aperçu web.'); sheet.close(); break;

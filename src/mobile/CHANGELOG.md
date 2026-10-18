@@ -1,5 +1,15 @@
 # PK Reader Android
 
+## [2026.10.53] - 2026-10-19
+
+### Added
+- **Une voix par personnage, sur le téléphone** : la feuille « Personnages & voix » (icône Personnages dans l’en-tête du lecteur, ou depuis « Changer de voix ») attribue à chaque rôle sa voix — voix du téléphone ou voix Piper installée — avec son pitch (grave ↔ aigu) et sa vitesse, comme l’attribution du studio. Les modèles Piper restent chauds en cache (jusqu’à trois voix cohabitent) : passer d’un personnage à l’autre ne recharge plus le modèle.
+- **Attribution des passages** : phrase par phrase, chapitre par chapitre, avec « Proposer les attributions de ce chapitre » — l’aide locale reconnaît les noms explicites (« Pierre : », « dit Pierre ») et ne devine jamais les dialogues ambigus ; les choix manuels sont conservés. « Écouter un exemple » teste chaque rôle avant d’enregistrer.
+- **Le personnage en cours s’affiche** dans la pastille de voix, dans le statut du lecteur et dans la barre « EN COURS » (chapitre · personnage).
+### Changed
+- Préparer un chapitre hors ligne exige une voix Piper pour chaque rôle utilisé : le message le dit au lieu d’échouer en cours de route, et le cache audio distingue la voix de chaque passage.
+- L’attribution locale reste sur l’appareil : une voix clonée nécessite le Mac, elle n’est pas proposée comme rôle local.
+
 ## [2026.10.52] - 2026-10-18
 
 ### Changed

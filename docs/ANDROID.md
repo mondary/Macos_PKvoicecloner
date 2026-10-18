@@ -4,7 +4,7 @@ PK Reader est l’application de lecture personnelle du projet. Elle importe des
 
 ## Installer
 
-Le workflow **Android Reader** construit un APK de développement pour Android 8+ en ARM64 et x86_64. À chaque build réussi, l’APK est publié sur la prerelease `pk-<version>` : lien direct `https://github.com/mondary/Macos_PKvoicecloner/releases/download/pk-<version>/PK-Reader-<version>-debug.apk` — par exemple `https://github.com/mondary/Macos_PKvoicecloner/releases/download/pk-2026.10.52/PK-Reader-2026.10.52-debug.apk`. L’artefact CI du même nom reste disponible. Ce paquet sert aux essais ; il n’est pas publié sur Google Play.
+Le workflow **Android Reader** construit un APK de développement pour Android 8+ en ARM64 et x86_64. À chaque build réussi, l’APK est publié sur la prerelease `pk-<version>` : lien direct `https://github.com/mondary/Macos_PKvoicecloner/releases/download/pk-<version>/PK-Reader-<version>-debug.apk` — par exemple `https://github.com/mondary/Macos_PKvoicecloner/releases/download/pk-2026.10.53/PK-Reader-2026.10.53-debug.apk`. L’artefact CI du même nom reste disponible. Ce paquet sert aux essais ; il n’est pas publié sur Google Play.
 
 **Vérifier la version** — le même numéro se lit partout : nom du fichier APK, nom de l’artefact GitHub, écran Android **Paramètres → Applications → PK Reader**, et dans l’app en bas de la bibliothèque et dans **Réglages → À propos**. Le workflow refuse un APK dont le `versionName` ne correspond pas à ce numéro.
 
@@ -31,6 +31,17 @@ Le clonage d’une nouvelle voix n’est pas exécuté sur le téléphone dans c
 
 La passerelle est indépendante du serveur principal et s’arrête avec Ctrl-C. Elle expose seulement l’état, les voix, la génération, le suivi des tâches et les audios générés. Le code est conservé dans `~/.config/pkvoicecloner/mobile-token` avec des droits limités au propriétaire. Les appels utilisent un en-tête Bearer ; la passerelle locale fonctionne en HTTP et doit rester sur votre réseau de confiance. Aucun port n’est à ouvrir sur votre routeur.
 
+## Une voix par personnage
+
+Comme dans le studio du Mac, un livre peut se lire avec **une voix par personnage** — le narrateur d’un côté, chaque personnage de l’autre. L’icône Personnages de l’en-tête du lecteur (ou « Une voix par personnage → » dans la feuille de changement de voix) ouvre l’éditeur :
+
+1. **Personnages** — activer l’option pour le livre, puis donner à chaque rôle un nom, une voix (voix du téléphone ou voix Piper installée), un **pitch** (0,50×–2×) et une **vitesse** (0,75×–1,50×). Une seule voix en stock peut donc jouer toute la distribution : narrateur à 1,20, protagoniste à 0,80. « Écouter un exemple » fait entendre le rôle avant d’enregistrer.
+2. **Attribution des passages** — choisir le personnage de chaque phrase ; « Proposer les attributions de ce chapitre » repère localement les noms explicites (« Pierre : », « dit Pierre ») sans jamais deviner un dialogue ambigu, et vos choix manuels sont conservés.
+
+Le personnage en cours s’affiche dans le lecteur et dans la barre « EN COURS ». Les réglages voyagent avec le livre : ils survivent à la fermeture de l’app.
+
+Deux limites claires : l’attribution locale n’utilise que des voix du téléphone ou Piper (une voix clonée demande le Mac, elle n’est donc pas proposée comme rôle) ; et **préparer un chapitre hors ligne demande une voix Piper pour chaque rôle utilisé** — avec une voix du téléphone, le chapitre se lit en direct mais ne se met pas en cache.
+
 ## Utiliser le lecteur
 
 - **+** : importer plusieurs livres ou coller un texte.
@@ -40,6 +51,7 @@ La passerelle est indépendante du serveur principal et s’arrête avec Ctrl-C.
 - **Pages ou défilement** : par défaut le chapitre se tourne page à page — au doigt, avec les flèches en bas, ou au clavier — et le chapitre s’ouvre sur sa page de titre ; Apparence propose le défilement continu.
 - **Barre « en cours »** : quand vous quittez la phrase lue en tournant les pages ou en défilant, la barre du bas montre la phrase en cours de lecture et y ramène d’un geste ; le suivi automatique reprend alors.
 - **Changer de voix sans quitter le lecteur** : la pastille de voix ouvre une feuille listant clones, voix Piper installées et voix du téléphone, appliquées aussitôt.
+- **Personnages & voix** : icône de l’en-tête → une voix, un pitch et une vitesse par personnage, avec attribution des passages — le studio, dans le téléphone.
 - Minuteur : arrêt après 5, 15, 30, 45 ou 60 minutes.
 - Thèmes clair, papier et nuit ; taille de texte ajustable.
 - Notifications et écran verrouillé : commandes du service audio Android.

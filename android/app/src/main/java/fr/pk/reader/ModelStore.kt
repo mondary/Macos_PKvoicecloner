@@ -21,8 +21,7 @@ object ModelStore {
         VoiceModel("lessac", "Lessac", "en-US", "vits-piper-en_US-lessac-medium-int8", "f1c6d0295cf16087b05f80fdca5b44daca5cd78e2c425d419a42ba34929805f9", 20969179)
     )
     val downloads = ConcurrentHashMap<String, JSONObject>()
-    private var engine: OfflineTts? = null
-    private var engineId = ""
+    private val engines = linkedMapOf<String, OfflineTts>()
     private fun directory(context: Context, id: String) = File(context.filesDir, "models/$id")
     private fun model(id: String) = catalog.find { it.id == id.removePrefix("neural:") } ?: error("Modèle inconnu")
     fun installed(context: Context, id: String) = File(directory(context, model(id).id), "ready").exists()
@@ -83,25 +82,26 @@ object ModelStore {
     }
     @Synchronized fun remove(context: Context, voiceId: String) {
         val m = model(voiceId)
-        if (engineId == m.id) { engine?.release(); engine = null; engineId = "" }
+        engines.remove(m.id)?.release()
         directory(context,m.id).deleteRecursively(); downloads.remove("neural:${m.id}")
     }
     @Synchronized fun generate(context: Context, voiceId: String, text: String, destination: File) {
         val m = model(voiceId)
         require(installed(context,m.id)) { "Téléchargez d’abord la voix ${m.name}." }
-        if (engineId != m.id || engine == null) {
-            engine?.release(); engine = null; engineId = ""
+        val cached = engines.remove(m.id)
+        val engine = cached ?: run {
+            if (engines.size >= 3) engines.remove(engines.keys.first())?.release()
             val root = directory(context,m.id)
             val onnx = root.walkTopDown().first { it.extension == "onnx" }
             val tokens = root.walkTopDown().first { it.name == "tokens.txt" }
             val data = root.walkTopDown().first { it.name == "espeak-ng-data" && it.isDirectory }
-            engine = OfflineTts(config = OfflineTtsConfig(model = OfflineTtsModelConfig(
+            OfflineTts(config = OfflineTtsConfig(model = OfflineTtsModelConfig(
                 vits = OfflineTtsVitsModelConfig(model=onnx.absolutePath, tokens=tokens.absolutePath, dataDir=data.absolutePath),
                 numThreads = 2
             )))
-            engineId = m.id
         }
-        val generated = engine!!.generate(text = text, sid = 0, speed = 1f)
+        engines[m.id] = engine
+        val generated = engine.generate(text = text, sid = 0, speed = 1f)
         require(generated.samples.isNotEmpty()) { "La voix n’a produit aucun son." }
         check(generated.save(destination.absolutePath)) { "Impossible d’enregistrer l’audio." }
     }

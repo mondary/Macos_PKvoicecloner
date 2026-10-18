@@ -110,7 +110,8 @@ class ReadingService : Service() {
     }
     private fun count()=queue.optJSONArray("segments")?.length() ?: 0
     private fun text(at:Int)=queue.getJSONArray("segments").getString(at)
-    private fun voice()=queue.optString("voice","system:default")
+    private fun profile(at:Int=index)=SpeechProfile.at(queue,at)
+    private fun voice()=profile().voice
     private fun persistQueue(){queue.put("index",index);File(filesDir,"reading-queue.json").writeText(queue.toString())}
     private fun play(){
         if(count()==0){fail("Ouvrez un livre pour commencer.");return}
@@ -154,7 +155,8 @@ class ReadingService : Service() {
                             setDataSource(file.absolutePath)
                             setOnPreparedListener { mp->
                                 if(ticket!=generation){mp.release();return@setOnPreparedListener}
-                                mp.playbackParams=PlaybackParams().setSpeed(rate).setPitch(1f)
+                                val speech=profile(at)
+                                mp.playbackParams=PlaybackParams().setSpeed(speech.rate).setPitch(speech.pitch)
                                 loading=false;mp.start();publish()
                             }
                             setOnCompletionListener{if(ticket==generation){index++;publish();speak()}}
@@ -189,7 +191,8 @@ class ReadingService : Service() {
             if(chosen==null){fail("Cette voix n’est plus disponible. Choisissez une autre voix.");return}
             synthesizer.voice=chosen
         }
-        synthesizer.setSpeechRate(rate)
+        synthesizer.setSpeechRate(profile().rate)
+        synthesizer.setPitch(profile().pitch)
         synthesizer.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
         val utterance="$ticket:$index"
         synthesizer.setOnUtteranceProgressListener(object:UtteranceProgressListener(){
@@ -200,7 +203,7 @@ class ReadingService : Service() {
         if(synthesizer.speak(text(index),TextToSpeech.QUEUE_FLUSH,Bundle(),utterance)==TextToSpeech.ERROR)fail("La voix Android n’a pas démarré.")
     }
     private fun audioFile(config:JSONObject,at:Int,cancelled:()->Boolean):File{
-        val voice=config.getString("voice");val text=config.getJSONArray("segments").getString(at)
+        val voice=SpeechProfile.at(config,at).voice;val text=config.getJSONArray("segments").getString(at)
         val fingerprint=listOf(voice,text,if(voice.startsWith("clone:"))config.optString("server") else "", "v1").joinToString("\n")
         val hash=MessageDigest.getInstance("SHA-256").digest(fingerprint.toByteArray()).joinToString(""){"%02x".format(it)}
         val root=File(filesDir,"audio/${config.getString("bookId")}");root.mkdirs()
@@ -222,8 +225,8 @@ class ReadingService : Service() {
     }
     private fun prepare(start:Int,end:Int){
         pause();error=""
-        require(!voice().startsWith("system:")){"Choisissez une voix Piper ou clonée pour préparer le chapitre."}
         val first=start.coerceIn(0,count());val last=end.coerceIn(first,count())
+        require((first until last).all { !profile(it).voice.startsWith("system:") }) { "Pour préparer ce chapitre, attribuez une voix Piper à chaque rôle utilisé." }
         val ticket=++generation;val config=JSONObject(queue.toString())
         preparing=true;prepared=0;prepareTotal=last-first
         startMediaForeground(true);if(!wake.isHeld)wake.acquire(6*60*60*1000L);publish()
@@ -238,7 +241,7 @@ class ReadingService : Service() {
             }catch(e:Exception){main.post{if(ticket==generation)fail(e.message ?: "Préparation interrompue")}}
         }
     }
-    private fun state()=JSONObject().put("bookId",queue.optString("bookId")).put("index",index).put("playing",playing).put("loading",loading).put("error",error).put("sleepAt",sleepAt).put("preparing",preparing).put("prepared",prepared).put("total",prepareTotal)
+    private fun state()=JSONObject().put("bookId",queue.optString("bookId")).put("index",index).put("playing",playing).put("loading",loading).put("error",error).put("sleepAt",sleepAt).put("preparing",preparing).put("prepared",prepared).put("total",prepareTotal).put("speaker",profile().role).put("voice",profile().voice)
     @SuppressLint("MissingPermission") // Active media-session notifications are exempt on Android 13+.
     private fun publish(){
         val state=state().toString()

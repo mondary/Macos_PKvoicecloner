@@ -31,7 +31,12 @@ class OfflineReadingTest {
         assertTrue(bytes.size>10000)
         assertEquals("RIFF",String(bytes,0,4))
         assertTrue("PCM contains non-silent samples",bytes.drop(44).count{it.toInt()!=0}>1000)
-        val queue=JSONObject().put("bookId","integration").put("title","Test de lecture")
+        ModelStore.install(context,"neural:tom")
+        val cast=JSONObject().put("enabled",true).put("characters",JSONArray()
+            .put(JSONObject().put("id","narrator").put("name","Narrateur").put("voice","neural:siwis").put("pitch",1.2).put("rate",1))
+            .put(JSONObject().put("id","pierre").put("name","Pierre").put("voice","neural:tom").put("pitch",.8).put("rate",.9)))
+            .put("assignments",JSONObject().put("1","pierre"))
+        val queue=JSONObject().put("casting",cast).put("bookId","integration").put("title","Test de lecture")
             .put("voice","neural:siwis").put("language","fr").put("rate",1).put("index",0)
             .put("segments",JSONArray(listOf("Les livres nous accompagnent au fil des jours, dans les trains et dans le calme de nos maisons.","La deuxième phrase doit continuer même lorsque l’écran du lecteur est fermé.","Voici le dernier passage de notre livre de vérification.")))
         File(context.filesDir,"reading-queue.json").writeText(queue.toString())
@@ -48,7 +53,9 @@ class OfflineReadingTest {
             // HOME backgrounds the WebView. The native service must still reach sentence two.
             InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("input keyevent KEYCODE_HOME").close()
             InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("input keyevent KEYCODE_SLEEP").close()
-            eventually(90000){ReadingService.savedState(context).optInt("index")>=1}
+            eventually(90000){val state=ReadingService.savedState(context);state.optInt("index")==1&&!state.optBoolean("loading")}
+            assertEquals("Pierre",ReadingService.savedState(context).optString("speaker"))
+            assertEquals("neural:tom",ReadingService.savedState(context).optString("voice"))
             context.startService(Intent(context,ReadingService::class.java).setAction("pause"))
             eventually{!ReadingService.savedState(context).optBoolean("playing")}
             val position=ReadingService.savedState(context).optInt("index")

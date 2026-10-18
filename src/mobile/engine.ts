@@ -1,5 +1,6 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 import type { Book, Settings, Voice, Playback } from './types';
+import { speechProfile } from './casting';
 
 interface ReaderPlugin {
   voices(): Promise<{ voices: Voice[] }>;
@@ -46,7 +47,7 @@ class AudioEngine {
   async load(book: Book, settings: Settings) {
     this.book = book; this.settings = { ...settings };
     if (native) {
-      await Reader.load({ bookId:book.id, title:book.title.replace(/\n/g,' '), segments:book.segments, index:book.position, language:book.language, ...settings });
+      await Reader.load({ bookId:book.id, title:book.title.replace(/\n/g,' '), segments:book.segments, casting:book.casting, index:book.position, language:book.language, ...settings });
       return;
     }
     this.stopWeb();
@@ -55,7 +56,8 @@ class AudioEngine {
   async play() {
     if (native) return Reader.command({ action:'play' });
     if (!this.book || !this.settings) return;
-    if (!this.settings.voice.startsWith('system:') && !this.settings.voice.startsWith('web:')) throw new Error('Installe l’APK Android pour utiliser les voix téléchargées ou clonées.');
+    const profile = speechProfile(this.book, this.settings, this.state.index);
+    if (!profile.voice.startsWith('system:') && !profile.voice.startsWith('web:')) throw new Error('Installe l’APK Android pour utiliser les voix téléchargées ou clonées.');
     if (!('speechSynthesis' in window)) throw new Error('La synthèse vocale n’est pas disponible dans ce navigateur.');
     this.update({ ...this.state, playing:true, error:'' }); this.speak();
   }
@@ -65,8 +67,9 @@ class AudioEngine {
     const text = this.book.segments[this.state.index];
     if (!text) { this.update({ ...this.state, playing:false }); return; }
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = this.book.language; u.rate = this.settings.rate;
-    u.voice = speechSynthesis.getVoices().find(v => `web:${v.voiceURI}` === this.settings?.voice) ?? speechSynthesis.getVoices().find(v => v.lang.startsWith(this.book!.language.split('-')[0])) ?? null;
+    const profile = speechProfile(this.book, this.settings, this.state.index);
+    u.lang = this.book.language; u.rate = profile.rate; u.pitch = profile.pitch;
+    u.voice = speechSynthesis.getVoices().find(v => `web:${v.voiceURI}` === profile.voice) ?? speechSynthesis.getVoices().find(v => v.lang.startsWith(this.book!.language.split('-')[0])) ?? null;
     u.onend = () => {
       if (epoch !== this.epoch) return;
       this.update({ ...this.state, index:Math.min(this.state.index + 1, this.book!.segments.length), playing:this.state.index + 1 < this.book!.segments.length });

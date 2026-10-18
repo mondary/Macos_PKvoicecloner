@@ -1,6 +1,14 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.58] - 2026-10-18
+
+### Added
+- **Pitch ♪ et vitesse » par voix dans l'attribution** : chaque rôle garde sa hauteur (×0,70–×1,40) et son débit (×0,75–×1,50) à côté de sa voix — une seule voix en stock peut jouer toute la distribution : narrateur à ×1,20, protagoniste à ×0,80. Un bouton « ▶ Tester » écoute chaque rôle avec ses réglages avant de générer le moindre segment, et l'étape ① du chapitre ouvre directement ces réglages.
+
+### Changed
+- Les segments appliquent automatiquement le pitch et la vitesse de leur rôle ; modifier un réglage marque les audios concernés comme à regénérer (l'empreinte du segment change). Le serveur valide les plages (vitesse 0,75–1,50 · tonalité ±12 demi-tons) et les réglages survivent à une réattribution automatique des voix.
+
 ## [2026.10.57] - 2026-10-18
 
 ### Added

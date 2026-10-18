@@ -2090,10 +2090,15 @@
     const form = document.createElement("div");
     form.className = "voice-assignment-grid";
     const selects = new Map();
+    const curseurs = new Map();
+    const marquerModifie = () => {
+      status.textContent = "Modifications non enregistrées";
+      status.className = "chapter-status dirty";
+    };
     book.cast.forEach((role) => {
-      const label = document.createElement("label");
       const genre = genreVoix(book.cast || [], role.id);
-      label.className = `voice-assignment-row ${genre}`;
+      const row = document.createElement("div");
+      row.className = `voice-assignment-row ${genre}`;
       const name = document.createElement("span");
       name.className = `voice-assignment-name ${genre}`;
       name.textContent = role.nom;
@@ -2111,8 +2116,110 @@
       });
       select.value = book.voix_assignees?.[role.id] || "";
       selects.set(role.id, select);
-      label.append(name, select);
-      form.appendChild(label);
+
+      // Pitch ♪ et vitesse » de CE rôle : une même voix peut jouer plusieurs
+      // personnages — narrateur plus grave (×1,20), protagoniste plus aigu (×0,80).
+      const initiaux = reglagesVoix(book, role.id);
+      const fabriqueReglage = (min, max, valeur, symbole, aria, titre) => {
+        const input = document.createElement("input");
+        input.type = "range";
+        input.min = String(min);
+        input.max = String(max);
+        input.step = "0.05";
+        input.value = String(valeur);
+        input.title = titre;
+        input.setAttribute("aria-label", `${aria} de ${role.nom}`);
+        const valeurAffichee = document.createElement("span");
+        valeurAffichee.className = "voice-reglage-val";
+        const majRemplissage = () => {
+          input.style.setProperty("--pace-fill", `${((input.value - min) / (max - min)) * 100}%`);
+          valeurAffichee.textContent = `×${Number(input.value).toFixed(2)}`;
+        };
+        majRemplissage();
+        input.addEventListener("input", () => { majRemplissage(); marquerModifie(); });
+        const etiquette = document.createElement("span");
+        etiquette.className = "voice-reglage-label";
+        etiquette.textContent = symbole;
+        const bloc = document.createElement("span");
+        bloc.className = "voice-reglage";
+        bloc.append(etiquette, input, valeurAffichee);
+        return { input, bloc };
+      };
+      const pitch = fabriqueReglage(0.7, 1.4,
+        Math.min(1.4, Math.max(0.7, facteurPitch(initiaux.tonalite))),
+        "♪", "Tonalité",
+        "Hauteur de la voix de ce rôle — une même voix devient narrateur grave (×1,20) ou personnage aigu (×0,80) ; au-delà de ±6 demi-tons, la voix devient artificielle");
+      const vitesse = fabriqueReglage(0.75, 1.5, initiaux.vitesse,
+        "»", "Vitesse", "Débit de parole de ce rôle");
+      curseurs.set(role.id, { pitch: pitch.input, vitesse: vitesse.input });
+      const boiteReglages = document.createElement("span");
+      boiteReglages.className = "voice-reglages";
+      boiteReglages.append(pitch.bloc, vitesse.bloc);
+
+      const test = document.createElement("button");
+      test.type = "button";
+      test.className = "voice-test-btn";
+      test.textContent = "▶ Tester";
+      test.title = `Écoute ${role.nom} avec la voix choisie et les réglages ci-dessous (enregistrés ou non)`;
+      test.disabled = !select.value;
+      let ecoute = null;
+      select.addEventListener("change", () => {
+        test.disabled = !select.value;
+        if (ecoute) { ecoute.remove(); ecoute = null; }
+      });
+      test.addEventListener("click", async () => {
+        if (!select.value) return;
+        test.disabled = true;
+        test.textContent = "…";
+        if (ecoute) { ecoute.remove(); ecoute = null; }
+        status.textContent = `Voix de ${role.nom} en préparation…`;
+        status.className = "chapter-status";
+        try {
+          const reglagesRole = {
+            vitesse: Number(vitesse.input.value),
+            tonalite: tonalitePourFacteur(Number(pitch.input.value)),
+          };
+          const piper = select.value.match(/^piper:([^:]+)(?::(\d+))?$/);
+          const texte = role.role === "narrateur"
+            ? "Bonjour. Voici la voix du narrateur de cette histoire."
+            : `Bonjour ! ${role.nom} à la parole : voici ma voix dans cette histoire.`;
+          const corps = piper
+            ? { texte, piper_voix: piper[1], piper_locuteur: piper[2] != null ? Number(piper[2]) : 0, ...reglagesRole }
+            : { texte, reference_id: select.value, ...reglagesRole };
+          const response = await fetch("/api/generer", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(corps),
+          });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.detail || "écoute impossible");
+          let job;
+          for (;;) {
+            await new Promise((resolve) => setTimeout(resolve, 1200));
+            const stateResponse = await fetch(`/api/job/${payload.job}`);
+            job = await stateResponse.json();
+            if (!stateResponse.ok) throw new Error(job.detail || "suivi de génération indisponible");
+            if (["pret", "erreur"].includes(job.etat)) break;
+            status.textContent = `Voix de ${role.nom} · ${job.etat}…`;
+          }
+          if (job.etat === "erreur") throw new Error(job.erreur || "erreur de synthèse");
+          ecoute = document.createElement("audio");
+          ecoute.controls = true;
+          ecoute.className = "voice-test-audio";
+          ecoute.setAttribute("aria-label", `Écoute de la voix de ${role.nom}`);
+          ecoute.src = `/api/audio/${encodeURIComponent(job.fichier)}`;
+          row.appendChild(ecoute);
+          status.textContent = `Voix de ${role.nom} prête — Enregistrer pour l'appliquer aux segments.`;
+          status.className = "chapter-status saved";
+        } catch (error) {
+          status.textContent = error.message;
+          status.className = "chapter-status dirty";
+        } finally {
+          test.disabled = !select.value;
+          test.textContent = "▶ Tester";
+        }
+      });
+      row.append(name, select, test, boiteReglages);
+      form.appendChild(row);
     });
     const save = document.createElement("button");
     save.type = "button";
@@ -2124,10 +2231,18 @@
       save.disabled = true;
       status.textContent = "Enregistrement…";
       const voix_assignees = Object.fromEntries([...selects].map(([id, select]) => [id, select.value]).filter(([, value]) => value));
+      const reglages_voix = {};
+      curseurs.forEach((regle, id) => {
+        const tonalite = tonalitePourFacteur(Number(regle.pitch.value));
+        const vitesseRole = Number(regle.vitesse.value);
+        if (Math.abs(tonalite) > 0.01 || Math.abs(vitesseRole - 1) > 0.01) {
+          reglages_voix[id] = { tonalite, vitesse: vitesseRole };
+        }
+      });
       try {
         const response = await fetch(`/api/livres/${book.id}/voix`, {
           method: "PUT", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ voix_assignees }),
+          body: JSON.stringify({ voix_assignees, reglages_voix }),
         });
         const payload = await response.json();
         if (!response.ok) {
@@ -2137,14 +2252,18 @@
           throw new Error(detail);
         }
         book.voix_assignees = payload.voix_assignees;
-        status.textContent = "Associations enregistrées";
+        book.reglages_voix = payload.reglages_voix || {};
+        status.textContent = "Associations et réglages enregistrés";
         status.className = "chapter-status saved";
       } catch (error) {
         status.textContent = error.message;
         status.className = "chapter-status dirty";
       } finally { save.disabled = false; }
     });
-    section.append(form, save, status);
+    const note = document.createElement("p");
+    note.className = "chapter-stats";
+    note.textContent = "Une seule voix en stock ? Donne un pitch ♪ et une vitesse » différents à chaque rôle — le narrateur à ×1,20, un protagoniste à ×0,80 — puis « ▶ Tester » pour écouter le résultat avant de générer.";
+    section.append(form, note, save, status);
     if (!libraryVoices.length) {
       const empty = document.createElement("p");
       empty.className = "chapter-stats";
@@ -2399,7 +2518,8 @@
     actions.className = "cp-actions";
     const lignesSegments = () => [...panel.querySelectorAll(".cl-structured .cl-segment-row")];
     const fichierDe = (ligne) => segmentFichier(book, chapter.num, Number(ligne.dataset.segmentIndex),
-      ligne.querySelector(".cl-text")?.textContent || "", book.voix_assignees?.[ligne.dataset.speaker] || "");
+      ligne.querySelector(".cl-text")?.textContent || "", book.voix_assignees?.[ligne.dataset.speaker] || "",
+      reglagesVoix(book, ligne.dataset.speaker));
     const statutEtape = (texte = "") => {
       const span = document.createElement("span");
       span.className = "chapter-status";
@@ -2459,7 +2579,18 @@
       : "Attribue les voix ligne par ligne via l'IA";
     relance.disabled = book.analyse?.etat === "en_cours";
     relance.addEventListener("click", () => analyzeBook(book, { chapitre: chapter.num, forcer: analyseFait }));
-    const boiteAnalyse = boiteEtape(relance);
+    const reglagesBtn = document.createElement("button");
+    reglagesBtn.className = "pill-light";
+    reglagesBtn.type = "button";
+    reglagesBtn.textContent = "♪ Pitch & vitesse";
+    reglagesBtn.title = "Ouvre les associations de voix du livre : chaque rôle a son pitch et sa vitesse — une même voix peut jouer plusieurs personnages (narrateur ×1,20, protagoniste ×0,80)";
+    reglagesBtn.addEventListener("click", () => {
+      const details = document.querySelector(".book-voice-details");
+      if (!details) return;
+      details.open = true;
+      details.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    const boiteAnalyse = boiteEtape(relance, reglagesBtn);
     if (analyseFait) {
       const verifier = document.createElement("button");
       verifier.className = "pill-light";
@@ -2738,21 +2869,44 @@
     return vue;
   }
 
-  function empreinteSegment(text, voiceId) {
+  /* Réglages d'un rôle : tonalité (demi-tons côté serveur) + vitesse. Une
+     même voix peut ainsi jouer plusieurs personnages différenciés. */
+  function reglagesVoix(book, speakerId) {
+    const reglage = book.reglages_voix?.[speakerId] || {};
+    const vitesse = Number(reglage.vitesse);
+    const tonalite = Number(reglage.tonalite);
+    return {
+      vitesse: Number.isFinite(vitesse) ? Math.min(1.5, Math.max(0.75, vitesse)) : 1,
+      tonalite: Number.isFinite(tonalite) ? Math.min(12, Math.max(-12, tonalite)) : 0,
+    };
+  }
+
+  const facteurPitch = (tonalite) => 2 ** (tonalite / 12);
+  const tonalitePourFacteur = (facteur) => Math.round(12 * Math.log2(facteur) * 100) / 100;
+  const resumeReglages = (book, speakerId) => {
+    const reglages = reglagesVoix(book, speakerId);
+    if (Math.abs(reglages.tonalite) < 0.01 && Math.abs(reglages.vitesse - 1) < 0.01) return "";
+    return ` · pitch ×${facteurPitch(reglages.tonalite).toFixed(2)} · vitesse ×${reglages.vitesse.toFixed(2)}`;
+  };
+
+  function empreinteSegment(text, voiceId, reglages = null) {
     let hash = 2166136261;
-    for (const char of `${text}\0${voiceId}`) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+    const suffixe = reglages && (Math.abs(reglages.tonalite) > 0.01 || Math.abs(reglages.vitesse - 1) > 0.01)
+      ? `\0${reglages.tonalite.toFixed(2)}|${reglages.vitesse.toFixed(2)}`
+      : "";
+    for (const char of `${text}\0${voiceId}${suffixe}`) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
     return (hash >>> 0).toString(16).padStart(8, "0");
   }
 
-  function segmentStorageKey(bookId, chapterNum, index, text = "", voiceId = "") {
-    return `pkvs-segment:${bookId}:${chapterNum}:${index}:${empreinteSegment(text, voiceId)}`;
+  function segmentStorageKey(bookId, chapterNum, index, text = "", voiceId = "", reglages = null) {
+    return `pkvs-segment:${bookId}:${chapterNum}:${index}:${empreinteSegment(text, voiceId, reglages)}`;
   }
 
-  function segmentFichier(book, chapterNum, index, text = "", voiceId = "") {
-    const empreinte = empreinteSegment(text, voiceId);
+  function segmentFichier(book, chapterNum, index, text = "", voiceId = "", reglages = null) {
+    const empreinte = empreinteSegment(text, voiceId, reglages);
     const stored = book.chapitres.find((c) => c.num === chapterNum)?.audio_segments?.[String(index)];
     if (stored?.empreinte === empreinte) return stored.fichier;
-    try { return localStorage.getItem(segmentStorageKey(book.id, chapterNum, index, text, voiceId)); }
+    try { return localStorage.getItem(segmentStorageKey(book.id, chapterNum, index, text, voiceId, reglages)); }
     catch (_) { return null; }
   }
 
@@ -2763,7 +2917,7 @@
       generate.type = "button";
       generate.className = "segment-control segment-generate";
       generate.textContent = "Générer";
-      generate.title = `Générer l’ID ${index} avec ${nomVoix(book, speakerId)}`;
+      generate.title = `Générer l’ID ${index} avec ${nomVoix(book, speakerId)}${resumeReglages(book, speakerId)}`;
       generate.addEventListener("click", () => generateSegment(book, chapterNum, index, text, speakerId, actions, generate));
       actions.appendChild(generate);
       return;
@@ -2777,7 +2931,7 @@
     regenerate.type = "button";
     regenerate.className = "segment-control segment-regenerate";
     regenerate.textContent = "↻ Régénérer";
-    regenerate.title = `Créer un nouvel audio pour l’ID ${index} avec ${nomVoix(book, speakerId)}`;
+    regenerate.title = `Créer un nouvel audio pour l’ID ${index} avec ${nomVoix(book, speakerId)}${resumeReglages(book, speakerId)}`;
     regenerate.addEventListener("click", () => generateSegment(book, chapterNum, index, text, speakerId, actions, regenerate));
     actions.append(player, regenerate);
   }
@@ -2796,9 +2950,12 @@
       // le moteur suit la voix : Piper pour une voix du catalogue (sans
       // clonage), le moteur de clonage précédent pour un clone
       const piper = referenceId.match(/^piper:([^:]+)(?::(\d+))?$/);
+      const reglages = reglagesVoix(book, speakerId);
       const corps = piper
-        ? { texte: text, piper_voix: piper[1], piper_locuteur: piper[2] != null ? Number(piper[2]) : 0 }
-        : { texte: text, reference_id: referenceId };
+        ? { texte: text, piper_voix: piper[1], piper_locuteur: piper[2] != null ? Number(piper[2]) : 0,
+            vitesse: reglages.vitesse, tonalite: reglages.tonalite }
+        : { texte: text, reference_id: referenceId,
+            vitesse: reglages.vitesse, tonalite: reglages.tonalite };
       const response = await fetch("/api/generer", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(corps),
@@ -2815,7 +2972,7 @@
         if (status) status.textContent = `Génération du segment ${index} · ${job.etat}…`;
       }
       if (job.etat === "erreur") throw new Error(job.erreur || "erreur de synthèse");
-      const empreinte = empreinteSegment(text, referenceId);
+      const empreinte = empreinteSegment(text, referenceId, reglages);
       const saved = await fetch(`/api/livres/${book.id}/chapitre/${chapterNum}/segment/${index}/audio`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fichier: job.fichier, empreinte }),
@@ -2935,7 +3092,8 @@
       text.textContent = segment.text;
       const audioActions = document.createElement("span");
       audioActions.className = "cl-segment-audio";
-      const savedFile = segmentFichier(book, chapterNum, index + 1, segment.text, book.voix_assignees?.[segment.id] || "");
+      const savedFile = segmentFichier(book, chapterNum, index + 1, segment.text, book.voix_assignees?.[segment.id] || "",
+        reglagesVoix(book, segment.id));
       afficherAudioSegment(book, chapterNum, index + 1, segment.text, segment.id, audioActions, savedFile);
       right.append(head, text, audioActions);
       pair.append(source, right);

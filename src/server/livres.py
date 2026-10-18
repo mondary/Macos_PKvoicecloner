@@ -524,8 +524,14 @@ def renommer_livre(racine: Path, ident: str, titre: str | None = None,
     return projet
 
 
-def enregistrer_correspondances_voix(racine: Path, ident: str, correspondances: dict) -> dict | None:
-    """Persiste l'association des rôles du livre aux voix de la bibliothèque."""
+def enregistrer_correspondances_voix(racine: Path, ident: str, correspondances: dict,
+                                     reglages: dict | None = None) -> dict | None:
+    """Persiste l'association des rôles du livre aux voix de la bibliothèque.
+
+    `reglages` : tonalité (demi-tons) et vitesse par rôle — plusieurs personnages
+    peuvent partager une même voix en la différenciant (narrateur grave,
+    protagoniste aigu…). Les réglages d'un rôle sans voix restent ignorés.
+    """
     projet = lire(racine, ident)
     if not projet:
         return None
@@ -535,6 +541,14 @@ def enregistrer_correspondances_voix(racine: Path, ident: str, correspondances: 
         for role, voice in correspondances.items()
         if role in ids and isinstance(voice, str) and voice
     }
+    if reglages is not None:
+        projet["reglages_voix"] = {
+            role: {"tonalite": float(r["tonalite"]), "vitesse": float(r["vitesse"])}
+            for role, r in reglages.items()
+            if role in ids and isinstance(r, dict)
+            and isinstance(r.get("tonalite"), (int, float))
+            and isinstance(r.get("vitesse"), (int, float))
+        }
     _projet(racine, ident).write_text(json.dumps(projet, ensure_ascii=False, indent=2), encoding="utf-8")
     return projet
 

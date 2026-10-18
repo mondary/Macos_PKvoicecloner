@@ -1462,12 +1462,30 @@ def associer_voix_livre(lid: str, req: dict = Body(...)):
                 raise HTTPException(400, "une voix Piper sélectionnée n'est plus téléchargée")
         elif voice not in ids_bibliotheque:
             raise HTTPException(400, "une voix sélectionnée n'existe plus dans la bibliothèque")
-    projet = livres.enregistrer_correspondances_voix(LIVRES, _id_livre(lid), correspondances)
+    reglages_bruts = req.get("reglages_voix") or {}
+    if not isinstance(reglages_bruts, dict):
+        raise HTTPException(400, "réglages par voix invalides")
+    reglages = {}
+    for role, reglage in reglages_bruts.items():
+        if not isinstance(reglage, dict):
+            raise HTTPException(400, "réglage par voix invalide")
+        try:
+            tonalite = float(reglage.get("tonalite") or 0.0)
+            vitesse = float(reglage.get("vitesse") or 1.0)
+        except (TypeError, ValueError):
+            raise HTTPException(400, "réglage par voix invalide")
+        if not (VITESSE_MIN <= vitesse <= VITESSE_MAX):
+            raise HTTPException(400, f"vitesse entre {VITESSE_MIN} et {VITESSE_MAX}")
+        if not (TONALITE_MIN <= tonalite <= TONALITE_MAX):
+            raise HTTPException(400, f"tonalité entre {TONALITE_MIN:g} et {TONALITE_MAX:g} demi-tons")
+        reglages[str(role)[:80]] = {"tonalite": tonalite, "vitesse": vitesse}
+    projet = livres.enregistrer_correspondances_voix(LIVRES, _id_livre(lid), correspondances, reglages)
     if not projet:
         raise HTTPException(404, "livre inconnu")
     projet["auto_assigne"] = []      # un réglage manuel reprend la main sur l'automatisation
     livres._ecrire_projet(LIVRES, _id_livre(lid), projet)
-    return {"voix_assignees": projet.get("voix_assignees", {})}
+    return {"voix_assignees": projet.get("voix_assignees", {}),
+            "reglages_voix": projet.get("reglages_voix", {})}
 
 
 @app.delete("/api/livres/{lid}")

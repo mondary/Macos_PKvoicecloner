@@ -31,3 +31,21 @@ describe('speech segmentation',()=>{
     const sample=welcomeBook();expect(sample.chapters).toHaveLength(3);expect(sample.chapters[2].end).toBe(sample.segments.length);expect(sample.segments.length).toBeGreaterThan(15);
   });
 });
+
+import { paragraphsOf } from '../books';
+
+describe('paragraphes d’origine', () => {
+  it('garde le paragraphe de chaque phrase, même sur plusieurs blocs', () => {
+    const { phrases, paragraphes } = paragraphsOf('Premier paragraphe. Deuxième phrase.\n\nNouveau bloc. Encore une.');
+    expect(phrases).toHaveLength(4);
+    expect(paragraphes).toEqual([0, 0, 1, 1]);
+  });
+
+  it('numérote chaque bloc une fois, même vide ou très long', () => {
+    const long = `${'mot '.repeat(200)}fin.`;
+    const { phrases, paragraphes } = paragraphsOf(`Court.\n\n\n\n${long}`);
+    expect(paragraphes[0]).toBe(0);
+    expect(new Set(paragraphes.slice(1))).toEqual(new Set([1]));
+    expect(phrases.length).toBeGreaterThan(2);
+  });
+});

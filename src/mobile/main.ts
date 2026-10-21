@@ -103,6 +103,45 @@ function minutes(book: Book) {
 
 /* ------------------------------------------------------------- navigation */
 
+/** Paragraphes du chapitre en cours : [{debut, fin}) en indices de phrases.
+ *  Repli quand le livre a été importé avant le suivi des paragraphes : une
+ *  phrase = un paragraphe (la navigation reste utilisable). */
+function paragraphesChapitre(book: Book): { debut: number; fin: number }[] {
+  const chapitre = chapterAt(book);
+  const groupes: { debut: number; fin: number }[] = [];
+  for (let i = chapitre.start; i < chapitre.end; i++) {
+    const p = book.paragraphs?.[i];
+    const dernier = groupes[groupes.length - 1];
+    if (dernier && (p === undefined || p === book.paragraphs?.[dernier.debut])) dernier.fin = i + 1;
+    else groupes.push({ debut: i, fin: i + 1 });
+  }
+  return groupes;
+}
+
+async function sauterParagraphe(book: Book, direction: -1 | 1) {
+  const groupes = paragraphesChapitre(book);
+  if (!groupes.length) return;
+  const courant = Math.max(0, groupes.findIndex(g => book.position >= g.debut && book.position < g.fin));
+  const cible = groupes[Math.max(0, Math.min(groupes.length - 1, courant + direction))];
+  follow = true;
+  await seekTo(cible.debut);
+  syncNowBar();
+}
+
+/** Une page : la page feuilletée en mode pages, un écran de texte en défilement. */
+function tournerPage(direction: -1 | 1) {
+  follow = false;
+  if (settings.layout === 'pages') {
+    if (page + direction < 0 || page + direction >= pages.length) return;
+    page += direction; drawPage(direction === 1 ? 'next' : 'prev'); syncNowBar();
+    return;
+  }
+  guard();
+  const hauteur = Math.max(240, innerHeight - (document.querySelector<HTMLElement>('.player')?.getBoundingClientRect().height ?? 0) - 32);
+  window.scrollBy({ top: direction * hauteur, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+  syncNowBar();
+}
+
 function navigation() {
   return `<nav class="navigation" aria-label="Navigation principale"><a class="brand" href="#library" aria-label="PK Reader, bibliothèque"><span class="brand-mark">${icon('audio-lines')}</span><span>pk<span class="brand-light">reader</span><small>LE PLAISIR D’ÉCOUTER</small></span></a><div class="nav-items">${[
     ['library','library-big','Bibliothèque'],['voices','audio-lines','Voix'],['settings','sliders-horizontal','Réglages'],
@@ -219,7 +258,7 @@ function playerHTML() {
   const isPlaying = audio.state.bookId === book.id && audio.state.playing;
   const speaker = characterAt(book, book.position)?.name || '';
   const status = audio.state.error || (audio.state.preparing?`Préparation ${audio.state.prepared ?? 0} / ${audio.state.total ?? 0} passages`:audio.state.loading?`${speaker?`${speaker} · `:''}La voix prépare le prochain passage…`:isPlaying?`${speaker?`${esc(speaker)} · `:''}${esc(chapter.title)} — laissez l’histoire vous emporter.`:'Touchez une phrase pour choisir le départ.');
-  return `<section class="player" aria-label="Lecteur audio"><div class="player-top"><button class="voice-chip" data-action="choose-voice">${icon('audio-lines')}<span>${esc(characterAt(book, book.position)?.name || voiceName())}</span>${icon('chevron-down')}</button><button class="speed-chip" data-action="speed" aria-label="Vitesse de ${esc(voiceName())}">${settings.rate.toLocaleString('fr')}<span>×</span></button><button class="sleep-chip ${audio.state.sleepAt?'on':''}" data-action="sleep">${icon('moon')}${audio.state.sleepAt?`${Math.max(1,Math.ceil((audio.state.sleepAt-Date.now())/60000))} min`:'Minuteur'}</button></div><label class="sr-only" for="progress">Position dans le livre</label><input class="progress-slider" id="progress" type="range" min="0" max="${book.segments.length-1}" value="${Math.min(book.position,book.segments.length-1)}" style="--progress:${progress(book)}" /><div class="time-row"><span>${percent(book)} % du livre</span><span>${book.completed?'Lecture terminée':`${minutes(book)} restantes`}</span></div><div class="transport">${iconButton('skip-back','Phrase précédente','previous')}<button class="play-button ${audio.state.loading?'loading':''}" data-action="toggle" aria-label="${isPlaying?'Mettre en pause':'Lire à voix haute'}">${icon(audio.state.loading?'loader-circle':isPlaying?'pause':'play')}</button>${iconButton('skip-forward','Phrase suivante','next')}${iconButton('download','Préparer ce chapitre hors ligne','prepare')}</div><p class="player-status" aria-live="polite">${esc(status)}</p></section>`;
+  return `<section class="player" aria-label="Lecteur audio"><div class="player-top"><button class="voice-chip" data-action="choose-voice">${icon('audio-lines')}<span>${esc(characterAt(book, book.position)?.name || voiceName())}</span>${icon('chevron-down')}</button><button class="speed-chip" data-action="speed" aria-label="Vitesse de ${esc(voiceName())}">${settings.rate.toLocaleString('fr')}<span>×</span></button><button class="sleep-chip ${audio.state.sleepAt?'on':''}" data-action="sleep">${icon('moon')}${audio.state.sleepAt?`${Math.max(1,Math.ceil((audio.state.sleepAt-Date.now())/60000))} min`:'Minuteur'}</button></div><label class="sr-only" for="progress">Position dans le livre</label><input class="progress-slider" id="progress" type="range" min="0" max="${book.segments.length-1}" value="${Math.min(book.position,book.segments.length-1)}" style="--progress:${progress(book)}" /><div class="time-row"><span>${percent(book)} % du livre</span><span>${book.completed?'Lecture terminée':`${minutes(book)} restantes`}</span></div><div class="reader-jumps" role="group" aria-label="Navigation page et paragraphe"><button class="jump" data-action="paragraph-prev" aria-label="Paragraphe précédent">${icon('pilcrow')}<span>Préc.</span></button><button class="jump" data-action="page-prev" aria-label="Page précédente">${icon('chevron-left')}<span>Page</span></button><button class="jump" data-action="page-next" aria-label="Page suivante"><span>Page</span>${icon('chevron-right')}</button><button class="jump" data-action="paragraph-next" aria-label="Paragraphe suivant"><span>Suiv.</span>${icon('pilcrow')}</button></div><div class="transport">${iconButton('skip-back','Phrase précédente','previous')}<button class="play-button ${audio.state.loading?'loading':''}" data-action="toggle" aria-label="${isPlaying?'Mettre en pause':'Lire à voix haute'}">${icon(audio.state.loading?'loader-circle':isPlaying?'pause':'play')}</button>${iconButton('skip-forward','Phrase suivante','next')}${iconButton('download','Préparer ce chapitre hors ligne','prepare')}</div><p class="player-status" aria-live="polite">${esc(status)}</p></section>`;
 }
 function nowBar() {
   return `<aside class="now-bar" id="now-bar" hidden data-action="follow" role="button" tabindex="0" aria-label="Revenir à la phrase en cours"><span class="now-wave" aria-hidden="true"><b></b><b></b><b></b></span><div class="now-copy"><small>EN COURS · <span id="now-chapter"></span></small><p id="now-text"></p></div><span class="now-return">${icon('locate-fixed')}<i>Revenir</i></span></aside>`;
@@ -301,14 +340,20 @@ function replacePlayer() {
 }
 const karaoke = { index: -1, mot: -1 };
 
+const behaviorDoux = (): ScrollBehavior => matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth';
+
+/** Le suivi ne bouge que si l'élément sort de la bande de confort : la page reste calme. */
+function centrerSiBesoin(element: HTMLElement | null) {
+  if (!element) return;
+  const rect = element.getBoundingClientRect();
+  if (rect.top < innerHeight * 0.28 || rect.bottom > innerHeight * 0.72) {
+    element.scrollIntoView({ block: 'center', behavior: behaviorDoux() });
+  }
+}
+
 function suivreMot(phrase: HTMLElement) {
   if (!follow) return;
-  const actif = phrase.querySelector<HTMLElement>('.mot-actif');
-  if (!actif) return;
-  const rect = actif.getBoundingClientRect();
-  if (rect.top < innerHeight * 0.28 || rect.bottom > innerHeight * 0.72) {
-    actif.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
-  }
+  centrerSiBesoin(phrase.querySelector<HTMLElement>('.mot-actif'));
 }
 
 /** Karaoké : la phrase en cours est rendue mot à mot, le mot lu en surbrillance.
@@ -484,7 +529,7 @@ function updatePlayback() {
       syncHighlight();
       if (changed && follow && audio.state.playing) {
         guard();
-        document.querySelector('.current-sentence')?.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+        centrerSiBesoin(document.querySelector<HTMLElement>('.current-sentence'));
       }
       replacePlayer();
     }
@@ -511,8 +556,10 @@ async function handle(action: string, el: HTMLElement) {
     case 'previous': await seekTo(audio.state.index - 1); break;
     case 'next': await seekTo(audio.state.index + 1); break;
     case 'sentence': await seekTo(Number(el.dataset.index)); break;
-    case 'page-prev': follow = false; if (page > 0) { page--; drawPage('prev'); syncNowBar(); } break;
-    case 'page-next': follow = false; if (page < pages.length - 1) { page++; drawPage('next'); syncNowBar(); } break;
+    case 'page-prev': tournerPage(-1); break;
+    case 'page-next': tournerPage(1); break;
+    case 'paragraph-prev': if (book) await sauterParagraphe(book, -1); break;
+    case 'paragraph-next': if (book) await sauterParagraphe(book, 1); break;
     case 'follow': follow = true; render(); jumpToCurrent(); break;
     case 'chapter-step': {
       if (!book) break;
@@ -596,12 +643,18 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', e => { if ((e.target as HTMLElement).id === 'progress') void audio.seek(Number((e.target as HTMLInputElement).value)).catch(e => toast(String(e))); });
 document.addEventListener('keydown', e => {
-  if (screen !== 'reader' || settings.layout !== 'pages' || sheet.open) return;
-  const next = e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'PageDown';
-  const previous = e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp';
-  if (!next && !previous) return;
-  e.preventDefault(); follow = false;
-  if (next && page < pages.length - 1) { page++; drawPage('next'); } else if (previous && page > 0) { page--; drawPage('prev'); }
+  if (screen !== 'reader' || sheet.open) return;
+  if (e.key === 'PageDown' || e.key === 'PageUp') {
+    e.preventDefault(); tournerPage(e.key === 'PageDown' ? 1 : -1); return;
+  }
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+  e.preventDefault();
+  if (e.shiftKey) { const book = current(); if (book) void sauterParagraphe(book, e.key === 'ArrowRight' ? 1 : -1); return; }
+  follow = false;
+  if (settings.layout === 'pages') {
+    if (e.key === 'ArrowRight' && page < pages.length - 1) { page++; drawPage('next'); }
+    else if (e.key === 'ArrowLeft' && page > 0) { page--; drawPage('prev'); }
+  }
   syncNowBar();
 });
 window.addEventListener('scroll', () => {

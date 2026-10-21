@@ -1,22 +1,32 @@
 import { unzipSync, strFromU8 } from 'fflate';
 import type { Book, Chapter } from './types';
 
-export function sentences(text: string): string[] {
+/** Phrases d'un texte, avec le paragraphe d'origine de chacune (index local). */
+export function paragraphsOf(text: string): { phrases: string[]; paragraphes: number[] } {
   const cleaned = text.replace(/\r/g, '').replace(/[\t\u00a0]/g, ' ').trim();
-  const result: string[] = [];
+  const phrases: string[] = [];
+  const paragraphes: number[] = [];
   const segmenter = new Intl.Segmenter('fr', { granularity: 'sentence' });
-  for (const paragraph of cleaned.split(/\n\s*\n/)) {
-    for (const { segment } of segmenter.segment(paragraph.replace(/\s+/g, ' ').trim())) {
+  let paragraphe = 0;
+  for (const block of cleaned.split(/\n\s*\n/)) {
+    let compte = 0;
+    for (const { segment } of segmenter.segment(block.replace(/\s+/g, ' ').trim())) {
       let rest = segment.trim();
       while (rest.length > 400) {
         const at = rest.lastIndexOf(' ', 400);
         const split = at > 150 ? at : 400;
-        result.push(rest.slice(0, split)); rest = rest.slice(split).trim();
+        phrases.push(rest.slice(0, split)); paragraphes.push(paragraphe); compte++;
+        rest = rest.slice(split).trim();
       }
-      if (rest) result.push(rest);
+      if (rest) { phrases.push(rest); paragraphes.push(paragraphe); compte++; }
     }
+    if (compte) paragraphe++;
   }
-  return result;
+  return { phrases, paragraphes };
+}
+
+export function sentences(text: string): string[] {
+  return paragraphsOf(text).phrases;
 }
 function xml(text: string): Document {
   const doc = new DOMParser().parseFromString(text, 'application/xml');
@@ -42,10 +52,15 @@ export async function importBook(file: File): Promise<Book> {
   const hash = await crypto.subtle.digest('SHA-256', bytes);
   const id = Array.from(new Uint8Array(hash).slice(0, 12), v => v.toString(16).padStart(2, '0')).join('');
   const format = file.name.split('.').pop()?.toLowerCase() ?? '';
-  const book: Book = { id, title: file.name.replace(/\.[^.]+$/, ''), author: 'Auteur non renseigné', format: format.toUpperCase(), language: 'fr', color: parseInt(id.slice(0, 2), 16) % 5, segments: [], chapters: [], position: 0, completed: false, added: Date.now(), opened: 0, bookmarks: [] };
+  const book: Book = { id, title: file.name.replace(/\.[^.]+$/, ''), author: 'Auteur non renseigné', format: format.toUpperCase(), language: 'fr', color: parseInt(id.slice(0, 2), 16) % 5, segments: [], chapters: [], position: 0, completed: false, added: Date.now(), opened: 0, bookmarks: [], paragraphs: [] };
+  let paragrapheSuivant = 0;
   function addChapter(title: string, text: string) {
     const start = book.segments.length;
-    book.segments.push(...sentences(text));
+    const { phrases, paragraphes } = paragraphsOf(text);
+    book.segments.push(...phrases);
+    // ids de paragraphe uniques dans le livre, chapitre après chapitre
+    book.paragraphs!.push(...paragraphes.map(p => p + paragrapheSuivant));
+    paragrapheSuivant += (paragraphes.length ? Math.max(...paragraphes) + 1 : 0);
     if (book.segments.length > start) book.chapters.push({ title, start, end: book.segments.length });
   }
   if (format === 'epub') {
@@ -114,7 +129,15 @@ export function welcomeBook(): Book {
     { title: 'Une voix qui vous ressemble', text: "La voix de votre téléphone est prête à lire. Dans l’onglet Voix, vous pouvez aussi télécharger une voix française légère. Une fois installée, elle fonctionne sans connexion et sans abonnement.\n\nVous avez créé une voix dans PK Voice Studio ? Reliez votre Mac dans les réglages. Les passages générés sont conservés sur votre téléphone. Préparez un chapitre avant de partir, puis écoutez-le même sans réseau.\n\nLe minuteur permet de s’endormir avec quelques pages. Les signets gardent les passages que vous souhaitez retrouver. Et la prochaine fois, votre livre vous attend exactement là où vous l’avez laissé." },
     { title: 'Votre prochain livre vous attend', text: "Revenez à votre bibliothèque et touchez le bouton plus. Choisissez un EPUB, un PDF contenant du texte ou un simple fichier texte. Le livre est importé sur votre appareil.\n\nPour lire confortablement, ajustez la taille du texte et choisissez le thème clair, papier ou nuit. Pour écouter plus vite, passez progressivement à une fois et demie, puis deux fois la vitesse normale.\n\nCe court guide est un texte original de démonstration. Il ne vous reste plus qu’à ouvrir un livre qui vous plaît. Bonne lecture." },
   ];
-  const segments: string[] = []; const chapterList: Chapter[] = [];
-  for (const c of chapters) { const start = segments.length; segments.push(...sentences(c.text)); chapterList.push({ title: c.title, start, end: segments.length }); }
-  return { id:'welcome', title:'Un livre.\nUne voix.\nEt vous.', author:'Bienvenue dans PK Reader', format:'GUIDE', language:'fr', color:0, segments, chapters:chapterList, position:0, completed:false, added:Date.now(), opened:0, bookmarks:[], sample:true };
+  const segments: string[] = []; const chapterList: Chapter[] = []; const paragraphs: number[] = [];
+  let paragrapheSuivant = 0;
+  for (const c of chapters) {
+    const start = segments.length;
+    const { phrases, paragraphes } = paragraphsOf(c.text);
+    segments.push(...phrases);
+    paragraphs.push(...paragraphes.map(p => p + paragrapheSuivant));
+    paragrapheSuivant += (paragraphes.length ? Math.max(...paragraphes) + 1 : 0);
+    chapterList.push({ title: c.title, start, end: segments.length });
+  }
+  return { id:'welcome', title:'Un livre.\nUne voix.\nEt vous.', author:'Bienvenue dans PK Reader', format:'GUIDE', language:'fr', color:0, segments, chapters:chapterList, position:0, completed:false, added:Date.now(), opened:0, bookmarks:[], paragraphs, sample:true };
 }

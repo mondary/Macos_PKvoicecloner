@@ -6,6 +6,8 @@ export interface Book {
   cover?: string; color: number; segments: string[]; chapters: Chapter[];
   position: number; completed: boolean; added: number; opened: number;
   bookmarks: number[]; sample?: boolean; casting?: Casting;
+  /** Paragraphe d'origine de chaque phrase (id stable dans le livre). */
+  paragraphs?: number[];
 }
 export interface Voice {
   id: string; name: string; language: string; kind: 'system' | 'neural' | 'clone';

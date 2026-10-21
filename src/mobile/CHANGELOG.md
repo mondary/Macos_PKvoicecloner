@@ -1,5 +1,14 @@
 # PK Reader Android
 
+## [2026.10.56] - 2026-10-21
+
+### Added
+- **Navigation page ET paragraphe** : quatre boutons dans le lecteur — « ¶ Préc. », « ‹ Page », « Page › », « Suivi ¶ » — dans les deux dispositions. En mode pages, une page se tourne ; en défilement, un écran de texte. Les paragraphes d'origine sont désormais conservés à l'import (EPUB, PDF, TXT) : le saut de paragraphe tombe sur le début d'un vrai bloc, pas au milieu d'une phrase. Clavier : Page ↑/↓ pour les pages, ←/→ pour les phrases, Maj+←/→ pour les paragraphes.
+- **Suivi de lecture plus doux** : la page ne défile plus à chaque phrase — seulement quand la phrase (ou le mot karaoké) sort d'une bande de confort au centre de l'écran. On garde le fil en lisant, et toute navigation manuelle suspend le suivi (la barre « EN COURS » ramène d'un geste).
+
+### Changed
+- Les livres importés avant cette version n'ont pas la structure de paragraphes : le saut de paragraphe y avance d'une phrase, sans casser la lecture.
+
 ## [2026.10.55] - 2026-10-21
 
 ### Added

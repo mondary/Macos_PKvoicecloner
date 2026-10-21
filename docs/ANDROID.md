@@ -15,8 +15,10 @@ Après compilation, l’APK récupéré localement se trouve dans `releases/andr
 | Source | Installation | Réseau pendant la lecture |
 |---|---|---|
 | Voix Android | Moteur du téléphone ou autre moteur TTS installé | Selon la voix Android choisie |
-| Piper Siwis / Tom / Lessac | Téléchargement dans l’onglet Voix, environ 21 Mo par modèle | Aucun après installation |
+| Piper Siwis · Tom · Gilles · UPMC (Jessica/Pierre) · Lessac | Téléchargement dans l’onglet Voix, 21–23 Mo par modèle (UPMC : un téléchargement pour deux timbres) | Aucun après installation |
 | Voix clonées PK Voice Studio | Connexion facultative au Mac | Mac requis pour les passages non encore générés ; passages préparés disponibles hors ligne |
+
+Les **voix du téléphone** se limitent par défaut au français (la voix active reste toujours visible) ; « Afficher les N voix dans d’autres langues » déplie le reste du système. La **vitesse est propre à chaque voix** : elle se règle dans la pastille du lecteur, à côté du nom, et chaque timbre retrouve la sienne.
 
 Les modèles Piper tournent sur le CPU Android avec sherpa-onnx. Le runtime est inclus dans l’APK, les poids sont téléchargés explicitement. Les archives sont vérifiées par SHA-256 avant installation. Gardez l’application ouverte pendant le téléchargement d’un modèle ; une interruption se reprend en relançant le téléchargement.
 

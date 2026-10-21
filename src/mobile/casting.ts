@@ -15,8 +15,9 @@ export function characterAt(book: Book, index: number): Character | undefined {
 export function speechProfile(book: Book, settings: Settings, index: number) {
   const role = characterAt(book, index);
   const voice = role?.voice || settings.voice;
+  const base = settings.voiceRates?.[voice] ?? settings.rate;   // chaque voix garde sa vitesse
   return { voice: book.casting?.enabled && voice.startsWith('clone:') ? 'system:default' : voice, pitch: role?.pitch ?? 1,
-    rate: Math.min(3, Math.max(0.5, settings.rate * (role?.rate ?? 1))) };
+    rate: Math.min(3, Math.max(0.5, base * (role?.rate ?? 1))) };
 }
 
 /** Conservative local hints, never guessing a speaker from alternating dialogue.

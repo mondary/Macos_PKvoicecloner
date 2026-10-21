@@ -96,6 +96,10 @@
 .voice-chip svg { width: 15px; height: 15px; }
 .voice-chip svg:last-child { width: 12px; }
 .sleep-chip { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--muted); min-height: 36px; white-space: nowrap; }
+/* Vitesse de la voix en cours, à côté de son nom : chaque timbre garde la sienne. */
+.speed-chip { display: flex; align-items: baseline; gap: 1px; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; min-height: 36px; padding: 7px 10px; border-radius: 9px; border: 1px solid var(--line); color: var(--ink); }
+.speed-chip span { font-size: 9px; font-weight: 600; color: var(--muted); }
+.player-top .sleep-chip { margin-left: auto; }
 .sleep-chip svg { width: 15px; height: 15px; }
 .sleep-chip.on { color: var(--accent); }
 input.progress-slider { appearance: none; -webkit-appearance: none; padding: 0; border: 0; border-radius: 8px; width: 100%; height: 4px; min-height: 4px; background: linear-gradient(to right, var(--accent) var(--progress), var(--line) var(--progress)); display: block; cursor: pointer; margin: 10px 0 0; }

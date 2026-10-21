@@ -12,30 +12,39 @@ import java.net.URI
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 
-data class VoiceModel(val id: String, val name: String, val lang: String, val archive: String, val sha: String, val bytes: Long)
+data class VoiceModel(val id: String, val name: String, val lang: String, val archive: String, val sha: String, val bytes: Long,
+                      /** Locuteur d'un modèle multi-voix (UPMC : jessica 0, pierre 1). */
+                      val sid: Int = 0,
+                      /** Modèle partagé par plusieurs entrées (même archive, locuteurs différents). */
+                      val base: String = "")
 
 object ModelStore {
     val catalog = listOf(
         VoiceModel("siwis", "Siwis", "fr-FR", "vits-piper-fr_FR-siwis-medium-int8", "3909cff9b3cfd4820c66aa13bf554315c82e34899c161f0b446ece372bc4b5ec", 20914888),
         VoiceModel("tom", "Tom", "fr-FR", "vits-piper-fr_FR-tom-medium-int8", "b158f884eb4231b8dddd372c3dc506949630c992a8e48ca692a90323e8bb4e09", 21019617),
+        VoiceModel("gilles", "Gilles", "fr-FR", "vits-piper-fr_FR-gilles-low-int8", "92d2bfd9b6b32b9787557c466b15620e453aecc10ec521762660e034941b3c43", 21248965),
+        VoiceModel("upmc", "UPMC · Jessica", "fr-FR", "vits-piper-fr_FR-upmc-medium-int8", "ec4930dd3778e19e6ea2bc0d16c5a50a82f428ba7ee43dceab1df7efbaf9f1d3", 22588190, sid = 0),
+        VoiceModel("upmc_pierre", "UPMC · Pierre", "fr-FR", "vits-piper-fr_FR-upmc-medium-int8", "ec4930dd3778e19e6ea2bc0d16c5a50a82f428ba7ee43dceab1df7efbaf9f1d3", 22588190, sid = 1, base = "upmc"),
         VoiceModel("lessac", "Lessac", "en-US", "vits-piper-en_US-lessac-medium-int8", "f1c6d0295cf16087b05f80fdca5b44daca5cd78e2c425d419a42ba34929805f9", 20969179)
     )
     val downloads = ConcurrentHashMap<String, JSONObject>()
     private val engines = linkedMapOf<String, OfflineTts>()
+    private fun rootId(m: VoiceModel) = m.base.ifEmpty { m.id }
     private fun directory(context: Context, id: String) = File(context.filesDir, "models/$id")
     private fun model(id: String) = catalog.find { it.id == id.removePrefix("neural:") } ?: error("Modèle inconnu")
-    fun installed(context: Context, id: String) = File(directory(context, model(id).id), "ready").exists()
+    fun installed(context: Context, id: String) = File(directory(context, rootId(model(id))), "ready").exists()
     fun list(context: Context): JSONArray = JSONArray().apply {
         catalog.forEach { m -> put(JSONObject().put("id", "neural:${m.id}").put("name", m.name).put("language", m.lang)
-            .put("kind", "neural").put("detail", "${m.lang} · Piper · sur votre téléphone").put("size", Math.round(m.bytes/100000.0)/10.0).put("installed", installed(context, m.id))) }
+            .put("kind", "neural").put("detail", "${m.lang} · Piper · sur votre téléphone").put("size", Math.round(m.bytes/100000.0)/10.0)
+            .put("installed", installed(context, m.id))) }
     }
     fun install(context: Context, voiceId: String) {
         val m = model(voiceId)
         val key = "neural:${m.id}"
         if (installed(context, m.id)) { downloads[key] = JSONObject().put("progress", 100); return }
         require(context.filesDir.usableSpace > 250L*1024*1024) { "Libérez au moins 250 Mo avant de télécharger cette voix." }
-        val root = directory(context, m.id)
-        val staging = File(root.parentFile, "${m.id}.installing")
+        val root = directory(context, rootId(m))
+        val staging = File(root.parentFile, "${rootId(m)}.installing")
         val archive = File(context.cacheDir, "${m.id}.tar.bz2")
         downloads[key] = JSONObject().put("progress", 0)
         try {
@@ -82,16 +91,18 @@ object ModelStore {
     }
     @Synchronized fun remove(context: Context, voiceId: String) {
         val m = model(voiceId)
-        engines.remove(m.id)?.release()
-        directory(context,m.id).deleteRecursively(); downloads.remove("neural:${m.id}")
+        engines.remove(rootId(m))?.release()
+        directory(context,rootId(m)).deleteRecursively()
+        catalog.filter { rootId(it) == rootId(m) }.forEach { downloads.remove("neural:${it.id}") }
     }
     @Synchronized fun generate(context: Context, voiceId: String, text: String, destination: File) {
         val m = model(voiceId)
+        val racine = rootId(m)
         require(installed(context,m.id)) { "Téléchargez d’abord la voix ${m.name}." }
-        val cached = engines.remove(m.id)
+        val cached = engines.remove(racine)
         val engine = cached ?: run {
             if (engines.size >= 3) engines.remove(engines.keys.first())?.release()
-            val root = directory(context,m.id)
+            val root = directory(context,racine)
             val onnx = root.walkTopDown().first { it.extension == "onnx" }
             val tokens = root.walkTopDown().first { it.name == "tokens.txt" }
             val data = root.walkTopDown().first { it.name == "espeak-ng-data" && it.isDirectory }
@@ -100,8 +111,8 @@ object ModelStore {
                 numThreads = 2
             )))
         }
-        engines[m.id] = engine
-        val generated = engine.generate(text = text, sid = 0, speed = 1f)
+        engines[racine] = engine
+        val generated = engine.generate(text = text, sid = m.sid, speed = 1f)
         require(generated.samples.isNotEmpty()) { "La voix n’a produit aucun son." }
         check(generated.save(destination.absolutePath)) { "Impossible d’enregistrer l’audio." }
     }

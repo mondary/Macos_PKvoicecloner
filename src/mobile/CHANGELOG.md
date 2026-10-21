@@ -1,5 +1,15 @@
 # PK Reader Android
 
+## [2026.10.55] - 2026-10-21
+
+### Added
+- **Quatre voix françaises supplémentaires** : Gilles (homme, Piper low) et **UPMC** en deux timbres (Jessica et Pierre, modèle multi-locuteurs) rejoignent Siwis et Tom. Le moteur accepte désormais le locuteur d'un modèle multi-voix (`sid`), et les deux entrées UPMC partagent un seul téléchargement (22 Mo).
+- **Filtre par langue des voix du téléphone** : seules les voix françaises (et la voix active) s'affichent par défaut ; les autres langues du système sont repliées derrière « Afficher les N voix dans d'autres langues », mémorisé.
+- **Vitesse à côté de la voix** : la vitesse passe dans la pastille du lecteur, contre le nom de la voix, et devient **propre à chaque voix** — Alice à 1,20×, le narrateur à 1,0× ; changer de voix retrouve sa vitesse.
+
+### Fixed
+- **Jaquettes** : les couvertures importées ne sont plus recadrées (`object-fit: contain`) et le fond bleu de la couverture générée ne déborde plus autour de l'image.
+
 ## [2026.10.54] - 2026-10-21
 
 ### Added

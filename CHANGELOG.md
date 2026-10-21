@@ -1,6 +1,12 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.64] - 2026-10-21
+
+### Changed
+- **Le studio est dans la fenêtre principale de l'app** : au lancement, l'app s'ouvre directement sur l'atelier complet (voix, texte, livres, modèles) — plus besoin de chercher une fenêtre séparée. La barre native garde les versions, l'état du serveur, « Ouvrir dans une fenêtre » et Éteindre ; Vue d'ensemble et Réglages restent dans la barre latérale.
+- Côté Android (2026.10.55) : jaquettes non recadrées et sans bord bleu, **quatre voix françaises supplémentaires** (Gilles, UPMC Jessica et Pierre — multi-locuteurs, un seul téléchargement), filtre par langue des voix du téléphone, vitesse déplacée à côté de la voix et **mémorisée par voix**.
+
 ## [2026.10.63] - 2026-10-21
 
 ### Added

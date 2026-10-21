@@ -23,9 +23,9 @@ struct ContentView: View {
     @State private var renameValue = ""
     @State private var deletePath: String?
     @State private var deleteName = ""
-    @State private var section = "Vue d’ensemble"
+    @State private var section = "Studio"
     @State private var settingsSection: PKSettingsSection = .general
-    private let sections = [("Vue d’ensemble", "square.grid.2x2")]
+    private let sections = [("Studio", "rectangle.on.rectangle"), ("Vue d’ensemble", "square.grid.2x2")]
 
     var body: some View {
         Group {
@@ -36,6 +36,17 @@ struct ContentView: View {
         HStack(spacing: 0) {
             sidebar
             Rectangle().fill(Dashboard.line).frame(width: 1)
+            if section == "Studio" {
+                VStack(spacing: 0) {
+                    studioBar
+                    Rectangle().fill(Dashboard.line).frame(height: 1)
+                    if studio.state == nil {
+                        ScrollView { VStack(alignment: .leading, spacing: 20) { heading; welcome }.padding(28) }
+                    } else {
+                        WebStudioWindow(url: studio.baseURL)
+                    }
+                }
+            } else {
             VStack(spacing: 0) {
                 topbar
                 Rectangle().fill(Dashboard.line).frame(height: 1)
@@ -74,6 +85,7 @@ struct ContentView: View {
                     }.padding(28).frame(maxWidth: 1360)
                 }
             }
+            }
         }
         .background(.white).foregroundStyle(Dashboard.ink)
         .frame(minWidth: 920, minHeight: 650)
@@ -87,7 +99,7 @@ struct ContentView: View {
         .task { await studio.boot() }
         .onReceive(windows.$request) { request in
             settingsSection = request.settingsSection ?? .general
-            section = request.settingsSection == nil ? "Vue d’ensemble" : "Réglages"
+            section = request.settingsSection == nil ? "Studio" : "Réglages"
         }
         .sheet(isPresented: Binding(get: { renamePath != nil }, set: { if !$0 { renamePath = nil } })) {
             VStack(alignment: .leading, spacing: 16) {
@@ -154,6 +166,35 @@ struct ContentView: View {
         }.padding(.horizontal, 12).frame(width: 220)
     }
 
+    /// En-tête du studio embarqué : versions, état du serveur, fenêtre détachée.
+    private var studioBar: some View {
+        HStack(spacing: 12) {
+            Text("Studio").font(.system(size: 12, weight: .semibold))
+            Text("Voix · texte · livres · modèles").font(.system(size: 11)).foregroundStyle(Dashboard.muted)
+            Spacer()
+            HStack(spacing: 4) {
+                Text("APP \(studio.appVersion)").foregroundStyle(studio.ecartVersion == nil ? Dashboard.muted : .orange)
+                Text("·").foregroundStyle(Dashboard.muted)
+                Text("SERVEUR \(studio.state?.version ?? "—")")
+                    .foregroundStyle(studio.ecartVersion == nil ? Dashboard.muted : .orange)
+            }.font(.system(size: 9, design: .monospaced)).lineLimit(1)
+            Circle().fill(studio.state == nil ? Dashboard.muted : Color.green).frame(width: 6, height: 6)
+            Text(studio.message).foregroundStyle(Dashboard.muted).lineLimit(1)
+            Button("Ouvrir dans une fenêtre", systemImage: "macwindow") { openWindow(id: "book-studio") }
+                .buttonStyle(.bordered)
+                .disabled(studio.state == nil)
+            if studio.state == nil {
+                Button(studio.powerBusy ? "Patiente…" : "Démarrer", systemImage: "power") { Task { await studio.toggle() } }
+                    .buttonStyle(.borderedProminent).tint(Dashboard.ink)
+                    .disabled(studio.powerBusy || studio.busy || studio.generating || studio.recording)
+            } else {
+                Button(studio.powerBusy ? "Patiente…" : "Éteindre", systemImage: "power") { Task { await studio.toggle() } }
+                    .buttonStyle(.bordered).tint(Dashboard.ink)
+                    .disabled(studio.powerBusy || studio.busy || studio.generating || studio.recording)
+            }
+        }.font(.system(size: 11)).padding(.horizontal, 20).frame(height: 60)
+    }
+
     private var topbar: some View {
         HStack(spacing: 12) {
             Text("Espace de travail").foregroundStyle(Dashboard.muted)
@@ -173,10 +214,10 @@ struct ContentView: View {
                 : "Versions différentes : APP \(studio.appVersion) · SERVEUR \(studio.ecartVersion ?? "—"). Reconstruis l’app pour les synchroniser.")
             Circle().fill(studio.state == nil ? Dashboard.muted : Color.green).frame(width: 6, height: 6)
             Text(studio.message).foregroundStyle(Dashboard.muted).lineLimit(1)
-            Button("Ouvrir le studio web", systemImage: "macwindow") { openWindow(id: "book-studio") }
+            Button("Aller au studio", systemImage: "waveform") { section = "Studio" }
                 .buttonStyle(.bordered)
                 .disabled(studio.state == nil)
-                .help(studio.state == nil ? "Démarre le serveur local pour ouvrir l’atelier." : "Raccourci : l’atelier complet dans une fenêtre du studio.")
+                .help("Le studio complet — voix, texte, livres et modèles — est dans la fenêtre principale.")
             if studio.state == nil {
                 Button(studio.powerBusy ? "Patiente…" : "Démarrer", systemImage: "power") { Task { await studio.toggle() } }
                     .buttonStyle(.borderedProminent).tint(Dashboard.ink)
@@ -236,14 +277,14 @@ struct ContentView: View {
             }
             Spacer(minLength: 24)
             VStack(alignment: .trailing, spacing: 7) {
-                Button("Ouvrir le studio web", systemImage: "macwindow") { openWindow(id: "book-studio") }
+                Button("Aller au studio", systemImage: "waveform") { section = "Studio" }
                     .buttonStyle(.borderedProminent)
                     .tint(Dashboard.ink)
                     .controlSize(.large)
                     .disabled(studio.state == nil)
                     .help(studio.state == nil
                         ? "Démarre le studio pour ouvrir l’atelier : voix, texte, livres et modèles."
-                        : "L’atelier complet du studio — voix, texte, livres et modèles — dans une fenêtre du studio.")
+                        : "L’atelier complet — voix, texte, livres et modèles — dans la fenêtre principale.")
                 Text("Voix, texte, livres et modèles").font(.system(size: 10)).foregroundStyle(Dashboard.muted)
             }
         }.padding(.bottom, 6)

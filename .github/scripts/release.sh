@@ -67,6 +67,7 @@ git commit -m "MAJ: appcast sparkle v${VERSION}" || true
 gh release create "${TAG}" \
   --title "PK Voice Cloner ${VERSION}" \
   --generate-notes \
+  --latest \
   "releases/${ZIP_NAME}" "releases/${DMG_NAME}"
 git push
 

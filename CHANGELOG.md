@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.62] - 2026-10-21
+
+### Changed
+- **La règle vaut aussi pour macOS** : le script de release marque désormais la release stable `v<version>` comme **Latest** à sa publication — la dernière version publiée, Android ou macOS, reste celle qui s'affiche en premier (le canal Dev reste une prérelease sans badge).
+
 ## [2026.10.61] - 2026-10-21
 
 ### Changed

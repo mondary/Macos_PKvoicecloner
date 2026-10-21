@@ -93,18 +93,29 @@ jobs:
           TAG="pk-$VERSION"
           APK="PK-Reader-$VERSION-debug.apk"
           cp "android/app/build/outputs/apk/debug/$APK" "$APK"
-          NOTES="APK debug du lecteur Android, version $VERSION.
+          # La dernière livraison Android reste la release VISIBLE : release complète
+          # marquée « Latest » — GitHub refuse ce badge aux préreleases.
+          SECTION=$(awk -v ent="## [$VERSION]" 'index($0,ent)==1{d=1;next} d&&/^## /{exit} d{print}' src/mobile/CHANGELOG.md)
+          NOTES="APK du lecteur Android, version $VERSION.
 
           - Build : $GITHUB_SHA
           - Branche : $GITHUB_REF_NAME"
+          if [ -n "$SECTION" ]; then
+            NOTES="$SECTION
+
+          ---
+
+          $NOTES"
+          fi
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             gh release upload "$TAG" "$APK" --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit "$TAG" --latest --repo "$GITHUB_REPOSITORY"
           else
             gh release create "$TAG" "$APK" \
-              --title "PK Reader $VERSION" \
+              --title "PK Reader Android · $VERSION" \
               --notes "$NOTES" \
               --target "$GITHUB_SHA" \
-              --prerelease \
+              --latest \
               --repo "$GITHUB_REPOSITORY"
           fi
           URL="$GITHUB_SERVER_URL}/$GITHUB_REPOSITORY/releases/download/$TAG/$APK"

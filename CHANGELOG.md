@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.61] - 2026-10-21
+
+### Changed
+- **La dernière livraison Android est la release visible** : chaque APK `pk-<version>` est publié en release complète marquée **Latest** — GitHub refuse ce badge aux préreleases, et la page des releases épinglait donc la macOS 2026.10.45 au-dessus des APK. Titre explicite (« PK Reader Android · 2026.10.53 · une voix par personnage ») et notes reprises de la section correspondante du changelog Android. La release 2026.10.53 a été convertie et re-titrée dans la foulée.
+
 ## [2026.10.60] - 2026-10-19
 
 ### Added

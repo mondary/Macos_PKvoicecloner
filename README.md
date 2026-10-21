@@ -14,7 +14,9 @@ version **2026.10.47** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANG
 
 L’application Android **PK Reader** lit vos EPUB, PDF texte et TXT avec les voix du téléphone, des voix Piper téléchargées ou vos clones PK Voice Studio. Bibliothèque locale, chapitres, signets, thèmes clair/papier/nuit et service audio pour l’écoute en arrière-plan. Lecture **page à page ou en défilement**, barre « en cours » qui garde la phrase lue en vue, changement de voix sans quitter le lecteur et — comme dans le studio — **une voix par personnage** : chaque rôle reçoit sa voix, son pitch et sa vitesse, chaque phrase son personnage — avec l'analyse des personnages par le studio (sexe de la voix, attribution phrase par phrase) et le **karaoké mot à mot** pendant l'écoute. Les voix clonées nécessitent le Mac pour générer les passages ; les chapitres préparés s’écoutent ensuite hors ligne.
 
-[Installation et guide Android](docs/ANDROID.md) · [APK de la version courante](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.53) (release `pk-<version>`, lien direct) · [Changelog Android](src/mobile/CHANGELOG.md)
+[Installation et guide Android](docs/ANDROID.md) · [APK de la version courante](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.58) (release `pk-<version>`, lien direct) · [Changelog Android](src/mobile/CHANGELOG.md)
+
+> Les APK vivent dans les releases `pk-<version>` (la plus récente en tête de la page des releases). Le badge **Latest** suit la dernière livraison publiée, Android ou macOS : il peut pointer sur le DMG sans que l'APK disparaisse — le lien direct ci-dessus reste valable.
 
 <img src="store/screenshots/android-reader/library.png" width="230" alt="Aperçu web de la bibliothèque PK Reader" /> <img src="store/screenshots/android-reader/reader.png" width="230" alt="Aperçu web du lecteur PK Reader" />
 

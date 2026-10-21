@@ -76,3 +76,27 @@ describe('mise en forme et paragraphes reconstitués', () => {
     expect(book.paragraphs![5]).not.toBe(book.paragraphs![6]);   // chaque réplique son bloc
   });
 });
+
+import { couperLongue } from '../books';
+
+describe('coupes des phrases trop longues', () => {
+  it('coupe aux virgules et points-virgules plutôt qu’au hasard', () => {
+    const phrase = `${'a'.repeat(150)}, ${'b'.repeat(140)}; ${'c'.repeat(150)}.`;
+    const parts = couperLongue(phrase, 200);
+    expect(parts.every(p => p.length <= 200)).toBe(true);
+    expect(parts[0].endsWith(',')).toBe(true);
+    expect(parts[1].endsWith(';')).toBe(true);
+    expect(parts.join(' ').replace(/\s+/g, ' ')).toContain('c'.repeat(150));
+  });
+
+  it('retombe sur les espaces quand aucune ponctuation ne convient', () => {
+    const mots = Array.from({ length: 160 }, (_, i) => `mot${i}`).join(' ');
+    const parts = couperLongue(mots, 200);
+    expect(parts.every(p => p.length <= 200)).toBe(true);
+    expect(parts.join(' ')).toBe(mots);
+  });
+
+  it('laisse une phrase courte intacte', () => {
+    expect(couperLongue('Une phrase normale.', 400)).toEqual(['Une phrase normale.']);
+  });
+});

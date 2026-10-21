@@ -60,6 +60,7 @@ Deux limites claires : l’attribution locale n’utilise que des voix du télé
 - Minuteur : arrêt après 5, 15, 30, 45 ou 60 minutes.
 - Thèmes clair, papier et nuit ; taille de texte, **interligne** (serré/normal/aéré), **marges** et **zone de suivi** ajustables dans Apparence.
 - **Mode focus** : un chevron réduit le lecteur à une ligne (voix, vitesse, lecture) — la page respire pendant l'écoute.
+- **Surlignage** : mots (karaoké), phrase seule ou aucun, au choix dans Apparence ; le suivi de lecture reste actif.
 - La mise en forme du livre est conservée : les **italiques** et les **citations** de l'EPUB restent visibles.
 - Notifications et écran verrouillé : commandes du service audio Android.
 

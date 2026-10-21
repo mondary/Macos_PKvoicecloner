@@ -1,5 +1,14 @@
 # PK Reader Android
 
+## [2026.10.58] - 2026-10-21
+
+### Added
+- **Surlignage au choix** : Apparence → Surlignage — **Mots** (karaoké), **Phrase** seule, ou **Aucun** surlignage. Le suivi de lecture reste actif dans les trois modes, seul le repère visuel change.
+
+### Changed
+- **Phrases très longues coupées à la ponctuation** : au-delà de 400 caractères, la coupe préfère un point-virgule, deux-points, virgule ou tiret proche de la limite avant de retomber sur un espace — la lecture s'arrête sur une clause, plus au milieu d'un groupe de mots.
+- **Couvertures compactées à l'import** : l'image est réduite (~24–48 Ko, WebP puis JPEG) au lieu d'être stockée en pleine résolution dans chaque livre ; repli sur l'image d'origine si le navigateur ne sait pas la redimensionner.
+
 ## [2026.10.57] - 2026-10-21
 
 ### Added

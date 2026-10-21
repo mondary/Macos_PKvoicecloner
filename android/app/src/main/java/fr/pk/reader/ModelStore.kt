@@ -19,6 +19,11 @@ data class VoiceModel(val id: String, val name: String, val lang: String, val ar
                       val base: String = "")
 
 object ModelStore {
+    /** Moteurs résidents : trois suffisent aux rôles d'un chapitre (narrateur +
+     *  deux personnages) ; chaque moteur pèse ~30 Mo, on ne garde pas les cinq
+     *  voix françaises en mémoire. L'éviction est LRU : une voix réutilisée
+     *  repasse en tête (voir generate). */
+    private const val MOTEURS_CHAUDS = 3
     val catalog = listOf(
         VoiceModel("siwis", "Siwis", "fr-FR", "vits-piper-fr_FR-siwis-medium-int8", "3909cff9b3cfd4820c66aa13bf554315c82e34899c161f0b446ece372bc4b5ec", 20914888),
         VoiceModel("tom", "Tom", "fr-FR", "vits-piper-fr_FR-tom-medium-int8", "b158f884eb4231b8dddd372c3dc506949630c992a8e48ca692a90323e8bb4e09", 21019617),
@@ -101,7 +106,7 @@ object ModelStore {
         require(installed(context,m.id)) { "Téléchargez d’abord la voix ${m.name}." }
         val cached = engines.remove(racine)
         val engine = cached ?: run {
-            if (engines.size >= 3) engines.remove(engines.keys.first())?.release()
+            if (engines.size >= MOTEURS_CHAUDS) engines.remove(engines.keys.first())?.release()
             val root = directory(context,racine)
             val onnx = root.walkTopDown().first { it.extension == "onnx" }
             val tokens = root.walkTopDown().first { it.name == "tokens.txt" }

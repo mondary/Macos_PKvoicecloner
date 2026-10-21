@@ -85,6 +85,7 @@ function savePrefs() {
   document.documentElement.style.setProperty('--reader-size', `${settings.fontSize}px`);
   document.documentElement.style.setProperty('--reader-leading', String(settings.interligne ?? 1.95));
   document.documentElement.style.setProperty('--reader-margins', `${settings.marges ?? 0}px`);
+  document.documentElement.dataset.surlignage = settings.surlignage ?? 'mots';
   if (native && systemTheme !== settings.theme) {
     systemTheme = settings.theme;
     void SystemBars.setStyle({ style: settings.theme === 'dark' ? SystemBarsStyle.Dark : SystemBarsStyle.Light }).catch(() => {});
@@ -374,6 +375,11 @@ function syncKaraoke() {
     delete autre.dataset.karaoke; delete autre.dataset.texte;
   });
   if (!book || !courante) return;
+  if ((settings.surlignage ?? 'mots') !== 'mots') {
+    // suivi sans surlignage des mots : on garde seulement le repère de phrase
+    if (courante.dataset.karaoke) { courante.textContent = courante.dataset.texte ?? courante.textContent; delete courante.dataset.karaoke; delete courante.dataset.texte; }
+    return;
+  }
   const debut = Number(courante.dataset.debut || 0);
   const texte = courante.dataset.texte ?? courante.textContent ?? '';
   courante.dataset.texte = texte;
@@ -599,12 +605,14 @@ async function handle(action: string, el: HTMLElement) {
     case 'interligne': settings.interligne = Number(id); savePrefs(); sheet.close(); render(); break;
     case 'marges': settings.marges = Number(id); savePrefs(); sheet.close(); render(); break;
     case 'bande': settings.bande = Number(id); savePrefs(); sheet.close(); render(); break;
+    case 'surlignage': settings.surlignage = id as 'mots' | 'phrase' | 'aucun'; savePrefs(); sheet.close(); render(); break;
     case 'sleep': modal('Encore quelques pages',`<p class="sheet-description">La lecture s’arrêtera automatiquement. Votre place sera conservée.</p><div class="choice-grid">${[0,5,15,30,45,60].map(n=>`<button class="choice" data-action="set-sleep" data-id="${n}">${n?`${n} min`:'Désactivé'}</button>`).join('')}</div>`); break;
     case 'set-sleep': await audio.sleep(Number(id)); sheet.close(); render(); toast(id==='0'?'Minuteur désactivé.':`Arrêt de la lecture dans ${id} minutes.`); break;
     case 'appearance': modal('Le confort des mots',`<p class="sheet-description">Une taille de texte adaptée à vos yeux.</p><div class="choice-grid">${[18,20,22,25,28,32].map(n=>`<button class="choice ${settings.fontSize===n?'active':''}" data-action="font" data-id="${n}" style="font-size:${n}px">Aa</button>`).join('')}</div>
       <h3 class="sheet-group">Interligne</h3><div class="choice-grid">${[[1.6,'Serré'],[1.95,'Normal'],[2.1,'Aéré']].map(([n,label])=>`<button class="choice ${Math.abs((settings.interligne??1.95)-Number(n))<0.01?'active':''}" data-action="interligne" data-id="${n}">${label}</button>`).join('')}</div>
       <h3 class="sheet-group">Marges</h3><div class="choice-grid">${[[0,'Normales'],[16,'Confort'],[32,'Larges']].map(([n,label])=>`<button class="choice ${Number(settings.marges??0)===Number(n)?'active':''}" data-action="marges" data-id="${n}">${label}</button>`).join('')}</div>
       <div class="choice-grid themes">${[['light','Clair'],['paper','Papier'],['dark','Nuit']].map(([id,label])=>`<button class="choice ${settings.theme===id?'active':''}" data-action="theme" data-id="${id}">${label}</button>`).join('')}</div><div class="choice-grid pair">${[['pages','Pages à tourner'],['scroll','Défilement continu']].map(([id,label])=>`<button class="choice ${settings.layout===id?'active':''}" data-action="layout" data-id="${id}">${label}</button>`).join('')}</div>
+      <h3 class="sheet-group">Surlignage</h3><p class="sheet-description">Pendant l'écoute : chaque mot (karaoké), la phrase seule, ou rien du tout.</p><div class="choice-grid">${[['mots','Mots'],['phrase','Phrase'],['aucun','Aucun']].map(([id,label])=>`<button class="choice ${(settings.surlignage??'mots')===id?'active':''}" data-action="surlignage" data-id="${id}">${label}</button>`).join('')}</div>
       <h3 class="sheet-group">Suivi de lecture</h3><p class="sheet-description">La page se recadre quand la phrase sort de cette zone, jamais à chaque mot.</p><div class="choice-grid">${[[0.18,'Serré'],[0.28,'Normal'],[0.35,'Large']].map(([n,label])=>`<button class="choice ${Math.abs((settings.bande??0.28)-Number(n))<0.01?'active':''}" data-action="bande" data-id="${n}">${label}</button>`).join('')}</div>`); break;
     case 'font': settings.fontSize = Number(id); sheet.close(); pagesKey = ''; render(); break;
     case 'theme': settings.theme = id as typeof settings.theme; sheet.close(); render(); break;

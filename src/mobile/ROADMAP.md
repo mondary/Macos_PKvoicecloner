@@ -12,9 +12,8 @@ Retours du 21/10. État au 2026.10.56.
 - Vitesse à côté de la voix et mémorisée par voix — 2026.10.55.
 - Navigation page ET paragraphe, suivi de lecture plus doux — 2026.10.56.
 - Mode focus, interligne/marges/zone de suivi, italiques et citations de l'EPUB, paragraphes reconstitués, quota IA lisible — 2026.10.57.
+- Surlignage réglable (mots / phrase / aucun), coupes de phrases longues sur la ponctuation, couvertures compactées, moteurs chauds documentés — 2026.10.58.
 
 ## Reste
 
-1. **Option « suivre sans surligner »** (karaoké désactivable) et réglage du contraste du surlignage.
-2. **Coupures de mots** : la césure des phrases très longues (400 caractères) reste arbitraire — étudier une coupe sur les virgules.
-3. **Dettes** : couvertures stockées en data-URL (poids des gros EPUB) ; `ModelStore` garde 3 moteurs chauds (à surveiller avec 5 voix FR).
+Rien d'ouvert : les retours du 21/10 sont traités. Prochaines pistes possibles : téléchargement des voix Piper int8 sur le Mac, mode conversationnel, import de la progression depuis le studio.

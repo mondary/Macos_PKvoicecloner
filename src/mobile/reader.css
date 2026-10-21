@@ -33,6 +33,9 @@
 .sentence.sentence-italique { font-style: italic; }
 .sentence.sentence-citation { padding-left: 26px; font-style: italic; border-left-color: var(--line); }
 .sentence.sentence-citation.current-sentence { border-left-color: var(--accent); }
+/* Suivi sans surlignage : on garde le texte intact, sans repère coloré. */
+:root[data-surlignage='aucun'] .sentence.current-sentence { border-left-color: transparent; }
+:root[data-surlignage='aucun'] .mot-actif { background: transparent; color: inherit; padding: 0; }
 /* Karaoké : la phrase reste calme, seul le mot lu porte la couleur. */
 .mot { border-radius: 3px; transition: background 0.12s ease, color 0.12s ease; }
 .mot-lu { opacity: 0.86; }

@@ -25,6 +25,28 @@ function extraire(texte: string): { plain: string; italique: boolean[]; citation
   return { plain, italique, citation };
 }
 
+/** Coupe une phrase trop longue en préférant les frontières de clause
+ *  (point-virgule, deux-points, virgule, tiret), puis l'espace. 400 maxi. */
+export function couperLongue(texte: string, maxi = 400): string[] {
+  const parts: string[] = [];
+  let reste = texte.trim();
+  while (reste.length > maxi) {
+    let coupe = 0;
+    for (const separateur of [' ; ', ' : ', ', ', ' — ']) {
+      const at = reste.lastIndexOf(separateur, maxi);
+      if (at > 120) coupe = Math.max(coupe, at + separateur.trimEnd().length);
+    }
+    if (coupe <= 0) {
+      const at = reste.lastIndexOf(' ', maxi);
+      coupe = at > 120 ? at : maxi;
+    }
+    parts.push(reste.slice(0, coupe).trimEnd());
+    reste = reste.slice(coupe).trimStart();
+  }
+  if (reste) parts.push(reste);
+  return parts;
+}
+
 /** Phrases d'un texte, paragraphe d'origine et style (italique, citation).
  *  `i` = italique, `q` = citation — appliqués à la phrase entière au rendu. */
 export function paragraphsOf(text: string): Decoupage {
@@ -47,14 +69,9 @@ export function paragraphsOf(text: string): Decoupage {
       let style = '';
       if (italiques > (fin - debut) * 0.55) style += 'i';
       if (citations > (fin - debut) * 0.5) style += 'q';
-      let rest = segment.trim();
-      while (rest.length > 400) {
-        const at = rest.lastIndexOf(' ', 400);
-        const split = at > 150 ? at : 400;
-        phrases.push(rest.slice(0, split)); paragraphes.push(paragraphe); styles.push(style); compte++;
-        rest = rest.slice(split).trim();
+      for (const morceau of couperLongue(segment.trim())) {
+        phrases.push(morceau); paragraphes.push(paragraphe); styles.push(style); compte++;
       }
-      if (rest) { phrases.push(rest); paragraphes.push(paragraphe); styles.push(style); compte++; }
     }
     if (compte) paragraphe++;
   }
@@ -86,6 +103,35 @@ export function reparerParagraphes(book: Book): number {
   book.paragraphs = paragraphs;
   return id;
 }
+/** Réduit la couverture (~24–48 Ko) : une data-URL plein format alourdissait
+ *  chaque sauvegarde du livre. Repli sur l'image d'origine si le canvas manque. */
+async function compacterCouverture(blob: Blob): Promise<string> {
+  try {
+    if (typeof createImageBitmap !== 'function') throw new Error('canvas indisponible');
+    const bitmap = await createImageBitmap(blob);
+    try {
+      const largeur = Math.min(420, bitmap.width || 420);
+      const hauteur = Math.max(1, Math.round((bitmap.height || largeur) * largeur / (bitmap.width || largeur)));
+      const canvas = document.createElement('canvas');
+      canvas.width = largeur; canvas.height = hauteur;
+      const contexte = canvas.getContext('2d');
+      if (!contexte) throw new Error('canvas indisponible');
+      contexte.drawImage(bitmap, 0, 0, largeur, hauteur);
+      const webp = canvas.toDataURL('image/webp', 0.82);
+      if (webp.startsWith('data:image/webp') && webp.length < 160_000) return webp;
+      const jpeg = canvas.toDataURL('image/jpeg', 0.82);
+      return jpeg.length < 160_000 ? jpeg : webp;
+    } finally { bitmap.close?.(); }
+  } catch {
+    return await new Promise<string>((resolve, reject) => {
+      const lecteur = new FileReader();
+      lecteur.onload = () => resolve(String(lecteur.result));
+      lecteur.onerror = () => reject(lecteur.error);
+      lecteur.readAsDataURL(blob);
+    });
+  }
+}
+
 function xml(text: string): Document {
   const doc = new DOMParser().parseFromString(text, 'application/xml');
   if (doc.querySelector('parsererror')) throw new Error('Le fichier EPUB contient un document XML illisible.');
@@ -171,7 +217,7 @@ export async function importBook(file: File): Promise<Book> {
       const data = files[resolvePath(opfPath, cover.getAttribute('href') ?? '')];
       const mime = cover.getAttribute('media-type') ?? '';
       if (data && data.length < 4_000_000 && ['image/jpeg','image/png','image/webp'].includes(mime)) {
-        book.cover = await new Promise<string>(resolve => { const r = new FileReader(); r.onload = () => resolve(String(r.result)); r.readAsDataURL(new Blob([new Uint8Array(data)], { type: mime })); });
+        book.cover = await compacterCouverture(new Blob([new Uint8Array(data)], { type: mime }));
       }
     }
     for (const ref of byName(opf, 'itemref')) {

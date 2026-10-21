@@ -1,6 +1,6 @@
 {
   "name": "pk-reader",
-  "version": "2026.10.57",
+  "version": "2026.10.58",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.22.0",

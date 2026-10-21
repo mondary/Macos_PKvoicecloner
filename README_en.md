@@ -43,6 +43,7 @@ The FTP-ready website is self-contained in [`store/website/`](store/website/): u
 - **Speed** 0.75×–1.5× — pure time-stretch, pitch stays untouched
 - **Live reading** — **Lire** next to Generate: the text plays while it is synthesised, sentence by sentence. A Piper voice starts instantly (0.13 s per sentence measured); a cloned voice starts at its first sentence (~8 s, voice cache included) and the rest is prepared during playback — no more waiting for the whole take to hear the beginning
 - **A chapter reads live** — step ④ of a chapter: “Lire en direct” reads it with each character’s voice, without generating a single segment; generation keeps its role, export
+- **Reader mode** — “Ouvrir le lecteur”: the chapter full screen like a book, blocks per character, each role’s voice, **word-by-word karaoke**, page and paragraph jumps, text size and focus mode. Synthesis runs in 6-sentence windows so the studio never stalls
 - **On-demand resident model** — loaded once for a session; **Power off** releases its memory when you are done
 - **Offline** — models cached locally, no network calls
 - **Always-visible versions** — app and server versions appear in the sticky top bar beside studio status, with a mismatch warning; the web studio version remains in its footer

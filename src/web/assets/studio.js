@@ -2903,6 +2903,13 @@
 
     // ④ Écoute : d'abord au fil de l'eau (sans générer), puis le chapitre généré.
     const ecouteStatut = statutEtape();
+    const boutonLecteur = document.createElement("button");
+    boutonLecteur.className = "pill-dark";
+    boutonLecteur.type = "button";
+    boutonLecteur.textContent = "Ouvrir le lecteur";
+    boutonLecteur.title = "Plein écran : le chapitre en livre, la voix de chaque rôle, suivi mot à mot, pages et paragraphes";
+    boutonLecteur.disabled = !analyseFait;
+    boutonLecteur.addEventListener("click", () => ouvrirLecteur(book, chapter.num));
     const boutonDirect = document.createElement("button");
     boutonDirect.className = "pill-dark";
     boutonDirect.type = "button";
@@ -2963,7 +2970,7 @@
         boutonEcoute.textContent = "Écouter le chapitre";
       }
     });
-    actions.appendChild(ligneEtape(4, "Écoute", boiteEtape(boutonDirect, boutonEcoute, noteEcoute, ecouteStatut)));
+    actions.appendChild(ligneEtape(4, "Écoute", boiteEtape(boutonLecteur, boutonDirect, boutonEcoute, noteEcoute, ecouteStatut)));
 
     // ⑤ Export : le WAV du chapitre, en dernier.
     const exportStatut = statutEtape();
@@ -3659,6 +3666,385 @@
       setTakeStatus(`Arrêt impossible : ${error.message}`, "error");
     }
   }
+
+  /* ---------------------- Mode lecteur (plein écran) ---------------------- */
+  // Le studio devient un livre : texte du chapitre, voix de chaque rôle,
+  // karaoké mot à mot (estimé sur la durée du WAV), pages et paragraphes.
+  const lecteur = {
+    ouvert: false, book: null, chapitre: null, segments: [], blocs: [],
+    index: 0, mode: "fichiers", fenetre: null, audio: null, enLecture: false, enPreparation: false,
+    focus: false, suivi: true, guard: 0, taille: Number(localStorage.getItem("pk-voice-reader-size")) || 19,
+  };
+
+  function motsLecture(texte) {
+    const mots = [];
+    const motif = /\S+/g;
+    for (let trouve = motif.exec(texte); trouve; trouve = motif.exec(texte)) {
+      mots.push({ mot: trouve[0], debut: trouve.index, fin: trouve.index + trouve[0].length });
+    }
+    return mots;
+  }
+
+  /** Peint une phrase en mots ; le mot actif est surligné (karaoké). */
+  function peintreMots(element, texte, actif) {
+    element.textContent = "";
+    const mots = motsLecture(texte);
+    if (!mots.length) { element.textContent = texte; return; }
+    let curseur = 0;
+    const ajouterTexte = (valeur) => { if (valeur) element.appendChild(document.createTextNode(valeur)); };
+    mots.forEach(({ mot, debut, fin }, i) => {
+      ajouterTexte(texte.slice(curseur, debut));
+      const span = document.createElement("span");
+      span.className = i === actif ? "mot mot-actif" : "mot";
+      span.textContent = mot;
+      element.appendChild(span);
+      curseur = fin;
+    });
+    ajouterTexte(texte.slice(curseur));
+  }
+
+  function nomRole(book, id) {
+    return nomVoix(book, id);
+  }
+
+  function ouvrirLecteur(book, num) {
+    const cle = `${book.id}:${num}`;
+    const structure = chapterTexts.get(cle);
+    const resume = book.chapitres.find(c => c.num === num);
+    if (!structure || !resume) { notify("Ouvre d'abord le chapitre.", "error"); return; }
+    const audio = resume.audio_segments || {};
+    const segments = [];
+    structure.split("\n").forEach(ligne => {
+      const brut = ligne.trim();
+      if (!brut) return;
+      const trouve = MARQUEUR_VOIX.exec(brut);
+      const id = trouve ? (trouve[1] || trouve[2]).toLowerCase() : "narrateur";
+      const texte = (trouve ? brut.slice(trouve[0].length) : brut).trim();
+      if (texte) segments.push({ id, texte, fichier: audio[String(segments.length + 1)]?.fichier || "" });
+    });
+    if (!segments.length) { notify("Aucun segment lisible dans ce chapitre.", "error"); return; }
+    const blocs = [];
+    segments.forEach((segment, i) => {
+      const dernier = blocs[blocs.length - 1];
+      if (dernier && dernier.id === segment.id) dernier.fin = i + 1;
+      else blocs.push({ id: segment.id, debut: i, fin: i + 1 });
+    });
+    Object.assign(lecteur, {
+      ouvert: true, book, chapitre: resume, segments, blocs, index: 0, fenetre: null,
+      mode: segments.every(s => s.fichier) ? "fichiers" : "direct", enLecture: false, suivi: true, focus: false,
+    });
+    dessinerLecteur();
+  }
+
+  const FENETRE_LECTURE = 6;   // phrases synthétisées d'avance : borne le moteur et la mémoire
+
+  function fermerLecteur() {
+    pauseLecteur();
+    arreterFenetre();
+    lecteur.ouvert = false;
+    const zone = $("lecteur"); zone.hidden = true; zone.innerHTML = "";
+    lecteur.book = null; lecteur.segments = []; lecteur.blocs = []; lecteur.audio = null;
+  }
+
+  function dessinerLecteur() {
+    const zone = $("lecteur");
+    zone.hidden = false;
+    zone.innerHTML = "";
+    zone.style.setProperty("--reader-size", `${lecteur.taille}px`);
+
+    const entete = document.createElement("header");
+    entete.className = "reader-head";
+    const fermer = document.createElement("button");
+    fermer.className = "reader-close"; fermer.type = "button"; fermer.textContent = "×";
+    fermer.setAttribute("aria-label", "Fermer le lecteur"); fermer.dataset.reader = "fermer";
+    const titre = document.createElement("div");
+    const sur = document.createElement("small"); sur.textContent = lecteur.book.titre;
+    const fort = document.createElement("strong"); fort.textContent = lecteur.chapitre.titre || `Chapitre ${lecteur.chapitre.num}`;
+    titre.append(sur, fort);
+    const outils = document.createElement("div");
+    outils.className = "reader-tools";
+    [["moins", "A−", "Texte plus petit"], ["plus", "A+", "Texte plus grand"], ["focus", "▾", "Réduire les commandes"]].forEach(([action, label, aide]) => {
+      const bouton = document.createElement("button");
+      bouton.type = "button"; bouton.textContent = label; bouton.title = aide; bouton.dataset.reader = action;
+      outils.appendChild(bouton);
+    });
+    entete.append(fermer, titre, outils);
+
+    const corps = document.createElement("article");
+    corps.className = "reader-body"; corps.id = "reader-body";
+    lecteur.blocs.forEach((bloc, rang) => {
+      const paragraphe = document.createElement("p");
+      paragraphe.className = "reader-block";
+      paragraphe.dataset.bloc = String(rang);
+      if (bloc.id !== "narrateur" && bloc.id !== "narrator") {
+        const orateur = document.createElement("span");
+        orateur.className = "reader-speaker";
+        orateur.textContent = nomRole(lecteur.book, bloc.id);
+        paragraphe.appendChild(orateur);
+      }
+      for (let i = bloc.debut; i < bloc.fin; i += 1) {
+        if (i > bloc.debut) paragraphe.appendChild(document.createTextNode(" "));
+        const bouton = document.createElement("button");
+        bouton.type = "button";
+        bouton.className = "reader-seg";
+        bouton.dataset.segment = String(i);
+        bouton.textContent = lecteur.segments[i].texte;
+        paragraphe.appendChild(bouton);
+      }
+      corps.appendChild(paragraphe);
+    });
+
+    const barre = document.createElement("footer");
+    barre.className = "reader-bar";
+    const sauts = document.createElement("div");
+    sauts.className = "reader-jumps";
+    [["bloc-prec", "¶ Préc.", "Paragraphe précédent"], ["page-prec", "‹ Page", "Page précédente"],
+     ["page-suiv", "Page ›", "Page suivante"], ["bloc-suiv", "Suiv. ¶", "Paragraphe suivant"]].forEach(([action, label, aide]) => {
+      const bouton = document.createElement("button");
+      bouton.type = "button"; bouton.textContent = label; bouton.title = aide; bouton.dataset.reader = action;
+      sauts.appendChild(bouton);
+    });
+    const transport = document.createElement("div");
+    transport.className = "reader-transport";
+    [["precedent", "⏮", "Segment précédent"], ["lecture", "▶", "Lire"], ["suivant", "⏭", "Segment suivant"]].forEach(([action, label, aide]) => {
+      const bouton = document.createElement("button");
+      bouton.type = "button"; bouton.textContent = label; bouton.title = aide; bouton.dataset.reader = action;
+      if (action === "lecture") bouton.className = "reader-play";
+      transport.appendChild(bouton);
+    });
+    const etat = document.createElement("div");
+    etat.className = "reader-state";
+    const compte = document.createElement("span"); compte.id = "reader-count";
+    const jauge = document.createElement("i"); jauge.className = "reader-progress";
+    const remplissage = document.createElement("b"); remplissage.id = "reader-progress";
+    jauge.appendChild(remplissage);
+    etat.append(compte, jauge);
+    barre.append(sauts, transport, etat);
+
+    const revenir = document.createElement("button");
+    revenir.type = "button"; revenir.className = "reader-return"; revenir.dataset.reader = "revenir";
+    revenir.textContent = "Revenir à la lecture"; revenir.hidden = true;
+
+    zone.append(entete, corps, barre, revenir);
+    majEtatLecteur();
+
+    corps.addEventListener("scroll", () => {
+      if (performance.now() < lecteur.guard) return;
+      lecteur.suivi = false; revenir.hidden = false;
+    }, { passive: true });
+  }
+
+  function majEtatLecteur() {
+    if (!lecteur.ouvert) return;
+    const compte = $("reader-count");
+    if (compte) compte.textContent = `${lecteur.index + 1} / ${lecteur.segments.length}`;
+    const bouton = document.querySelector('.reader-play');
+    if (bouton) {
+      bouton.textContent = lecteur.enLecture ? "❚❚" : lecteur.enPreparation ? "…" : "▶";
+      bouton.title = lecteur.enLecture ? "Pause" : lecteur.enPreparation ? "La voix prépare la phrase…" : "Lire";
+    }
+    document.querySelectorAll(".reader-seg").forEach((element) => {
+      element.classList.toggle("actif", Number(element.dataset.segment) === lecteur.index);
+    });
+  }
+
+  /** Une seule phrase porte des mots peints : les précédentes reprennent leur texte. */
+  function restaurerPeinture() {
+    document.querySelectorAll(".reader-seg[data-peint]").forEach((element) => {
+      const rang = Number(element.dataset.segment);
+      if (rang === lecteur.index) return;
+      element.textContent = lecteur.segments[rang].texte;
+      delete element.dataset.peint;
+    });
+  }
+
+  function centrerLecteur(element) {
+    if (!lecteur.suivi || !element) return;
+    const corps = $("reader-body");
+    if (!corps) return;
+    const zone = corps.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    if (rect.top < zone.top + zone.height * 0.22 || rect.bottom > zone.bottom - zone.height * 0.22) {
+      lecteur.guard = performance.now() + 700;
+      element.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }
+
+  function majKaraoke() {
+    const audio = lecteur.audio;
+    if (!audio || !lecteur.enLecture) return;
+    const segment = lecteur.segments[lecteur.index];
+    if (!segment) return;
+    const duree = Number.isFinite(audio.duration) ? audio.duration : 0;
+    const jauge = $("reader-progress");
+    if (jauge && duree > 0) jauge.style.width = `${Math.min(100, (audio.currentTime / duree) * 100)}%`;
+    const mots = motsLecture(segment.texte);
+    if (!mots.length || duree <= 0) return;
+    const fin = mots[mots.length - 1].fin;
+    const cible = Math.min(1, audio.currentTime / duree) * fin;
+    let actif = 0;
+    mots.forEach((mot, i) => { if (mot.debut <= cible) actif = i; });
+    const element = document.querySelector(`.reader-seg[data-segment="${lecteur.index}"]`);
+    if (!element) return;
+    restaurerPeinture();
+    element.dataset.peint = "1";
+    peintreMots(element, segment.texte, actif);
+    centrerLecteur(element.querySelector(".mot-actif") || element);
+  }
+
+  function pauseLecteur() {
+    lecteur.enLecture = false;
+    lecteur.enPreparation = false;
+    if (lecteur.audio) { lecteur.audio.pause(); lecteur.audio = null; }
+    restaurerPeinture();
+    majEtatLecteur();
+  }
+
+  function arreterFenetre() {
+    if (lecteur.fenetre) fetch(`/api/lire/${lecteur.fenetre.live}/arreter`, { method: "POST" }).catch(() => {});
+    lecteur.fenetre = null;
+  }
+
+  /** Attend la phrase (index global) dans la fenêtre courante. */
+  async function phrasePrete(index) {
+    if (!lecteur.fenetre) return false;
+    const response = await fetch(`/api/lire/${lecteur.fenetre.live}`);
+    if (!response.ok) return false;
+    const etat = await response.json();
+    if (etat.etat === "erreur") throw new Error(etat.erreur || "synthèse impossible");
+    return (etat.prets || 0) > index - lecteur.fenetre.debut;
+  }
+
+  /** Fenêtre glissante : seules les quelques phrases à venir sont synthétisées,
+   *  la lecture ne bloque jamais le moteur pour tout un chapitre. */
+  async function demarrerLive(depuis) {
+    arreterFenetre();
+    const fin = Math.min(lecteur.segments.length, depuis + FENETRE_LECTURE);
+    const segments = lecteur.segments.slice(depuis, fin).map((segment) => {
+      const reference = lecteur.book.voix_assignees?.[segment.id] || "";
+      const reglages = reglagesVoix(lecteur.book, segment.id);
+      const piper = reference.match(/^piper:([^:]+)(?::(\d+))?$/);
+      return piper
+        ? { texte: segment.texte, piper_voix: piper[1], piper_locuteur: Number(piper[2] || 0), ...reglages }
+        : { texte: segment.texte, reference_id: reference, ...reglages };
+    });
+    const response = await fetch("/api/lire", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ segments, respecter_segments: true }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.detail || "lecture impossible");
+    lecteur.fenetre = { live: payload.lecture, debut: depuis, total: fin - depuis };
+  }
+
+  async function jouer(index) {
+    if (!lecteur.ouvert) return;
+    if (index < 0 || index >= lecteur.segments.length) { lecteur.index = Math.max(0, Math.min(index, lecteur.segments.length - 1)); pauseLecteur(); return; }
+    pauseLecteur();
+    lecteur.index = index;
+    restaurerPeinture();
+    lecteur.enPreparation = true;
+    majEtatLecteur();
+    let url;
+    if (lecteur.mode === "fichiers") {
+      url = `/api/audio/${encodeURIComponent(lecteur.segments[index].fichier)}`;
+    } else {
+      if (!lecteur.fenetre || index < lecteur.fenetre.debut || index >= lecteur.fenetre.debut + lecteur.fenetre.total) {
+        await demarrerLive(index);
+      }
+      for (let essai = 0; essai < 2400; essai += 1) {
+        if (!lecteur.ouvert) return;
+        if (await phrasePrete(index)) break;
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      }
+      url = `/api/lire/${lecteur.fenetre.live}/${index - lecteur.fenetre.debut}`;
+    }
+    const audio = new Audio(url);
+    lecteur.audio = audio;
+    audio.addEventListener("timeupdate", majKaraoke);
+    audio.addEventListener("ended", () => {
+      if (lecteur.audio === audio) { lecteur.audio = null; void jouer(lecteur.index + 1); }
+    });
+    audio.addEventListener("error", () => {
+      if (lecteur.audio === audio) { pauseLecteur(); notify("Lecture impossible pour ce passage.", "error"); }
+    });
+    audio.addEventListener("playing", () => { if (lecteur.audio === audio) { lecteur.enPreparation = false; majEtatLecteur(); } });
+    lecteur.enLecture = true;
+    lecteur.enPreparation = false;
+    majEtatLecteur();
+    try {
+      await audio.play();
+      const element = document.querySelector(`.reader-seg[data-segment="${index}"]`);
+      centrerLecteur(element);
+    } catch {
+      pauseLecteur();
+    }
+  }
+
+  function sauterBloc(direction) {
+    const corps = $("reader-body");
+    if (!corps) return;
+    const blocs = [...corps.querySelectorAll(".reader-block")];
+    const premier = corps.getBoundingClientRect().top;
+    const courant = blocs.findIndex((bloc) => bloc.getBoundingClientRect().bottom > premier + 40);
+    const cible = blocs[Math.max(0, Math.min(blocs.length - 1, (courant < 0 ? 0 : courant) + direction))];
+    if (cible) { lecteur.guard = performance.now() + 700; cible.scrollIntoView({ block: "start", behavior: "smooth" }); }
+  }
+
+  function tournerPageLecteur(direction) {
+    const corps = $("reader-body");
+    if (!corps) return;
+    lecteur.guard = performance.now() + 700;
+    corps.scrollBy({ top: direction * (corps.clientHeight - 80), behavior: "smooth" });
+  }
+
+  function revenirLecture() {
+    lecteur.suivi = true;
+    const revenir = document.querySelector(".reader-return");
+    if (revenir) revenir.hidden = true;
+    const element = document.querySelector(`.reader-seg[data-segment="${lecteur.index}"]`);
+    if (element) { lecteur.guard = performance.now() + 700; element.scrollIntoView({ block: "center", behavior: "smooth" }); }
+  }
+
+  function agentLecteur(action) {
+    switch (action) {
+      case "fermer": fermerLecteur(); break;
+      case "moins": lecteur.taille = Math.max(15, lecteur.taille - 1); localStorage.setItem("pk-voice-reader-size", String(lecteur.taille)); $("lecteur").style.setProperty("--reader-size", `${lecteur.taille}px`); break;
+      case "plus": lecteur.taille = Math.min(28, lecteur.taille + 1); localStorage.setItem("pk-voice-reader-size", String(lecteur.taille)); $("lecteur").style.setProperty("--reader-size", `${lecteur.taille}px`); break;
+      case "focus": lecteur.focus = !lecteur.focus; $("lecteur").classList.toggle("focus", lecteur.focus); break;
+      case "lecture": if (lecteur.enLecture) pauseLecteur(); else void jouer(lecteur.index).catch((error) => notify(`Lecture impossible : ${error.message}`, "error")); break;
+      case "precedent": void jouer(lecteur.index - 1).catch((error) => notify(`Lecture impossible : ${error.message}`, "error")); break;
+      case "suivant": void jouer(lecteur.index + 1).catch((error) => notify(`Lecture impossible : ${error.message}`, "error")); break;
+      case "bloc-prec": sauterBloc(-1); break;
+      case "bloc-suiv": sauterBloc(1); break;
+      case "page-prec": tournerPageLecteur(-1); break;
+      case "page-suiv": tournerPageLecteur(1); break;
+      case "revenir": revenirLecture(); break;
+      default: break;
+    }
+  }
+
+  document.addEventListener("click", (event) => {
+    const zone = $("lecteur");
+    if (!zone || zone.hidden) return;
+    const bouton = event.target instanceof Element ? event.target.closest("[data-reader]") : null;
+    if (bouton) { agentLecteur(bouton.dataset.reader); return; }
+    const segment = event.target instanceof Element ? event.target.closest("[data-segment]") : null;
+    if (segment && zone.contains(segment)) {
+      const rang = Number(segment.dataset.segment);
+      if (lecteur.enLecture && rang === lecteur.index) pauseLecteur();
+      else void jouer(rang).catch((error) => notify(`Lecture impossible : ${error.message}`, "error"));
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    const zone = $("lecteur");
+    if (!zone || zone.hidden) return;
+    if (event.key === "Escape") { fermerLecteur(); return; }
+    if (event.key === " ") { event.preventDefault(); agentLecteur("lecture"); return; }
+    if (event.key === "PageDown") { event.preventDefault(); tournerPageLecteur(1); }
+    if (event.key === "PageUp") { event.preventDefault(); tournerPageLecteur(-1); }
+  });
 
   /* ---------------------- Init ---------------------- */
   function bindEvents() {

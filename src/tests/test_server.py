@@ -553,6 +553,27 @@ class LiveReadContracts(PiperContracts):
             self.assertEqual(self.client.get(f"/api/lire/{lecture['lecture']}").json()['etat'], 'arrete')
             self.assertEqual(self.client.get('/api/lire/inconnue').status_code, 404)
 
+    def test_lecture_respecte_les_segments_du_studio(self):
+        self._simuler_voix()
+
+        def faux_synthese(texte, config):
+            return [types.SimpleNamespace(audio_int16_array=np.zeros(2205, dtype=np.int16),
+                                          sample_rate=22050)]
+
+        faux_piper = types.SimpleNamespace(
+            PiperVoice=types.SimpleNamespace(load=lambda chemin: types.SimpleNamespace(synthesize=faux_synthese)),
+            SynthesisConfig=lambda **kwargs: types.SimpleNamespace(**kwargs))
+        with patch.dict(sys.modules, {'piper': faux_piper}):
+            reponse = self.client.post('/api/lire', json={
+                'respecter_segments': True,
+                'segments': [
+                    {'texte': 'Première phrase. Deuxième phrase du même segment.', 'piper_voix': 'fr_FR-siwis-medium'},
+                    {'texte': 'Troisième phrase.', 'piper_voix': 'fr_FR-siwis-medium'},
+                ]})
+            self.assertEqual(reponse.status_code, 200, reponse.text)
+            self.assertEqual(reponse.json()['total'], 2)      # pas de re-découpage
+            self._attendre(reponse.json()['lecture'], 2)
+
     def test_lecture_valide_la_voix_et_le_texte(self):
         self._simuler_voix()
         self.assertEqual(self.client.post('/api/lire', json={'texte': ''}).status_code, 400)

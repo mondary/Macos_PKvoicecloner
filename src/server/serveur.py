@@ -1515,6 +1515,9 @@ def lancer_lecture(req: dict = Body(...)):
         if len(brut) > 3000:
             raise HTTPException(400, "chapitre trop long pour une lecture")
         defaut = {k: v for k, v in req.items() if k != "segments"}   # voix du formulaire
+        # Le lecteur du studio envoie des segments déjà découpés phrase par
+        # phrase : les respecter garde l'alignement segment ↔ phrase ↔ voix.
+        respecter = bool(req.get("respecter_segments"))
         phrases = []
         for element in brut:
             if not isinstance(element, dict):
@@ -1523,7 +1526,8 @@ def lancer_lecture(req: dict = Body(...)):
             if not morceau:
                 continue
             flux = _lecture_flux(element, defaut)
-            phrases.extend({"texte": p, "flux": flux} for p in _lecture_texte(morceau))
+            textes = [morceau] if respecter else _lecture_texte(morceau)
+            phrases.extend({"texte": p, "flux": flux} for p in textes)
     elif texte:
         if len(texte) > 200_000:
             raise HTTPException(400, "texte trop long pour une lecture")

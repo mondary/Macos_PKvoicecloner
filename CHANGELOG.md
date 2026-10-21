@@ -1,6 +1,13 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.66] - 2026-10-21
+
+### Added
+- **Mode lecteur dans le studio** : l'étape ④ d'un chapitre ouvre « Ouvrir le lecteur » — un chapitre entier en plein écran comme un livre. Texte serif, blocs regroupés par personnage avec le nom du rôle, clic sur une phrase pour l'écouter, transport segment précédent / lecture / suivant, sauts **page** et **paragraphe**, taille du texte (A−/A+), mode focus. Le **karaoké mot à mot** est estimé sur la durée du WAV, et le suivi ne recadre que lorsque le mot sort de la zone de confort.
+- **Lecture à la volée par fenêtre** : quand un segment n'a pas encore son audio, le lecteur demande au serveur une fenêtre de **6 phrases** seulement (voix de chaque rôle, `respecter_segments`) — le moteur n'est jamais mobilisé pour tout un chapitre, et la fenêtre glisse au fur et à mesure.
+- `POST /api/lire` accepte `respecter_segments` : le lecteur envoie des phrases déjà découpées (comme le studio), elles sont synthétisées telles quelles — l'alignement segment ↔ phrase ↔ voix est garanti.
+
 ## [2026.10.65] - 2026-10-21
 
 ### Changed

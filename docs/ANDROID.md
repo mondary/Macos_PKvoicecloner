@@ -58,7 +58,9 @@ Deux limites claires : l’attribution locale n’utilise que des voix du télé
 - **Changer de voix sans quitter le lecteur** : la pastille de voix ouvre une feuille listant clones, voix Piper installées et voix du téléphone, appliquées aussitôt.
 - **Personnages & voix** : icône de l’en-tête → une voix, un pitch et une vitesse par personnage, avec attribution des passages — le studio, dans le téléphone.
 - Minuteur : arrêt après 5, 15, 30, 45 ou 60 minutes.
-- Thèmes clair, papier et nuit ; taille de texte ajustable.
+- Thèmes clair, papier et nuit ; taille de texte, **interligne** (serré/normal/aéré), **marges** et **zone de suivi** ajustables dans Apparence.
+- **Mode focus** : un chevron réduit le lecteur à une ligne (voix, vitesse, lecture) — la page respire pendant l'écoute.
+- La mise en forme du livre est conservée : les **italiques** et les **citations** de l'EPUB restent visibles.
 - Notifications et écran verrouillé : commandes du service audio Android.
 
 La reprise se fait au début de la phrase interrompue. Le PDF est présenté sous forme de texte extrait, page par page ; la mise en page originale et l’OCR ne sont pas reproduits. Les EPUB à DRM, les comics et la traduction ne sont pas pris en charge. Le guide fourni est un court texte original de démonstration.

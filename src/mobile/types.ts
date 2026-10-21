@@ -8,6 +8,8 @@ export interface Book {
   bookmarks: number[]; sample?: boolean; casting?: Casting;
   /** Paragraphe d'origine de chaque phrase (id stable dans le livre). */
   paragraphs?: number[];
+  /** Style de chaque phrase : '' | 'i' (italique) | 'q' (citation) | 'iq'. */
+  styles?: string[];
 }
 export interface Voice {
   id: string; name: string; language: string; kind: 'system' | 'neural' | 'clone';
@@ -20,6 +22,14 @@ export interface Settings {
   voiceLangues?: boolean;
   /** Vitesse mémorisée par voix : chaque timbre garde la sienne. */
   voiceRates?: Record<string, number>;
+  /** Interligne de lecture (1.6 à 2.1). */
+  interligne?: number;
+  /** Marges latérales de la page de lecture, en pixels. */
+  marges?: number;
+  /** Demi-hauteur de la bande de confort du suivi (0,18 serré → 0,35 large). */
+  bande?: number;
+  /** Lecteur réduit à l'essentiel pendant la lecture. */
+  focus?: boolean;
 }
 export interface Playback {
   bookId: string; index: number; playing: boolean; loading: boolean;
@@ -28,4 +38,4 @@ export interface Playback {
   /** Suivi de lecture : position et durée du passage (WAV), ou plage du mot lu (TTS). */
   position?: number; duree?: number; mot?: { debut: number; fin: number } | null;
 }
-export const defaults: Settings = { voice: 'system:default', rate: 1, theme: 'light', fontSize: 22, layout: 'pages', server: '', token: '', voiceLangues: false, voiceRates: {} };
+export const defaults: Settings = { voice: 'system:default', rate: 1, theme: 'light', fontSize: 22, layout: 'pages', server: '', token: '', voiceLangues: false, voiceRates: {}, interligne: 1.95, marges: 0, bande: 0.28 };

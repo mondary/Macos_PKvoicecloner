@@ -1,6 +1,12 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.65] - 2026-10-21
+
+### Changed
+- **Erreurs d'IA lisibles** : une limite d'usage (429, quota, rate limit) devient « Le fournisseur IA a atteint sa limite d'usage — attends le renouvellement du quota ou choisis un autre provider dans Réglages IA » et une clé refusée son propre message, à la place du JSON brut — dans l'analyse des livres comme dans `/api/attribuer` (429 explicite). `ia.message_lisible` centralise la traduction.
+- Côté Android (2026.10.57) : mode focus du lecteur, interligne, marges et zone de suivi réglables, italiques et citations de l'EPUB conservées, paragraphes reconstitués pour les anciens livres.
+
 ## [2026.10.64] - 2026-10-21
 
 ### Changed

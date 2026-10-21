@@ -1691,7 +1691,7 @@ def attribuer_voix_telephone(req: dict = Body(...)):
     try:
         return livres.attribuer_telephone(cfg, titre, nettes)
     except ia.IaErreur as erreur:
-        raise HTTPException(400, str(erreur))
+        raise HTTPException(429 if ia.est_quota(erreur) else 400, ia.message_lisible(erreur))
 
 
 # --------------------------------------------------------------- livres/audiobooks

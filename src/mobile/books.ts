@@ -1,32 +1,90 @@
 import { unzipSync, strFromU8 } from 'fflate';
 import type { Book, Chapter } from './types';
 
-/** Phrases d'un texte, avec le paragraphe d'origine de chacune (index local). */
-export function paragraphsOf(text: string): { phrases: string[]; paragraphes: number[] } {
+/* Marqueurs internes de mise en forme (jamais affichés) : l'import les pose
+   autour des passages italiques et des citations pour que la page de lecture
+   garde un peu du livre d'origine. */
+const ITALIQUE_DEBUT = '\uE000', ITALIQUE_FIN = '\uE001';
+const CITATION_DEBUT = '\uE002', CITATION_FIN = '\uE003';
+
+interface Decoupage { phrases: string[]; paragraphes: number[]; styles: string[] }
+
+/** Texte brut + marques de style caractère par caractère. */
+function extraire(texte: string): { plain: string; italique: boolean[]; citation: boolean[] } {
+  let plain = '';
+  const italique: boolean[] = [];
+  const citation: boolean[] = [];
+  let ital = 0, cit = 0;
+  for (const ch of texte) {
+    if (ch === ITALIQUE_DEBUT) { ital++; continue; }
+    if (ch === ITALIQUE_FIN) { ital = Math.max(0, ital - 1); continue; }
+    if (ch === CITATION_DEBUT) { cit++; continue; }
+    if (ch === CITATION_FIN) { cit = Math.max(0, cit - 1); continue; }
+    plain += ch; italique.push(ital > 0); citation.push(cit > 0);
+  }
+  return { plain, italique, citation };
+}
+
+/** Phrases d'un texte, paragraphe d'origine et style (italique, citation).
+ *  `i` = italique, `q` = citation — appliqués à la phrase entière au rendu. */
+export function paragraphsOf(text: string): Decoupage {
   const cleaned = text.replace(/\r/g, '').replace(/[\t\u00a0]/g, ' ').trim();
   const phrases: string[] = [];
   const paragraphes: number[] = [];
+  const styles: string[] = [];
   const segmenter = new Intl.Segmenter('fr', { granularity: 'sentence' });
   let paragraphe = 0;
   for (const block of cleaned.split(/\n\s*\n/)) {
+    const { plain, italique, citation } = extraire(block.replace(/\s+/g, ' ').trim());
+    if (!plain.trim()) continue;
     let compte = 0;
-    for (const { segment } of segmenter.segment(block.replace(/\s+/g, ' ').trim())) {
+    for (const { segment, index } of segmenter.segment(plain)) {
+      const debut = index + (segment.length - segment.trimStart().length);
+      const fin = index + segment.trimEnd().length;
+      if (fin <= debut) continue;
+      let italiques = 0, citations = 0;
+      for (let i = debut; i < fin; i++) { if (italique[i]) italiques++; if (citation[i]) citations++; }
+      let style = '';
+      if (italiques > (fin - debut) * 0.55) style += 'i';
+      if (citations > (fin - debut) * 0.5) style += 'q';
       let rest = segment.trim();
       while (rest.length > 400) {
         const at = rest.lastIndexOf(' ', 400);
         const split = at > 150 ? at : 400;
-        phrases.push(rest.slice(0, split)); paragraphes.push(paragraphe); compte++;
+        phrases.push(rest.slice(0, split)); paragraphes.push(paragraphe); styles.push(style); compte++;
         rest = rest.slice(split).trim();
       }
-      if (rest) { phrases.push(rest); paragraphes.push(paragraphe); compte++; }
+      if (rest) { phrases.push(rest); paragraphes.push(paragraphe); styles.push(style); compte++; }
     }
     if (compte) paragraphe++;
   }
-  return { phrases, paragraphes };
+  return { phrases, paragraphes, styles };
 }
 
 export function sentences(text: string): string[] {
   return paragraphsOf(text).phrases;
+}
+
+/** Reconstruit des paragraphes plausibles pour un livre importé avant leur suivi.
+ *  Chaque réplique (tiret cadratin, guillemet) forme son bloc ; le récit est
+ *  regroupé par quatre phrases au plus. Aucun texte n'est modifié. */
+export function reparerParagraphes(book: Book): number {
+  const paragraphs: number[] = [];
+  let id = 0, recit = 0;
+  book.chapters.forEach(chapitre => { if (chapitre.start < book.segments.length) { /* bornes utiles */ } });
+  const debuts = new Set(book.chapters.map(c => c.start));
+  for (let i = 0; i < book.segments.length; i++) {
+    const texte = (book.segments[i] ?? '').trim();
+    const replique = /^[—–«"“]/.test(texte);
+    let nouveau = i === 0 || debuts.has(i);
+    if (replique) nouveau = nouveau || i > 0;
+    else nouveau = nouveau || recit >= 4;
+    if (nouveau) { id++; recit = 0; }
+    paragraphs.push(id);
+    if (!replique) recit++;
+  }
+  book.paragraphs = paragraphs;
+  return id;
 }
 function xml(text: string): Document {
   const doc = new DOMParser().parseFromString(text, 'application/xml');
@@ -39,8 +97,31 @@ function textFromHTML(source: string): { title: string; text: string } {
   const doc = new DOMParser().parseFromString(source, 'text/html');
   doc.querySelectorAll('script,style,nav,svg,form,iframe').forEach(e => e.remove());
   const title = doc.querySelector('h1,h2,title')?.textContent?.trim() ?? '';
-  doc.querySelectorAll('p,div,h1,h2,h3,li,br,blockquote').forEach(e => e.append('\n\n'));
-  return { title, text: doc.body.textContent ?? '' };
+  // Les italiques et les citations gardent une marque, retirée au découpage ;
+  // le texte lui-même n'est jamais interprété comme du HTML par le lecteur.
+  const blocs = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'LI', 'BR', 'BLOCKQUOTE']);
+  let sortie = '';
+  const visiter = (noeud: Node, italique: boolean, citation: boolean) => {
+    if (noeud.nodeType === Node.TEXT_NODE) {
+      const texte = (noeud.textContent ?? '').replace(/\s+/g, ' ');
+      if (!texte.trim()) return;
+      if (italique) sortie += ITALIQUE_DEBUT;
+      if (citation) sortie += CITATION_DEBUT;
+      sortie += texte;
+      if (citation) sortie += CITATION_FIN;
+      if (italique) sortie += ITALIQUE_FIN;
+      return;
+    }
+    if (noeud.nodeType !== Node.ELEMENT_NODE) return;
+    const el = noeud as HTMLElement;
+    if (blocs.has(el.tagName)) sortie += '\n\n';
+    const ital = italique || el.tagName === 'EM' || el.tagName === 'I';
+    const cit = citation || el.tagName === 'BLOCKQUOTE';
+    el.childNodes.forEach(enfant => visiter(enfant, ital, cit));
+    if (blocs.has(el.tagName)) sortie += '\n\n';
+  };
+  visiter(doc.body, false, false);
+  return { title, text: sortie };
 }
 function resolvePath(base: string, href: string): string {
   const url = new URL(href, `https://epub.local/${base}`);
@@ -52,12 +133,13 @@ export async function importBook(file: File): Promise<Book> {
   const hash = await crypto.subtle.digest('SHA-256', bytes);
   const id = Array.from(new Uint8Array(hash).slice(0, 12), v => v.toString(16).padStart(2, '0')).join('');
   const format = file.name.split('.').pop()?.toLowerCase() ?? '';
-  const book: Book = { id, title: file.name.replace(/\.[^.]+$/, ''), author: 'Auteur non renseigné', format: format.toUpperCase(), language: 'fr', color: parseInt(id.slice(0, 2), 16) % 5, segments: [], chapters: [], position: 0, completed: false, added: Date.now(), opened: 0, bookmarks: [], paragraphs: [] };
+  const book: Book = { id, title: file.name.replace(/\.[^.]+$/, ''), author: 'Auteur non renseigné', format: format.toUpperCase(), language: 'fr', color: parseInt(id.slice(0, 2), 16) % 5, segments: [], chapters: [], position: 0, completed: false, added: Date.now(), opened: 0, bookmarks: [], paragraphs: [], styles: [] };
   let paragrapheSuivant = 0;
   function addChapter(title: string, text: string) {
     const start = book.segments.length;
-    const { phrases, paragraphes } = paragraphsOf(text);
+    const { phrases, paragraphes, styles } = paragraphsOf(text);
     book.segments.push(...phrases);
+    book.styles!.push(...styles);
     // ids de paragraphe uniques dans le livre, chapitre après chapitre
     book.paragraphs!.push(...paragraphes.map(p => p + paragrapheSuivant));
     paragrapheSuivant += (paragraphes.length ? Math.max(...paragraphes) + 1 : 0);
@@ -129,15 +211,16 @@ export function welcomeBook(): Book {
     { title: 'Une voix qui vous ressemble', text: "La voix de votre téléphone est prête à lire. Dans l’onglet Voix, vous pouvez aussi télécharger une voix française légère. Une fois installée, elle fonctionne sans connexion et sans abonnement.\n\nVous avez créé une voix dans PK Voice Studio ? Reliez votre Mac dans les réglages. Les passages générés sont conservés sur votre téléphone. Préparez un chapitre avant de partir, puis écoutez-le même sans réseau.\n\nLe minuteur permet de s’endormir avec quelques pages. Les signets gardent les passages que vous souhaitez retrouver. Et la prochaine fois, votre livre vous attend exactement là où vous l’avez laissé." },
     { title: 'Votre prochain livre vous attend', text: "Revenez à votre bibliothèque et touchez le bouton plus. Choisissez un EPUB, un PDF contenant du texte ou un simple fichier texte. Le livre est importé sur votre appareil.\n\nPour lire confortablement, ajustez la taille du texte et choisissez le thème clair, papier ou nuit. Pour écouter plus vite, passez progressivement à une fois et demie, puis deux fois la vitesse normale.\n\nCe court guide est un texte original de démonstration. Il ne vous reste plus qu’à ouvrir un livre qui vous plaît. Bonne lecture." },
   ];
-  const segments: string[] = []; const chapterList: Chapter[] = []; const paragraphs: number[] = [];
+  const segments: string[] = []; const chapterList: Chapter[] = []; const paragraphs: number[] = []; const styles: string[] = [];
   let paragrapheSuivant = 0;
   for (const c of chapters) {
     const start = segments.length;
-    const { phrases, paragraphes } = paragraphsOf(c.text);
+    const { phrases, paragraphes, styles: bloc } = paragraphsOf(c.text);
     segments.push(...phrases);
+    styles.push(...bloc);
     paragraphs.push(...paragraphes.map(p => p + paragrapheSuivant));
     paragrapheSuivant += (paragraphes.length ? Math.max(...paragraphes) + 1 : 0);
     chapterList.push({ title: c.title, start, end: segments.length });
   }
-  return { id:'welcome', title:'Un livre.\nUne voix.\nEt vous.', author:'Bienvenue dans PK Reader', format:'GUIDE', language:'fr', color:0, segments, chapters:chapterList, position:0, completed:false, added:Date.now(), opened:0, bookmarks:[], paragraphs, sample:true };
+  return { id:'welcome', title:'Un livre.\nUne voix.\nEt vous.', author:'Bienvenue dans PK Reader', format:'GUIDE', language:'fr', color:0, segments, chapters:chapterList, position:0, completed:false, added:Date.now(), opened:0, bookmarks:[], paragraphs, styles, sample:true };
 }

@@ -1,5 +1,14 @@
 # PK Reader Android
 
+## [2026.10.57] - 2026-10-21
+
+### Added
+- **Mode focus** : un chevron réduit le lecteur audio à une seule ligne (voix, vitesse, minuteur, lecture) pendant qu'on lit — la page gagne tout l'écran, sans quitter l'écoute.
+- **Confort de lecture réglable** : interligne (serré / normal / aéré), marges (normales / confort / larges) et **zone de suivi** (serrée / normale / large) dans Apparence.
+- **Mise en forme du livre conservée** : les italiques et les citations de l'EPUB restent visibles à la lecture (marques posées à l'import, texte toujours échappé).
+- **Réparer les paragraphes d'un ancien livre** : menu du livre → « Reconstituer les paragraphes » (fait aussi automatiquement à l'ouverture) — chaque réplique forme son bloc, le récit est regroupé par quatre phrases. La navigation ¶ redevient utile sur les livres importés avant 2026.10.56.
+- **Quota IA lisible** : quand le fournisseur du studio atteint sa limite (429/quota), le téléphone affiche « Le fournisseur IA a atteint sa limite d'usage — attends le renouvellement ou choisis un autre provider dans Réglages IA » au lieu du JSON brut.
+
 ## [2026.10.56] - 2026-10-21
 
 ### Added

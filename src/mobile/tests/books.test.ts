@@ -49,3 +49,30 @@ describe('paragraphes d’origine', () => {
     expect(phrases.length).toBeGreaterThan(2);
   });
 });
+
+import { reparerParagraphes } from '../books';
+import type { Book } from '../types';
+
+describe('mise en forme et paragraphes reconstitués', () => {
+  it('marque les phrases italiques et les citations', () => {
+    const { phrases, styles } = paragraphsOf('\uE000Une pensée intime.\uE001 Un récit normal.\n\n\uE002Une citation.\uE003');
+    expect(phrases).toEqual(['Une pensée intime.', 'Un récit normal.', 'Une citation.']);
+    expect(styles).toEqual(['i', '', 'q']);
+  });
+
+  it('reconstitue des blocs plausibles pour un ancien livre', () => {
+    const book = {
+      id: 'vieux', title: 'Vieux', author: '', format: 'EPUB', language: 'fr', color: 0,
+      segments: ['Récit un.', 'Récit deux.', 'Récit trois.', 'Récit quatre.', 'Récit cinq.',
+        '— Bonjour.', '— Bonjour à toi.', 'Il repartit.'],
+      chapters: [{ title: 'Un', start: 0, end: 8 }],
+      position: 0, completed: false, added: 0, opened: 0, bookmarks: [],
+    } as Book;
+    const nombre = reparerParagraphes(book);
+    expect(nombre).toBeGreaterThan(1);
+    expect(book.paragraphs).toHaveLength(8);
+    expect(book.paragraphs![0]).toBe(book.paragraphs![3]);       // récit groupé
+    expect(book.paragraphs![4]).not.toBe(book.paragraphs![3]);   // 5e phrase : nouveau bloc
+    expect(book.paragraphs![5]).not.toBe(book.paragraphs![6]);   // chaque réplique son bloc
+  });
+});

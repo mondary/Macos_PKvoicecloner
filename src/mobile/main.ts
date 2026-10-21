@@ -10,7 +10,7 @@ import './reader.css';
 import { App } from '@capacitor/app';
 import { SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { library, readSettings, saveSettings } from './storage';
-import { importBook, welcomeBook, chapterAt, minutesLeft } from './books';
+import { importBook, welcomeBook, chapterAt, minutesLeft, reparerParagraphes } from './books';
 import { audio, native, Reader, modelCatalog } from './engine';
 import type { Book, Voice } from './types';
 import { openCasting } from './casting-ui';
@@ -83,6 +83,8 @@ function savePrefs() {
   saveSettings(settings);
   document.documentElement.dataset.theme = settings.theme;
   document.documentElement.style.setProperty('--reader-size', `${settings.fontSize}px`);
+  document.documentElement.style.setProperty('--reader-leading', String(settings.interligne ?? 1.95));
+  document.documentElement.style.setProperty('--reader-margins', `${settings.marges ?? 0}px`);
   if (native && systemTheme !== settings.theme) {
     systemTheme = settings.theme;
     void SystemBars.setStyle({ style: settings.theme === 'dark' ? SystemBarsStyle.Dark : SystemBarsStyle.Light }).catch(() => {});
@@ -244,7 +246,10 @@ function readerSubhead() {
 }
 function sentenceButton(text: string, index: number, book: Book, debut = 0) {
   const isCurrent = index === book.position;
-  return `<button class="sentence ${isCurrent?'current-sentence':''} ${book.bookmarks.includes(index)?'marked':''}" data-action="sentence" data-index="${index}" data-debut="${debut}" ${isCurrent?'aria-current="true"':''}>${esc(text)}</button>`;
+  const style = book.styles?.[index] ?? '';
+  const classes = ['sentence', isCurrent ? 'current-sentence' : '', book.bookmarks.includes(index) ? 'marked' : '',
+    style.includes('i') ? 'sentence-italique' : '', style.includes('q') ? 'sentence-citation' : ''].filter(Boolean).join(' ');
+  return `<button class="${classes}" data-action="sentence" data-index="${index}" data-debut="${debut}" ${isCurrent?'aria-current="true"':''}>${esc(text)}</button>`;
 }
 function readingScroll() {
   const book = current()!; const chapter = chapterAt(book);
@@ -257,8 +262,9 @@ function playerHTML() {
   const book = current()!; const chapter = chapterAt(book);
   const isPlaying = audio.state.bookId === book.id && audio.state.playing;
   const speaker = characterAt(book, book.position)?.name || '';
+  const focus = Boolean(settings.focus);
   const status = audio.state.error || (audio.state.preparing?`Préparation ${audio.state.prepared ?? 0} / ${audio.state.total ?? 0} passages`:audio.state.loading?`${speaker?`${speaker} · `:''}La voix prépare le prochain passage…`:isPlaying?`${speaker?`${esc(speaker)} · `:''}${esc(chapter.title)} — laissez l’histoire vous emporter.`:'Touchez une phrase pour choisir le départ.');
-  return `<section class="player" aria-label="Lecteur audio"><div class="player-top"><button class="voice-chip" data-action="choose-voice">${icon('audio-lines')}<span>${esc(characterAt(book, book.position)?.name || voiceName())}</span>${icon('chevron-down')}</button><button class="speed-chip" data-action="speed" aria-label="Vitesse de ${esc(voiceName())}">${settings.rate.toLocaleString('fr')}<span>×</span></button><button class="sleep-chip ${audio.state.sleepAt?'on':''}" data-action="sleep">${icon('moon')}${audio.state.sleepAt?`${Math.max(1,Math.ceil((audio.state.sleepAt-Date.now())/60000))} min`:'Minuteur'}</button></div><label class="sr-only" for="progress">Position dans le livre</label><input class="progress-slider" id="progress" type="range" min="0" max="${book.segments.length-1}" value="${Math.min(book.position,book.segments.length-1)}" style="--progress:${progress(book)}" /><div class="time-row"><span>${percent(book)} % du livre</span><span>${book.completed?'Lecture terminée':`${minutes(book)} restantes`}</span></div><div class="reader-jumps" role="group" aria-label="Navigation page et paragraphe"><button class="jump" data-action="paragraph-prev" aria-label="Paragraphe précédent">${icon('pilcrow')}<span>Préc.</span></button><button class="jump" data-action="page-prev" aria-label="Page précédente">${icon('chevron-left')}<span>Page</span></button><button class="jump" data-action="page-next" aria-label="Page suivante"><span>Page</span>${icon('chevron-right')}</button><button class="jump" data-action="paragraph-next" aria-label="Paragraphe suivant"><span>Suiv.</span>${icon('pilcrow')}</button></div><div class="transport">${iconButton('skip-back','Phrase précédente','previous')}<button class="play-button ${audio.state.loading?'loading':''}" data-action="toggle" aria-label="${isPlaying?'Mettre en pause':'Lire à voix haute'}">${icon(audio.state.loading?'loader-circle':isPlaying?'pause':'play')}</button>${iconButton('skip-forward','Phrase suivante','next')}${iconButton('download','Préparer ce chapitre hors ligne','prepare')}</div><p class="player-status" aria-live="polite">${esc(status)}</p></section>`;
+  return `<section class="player ${focus ? 'reduit' : ''}" aria-label="Lecteur audio"><div class="player-top"><button class="voice-chip" data-action="choose-voice">${icon('audio-lines')}<span>${esc(characterAt(book, book.position)?.name || voiceName())}</span>${icon('chevron-down')}</button><button class="speed-chip" data-action="speed" aria-label="Vitesse de ${esc(voiceName())}">${settings.rate.toLocaleString('fr')}<span>×</span></button><button class="sleep-chip ${audio.state.sleepAt?'on':''}" data-action="sleep">${icon('moon')}${audio.state.sleepAt?`${Math.max(1,Math.ceil((audio.state.sleepAt-Date.now())/60000))} min`:'Minuteur'}</button><button class="icon-button focus-button" data-action="focus" aria-label="${focus?'Afficher les commandes':'Réduire le lecteur'}">${icon(focus?'chevrons-up':'chevrons-down')}</button></div><label class="sr-only" for="progress">Position dans le livre</label><input class="progress-slider" id="progress" type="range" min="0" max="${book.segments.length-1}" value="${Math.min(book.position,book.segments.length-1)}" style="--progress:${progress(book)}" /><div class="time-row"><span>${percent(book)} % du livre</span><span>${book.completed?'Lecture terminée':`${minutes(book)} restantes`}</span></div><div class="reader-jumps" role="group" aria-label="Navigation page et paragraphe"><button class="jump" data-action="paragraph-prev" aria-label="Paragraphe précédent">${icon('pilcrow')}<span>Préc.</span></button><button class="jump" data-action="page-prev" aria-label="Page précédente">${icon('chevron-left')}<span>Page</span></button><button class="jump" data-action="page-next" aria-label="Page suivante"><span>Page</span>${icon('chevron-right')}</button><button class="jump" data-action="paragraph-next" aria-label="Paragraphe suivant"><span>Suiv.</span>${icon('pilcrow')}</button></div><div class="transport">${iconButton('skip-back','Phrase précédente','previous')}<button class="play-button ${audio.state.loading?'loading':''}" data-action="toggle" aria-label="${isPlaying?'Mettre en pause':'Lire à voix haute'}">${icon(audio.state.loading?'loader-circle':isPlaying?'pause':'play')}</button>${iconButton('skip-forward','Phrase suivante','next')}${iconButton('download','Préparer ce chapitre hors ligne','prepare')}</div><p class="player-status" aria-live="polite">${esc(status)}</p></section>`;
 }
 function nowBar() {
   return `<aside class="now-bar" id="now-bar" hidden data-action="follow" role="button" tabindex="0" aria-label="Revenir à la phrase en cours"><span class="now-wave" aria-hidden="true"><b></b><b></b><b></b></span><div class="now-copy"><small>EN COURS · <span id="now-chapter"></span></small><p id="now-text"></p></div><span class="now-return">${icon('locate-fixed')}<i>Revenir</i></span></aside>`;
@@ -345,8 +351,9 @@ const behaviorDoux = (): ScrollBehavior => matchMedia('(prefers-reduced-motion: 
 /** Le suivi ne bouge que si l'élément sort de la bande de confort : la page reste calme. */
 function centrerSiBesoin(element: HTMLElement | null) {
   if (!element) return;
+  const bande = Math.min(0.4, Math.max(0.18, settings.bande ?? 0.28));
   const rect = element.getBoundingClientRect();
-  if (rect.top < innerHeight * 0.28 || rect.bottom > innerHeight * 0.72) {
+  if (rect.top < innerHeight * bande || rect.bottom > innerHeight * (1 - bande)) {
     element.scrollIntoView({ block: 'center', behavior: behaviorDoux() });
   }
 }
@@ -471,6 +478,11 @@ function modal(title: string, body: string) {
   if (!sheet.open) sheet.showModal(); decorate();
 }
 async function openBook(id: string, listen = false) {
+  const ancien = books.find(b => b.id === id);
+  if (ancien && (!ancien.paragraphs || ancien.paragraphs.length !== ancien.segments.length)) {
+    reparerParagraphes(ancien);            // livres importés avant le suivi des paragraphes
+    await library.save(ancien);
+  }
   sheet.close();
   const book = books.find(b => b.id === id); if (!book) return;
   currentId = id; book.opened = Date.now();
@@ -583,9 +595,17 @@ async function handle(action: string, el: HTMLElement) {
       break;
     }
     case 'voice-langues': settings.voiceLangues = !settings.voiceLangues; savePrefs(); render(); break;
+    case 'focus': settings.focus = !settings.focus; savePrefs(); replacePlayer(); break;
+    case 'interligne': settings.interligne = Number(id); savePrefs(); sheet.close(); render(); break;
+    case 'marges': settings.marges = Number(id); savePrefs(); sheet.close(); render(); break;
+    case 'bande': settings.bande = Number(id); savePrefs(); sheet.close(); render(); break;
     case 'sleep': modal('Encore quelques pages',`<p class="sheet-description">La lecture s’arrêtera automatiquement. Votre place sera conservée.</p><div class="choice-grid">${[0,5,15,30,45,60].map(n=>`<button class="choice" data-action="set-sleep" data-id="${n}">${n?`${n} min`:'Désactivé'}</button>`).join('')}</div>`); break;
     case 'set-sleep': await audio.sleep(Number(id)); sheet.close(); render(); toast(id==='0'?'Minuteur désactivé.':`Arrêt de la lecture dans ${id} minutes.`); break;
-    case 'appearance': modal('Le confort des mots',`<p class="sheet-description">Une taille de texte adaptée à vos yeux.</p><div class="choice-grid">${[18,20,22,25,28,32].map(n=>`<button class="choice ${settings.fontSize===n?'active':''}" data-action="font" data-id="${n}" style="font-size:${n}px">Aa</button>`).join('')}</div><div class="choice-grid themes">${[['light','Clair'],['paper','Papier'],['dark','Nuit']].map(([id,label])=>`<button class="choice ${settings.theme===id?'active':''}" data-action="theme" data-id="${id}">${label}</button>`).join('')}</div><div class="choice-grid pair">${[['pages','Pages à tourner'],['scroll','Défilement continu']].map(([id,label])=>`<button class="choice ${settings.layout===id?'active':''}" data-action="layout" data-id="${id}">${label}</button>`).join('')}</div>`); break;
+    case 'appearance': modal('Le confort des mots',`<p class="sheet-description">Une taille de texte adaptée à vos yeux.</p><div class="choice-grid">${[18,20,22,25,28,32].map(n=>`<button class="choice ${settings.fontSize===n?'active':''}" data-action="font" data-id="${n}" style="font-size:${n}px">Aa</button>`).join('')}</div>
+      <h3 class="sheet-group">Interligne</h3><div class="choice-grid">${[[1.6,'Serré'],[1.95,'Normal'],[2.1,'Aéré']].map(([n,label])=>`<button class="choice ${Math.abs((settings.interligne??1.95)-Number(n))<0.01?'active':''}" data-action="interligne" data-id="${n}">${label}</button>`).join('')}</div>
+      <h3 class="sheet-group">Marges</h3><div class="choice-grid">${[[0,'Normales'],[16,'Confort'],[32,'Larges']].map(([n,label])=>`<button class="choice ${Number(settings.marges??0)===Number(n)?'active':''}" data-action="marges" data-id="${n}">${label}</button>`).join('')}</div>
+      <div class="choice-grid themes">${[['light','Clair'],['paper','Papier'],['dark','Nuit']].map(([id,label])=>`<button class="choice ${settings.theme===id?'active':''}" data-action="theme" data-id="${id}">${label}</button>`).join('')}</div><div class="choice-grid pair">${[['pages','Pages à tourner'],['scroll','Défilement continu']].map(([id,label])=>`<button class="choice ${settings.layout===id?'active':''}" data-action="layout" data-id="${id}">${label}</button>`).join('')}</div>
+      <h3 class="sheet-group">Suivi de lecture</h3><p class="sheet-description">La page se recadre quand la phrase sort de cette zone, jamais à chaque mot.</p><div class="choice-grid">${[[0.18,'Serré'],[0.28,'Normal'],[0.35,'Large']].map(([n,label])=>`<button class="choice ${Math.abs((settings.bande??0.28)-Number(n))<0.01?'active':''}" data-action="bande" data-id="${n}">${label}</button>`).join('')}</div>`); break;
     case 'font': settings.fontSize = Number(id); sheet.close(); pagesKey = ''; render(); break;
     case 'theme': settings.theme = id as typeof settings.theme; sheet.close(); render(); break;
     case 'layout': settings.layout = (id || (settings.layout === 'pages' ? 'scroll' : 'pages')) as 'pages' | 'scroll'; pagesKey = ''; sheet.close(); render(); toast(settings.layout === 'pages' ? 'Lecture page à page.' : 'Lecture en défilement continu.'); break;
@@ -608,7 +628,17 @@ async function handle(action: string, el: HTMLElement) {
     case 'voice-settings': if (native) await Reader.voiceSettings(); else toast('Les réglages des voix Android sont accessibles dans l’APK.'); break;
     case 'prepare': if (native && book) { if (book.segments.slice(chapterAt(book).start, chapterAt(book).end).some((_, offset) => speechProfile(book, settings, chapterAt(book).start + offset).voice.startsWith('system:'))) { toast('Pour préparer ce chapitre, choisissez une voix Piper pour chaque rôle utilisé.'); break; } modal('Emporter ce chapitre',`<p class="sheet-description">Les passages de « ${esc(chapterAt(book).title)} » seront générés et conservés sur le téléphone. Avec une voix clonée, votre Mac doit rester connecté pendant la préparation.</p><button class="primary" data-action="prepare-confirm">${icon('download')} Préparer le chapitre</button>`); } else toast('La préparation hors ligne est disponible dans l’APK Android.'); break;
     case 'prepare-confirm': if (book) { await Reader.command({ action:'prepare', index:chapterAt(book).start, end:chapterAt(book).end }); sheet.close(); toast('Préparation du chapitre démarrée.'); } break;
-    case 'book-menu': { const b = books.find(b => b.id === id); if (b) modal(esc(b.title.replace(/\n/g,' ')),`<button class="setting-row" data-action="open" data-id="${id}"><span>${icon('book-open')} Ouvrir le livre</span></button><button class="setting-row" data-action="clear-audio" data-id="${id}"><span>${icon('hard-drive')} Effacer les audios préparés</span></button><button class="setting-row danger" data-action="delete-confirm" data-id="${id}"><span>${icon('trash-2')} Retirer de la bibliothèque</span></button>`); break; }
+    case 'book-menu': { const b = books.find(b => b.id === id); if (b) modal(esc(b.title.replace(/\n/g,' ')),`<button class="setting-row" data-action="open" data-id="${id}"><span>${icon('book-open')} Ouvrir le livre</span></button><button class="setting-row" data-action="reparagrapher" data-id="${id}"><span>${icon('pilcrow')} Reconstituer les paragraphes</span></button><button class="setting-row" data-action="clear-audio" data-id="${id}"><span>${icon('hard-drive')} Effacer les audios préparés</span></button><button class="setting-row danger" data-action="delete-confirm" data-id="${id}"><span>${icon('trash-2')} Retirer de la bibliothèque</span></button>`); break; }
+    case 'reparagrapher': {
+      const b = books.find(b => b.id === id);
+      if (b) {
+        const nombre = reparerParagraphes(b); await library.save(b);
+        if (screen === 'reader') render();
+        toast(`${nombre} paragraphes reconstitués.`);
+      }
+      sheet.close();
+      break;
+    }
     case 'clear-audio': if (native) { await audio.pause(); await Reader.clearAudio({ bookId: id }); toast('Audios de ce livre effacés.'); } else toast('Aucun audio conservé dans cet aperçu web.'); sheet.close(); break;
     case 'delete-confirm': modal('Retirer ce livre ?',`<p class="sheet-description">Le livre, sa position et ses signets seront retirés de cette bibliothèque. Le fichier d’origine restera intact.</p><button class="primary danger-button" data-action="delete" data-id="${id}">Retirer le livre</button>`); break;
     case 'delete': if (audio.state.bookId === id) await audio.pause(); await library.remove(id); books = books.filter(b => b.id !== id); sheet.close(); render(); toast('Livre retiré de la bibliothèque.'); break;

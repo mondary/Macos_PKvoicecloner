@@ -25,10 +25,14 @@
 .page-title h1 { font-family: 'Literata', serif; font-weight: 400; letter-spacing: -1.1px; font-size: 36px; line-height: 1.35; margin: 14px 0 34px; text-wrap: balance; }
 .page-title .eyebrow { font-size: 9px; letter-spacing: 2px; }
 .page-title { flex: none; }
-.reader-text { font-family: 'Literata', serif; font-size: var(--reader-size); line-height: 1.95; letter-spacing: -0.15px; }
+.reader-text { font-family: 'Literata', serif; font-size: var(--reader-size); line-height: var(--reader-leading, 1.95); letter-spacing: -0.15px; padding-inline: var(--reader-margins, 0px); }
 .sentence { display: block; width: 100%; text-align: left; padding: 9px 14px; margin: 0 -14px 7px; border-radius: 10px; font: inherit; color: var(--ink); line-height: inherit; border-left: 3px solid transparent; position: relative; transition: background 0.2s ease, border-color 0.2s ease; }
 .sentence:hover { background: var(--accent-soft); }
 .sentence.current-sentence { background: transparent; border-left-color: var(--accent); }
+/* Mise en forme d'origine du livre : italiques et citations. */
+.sentence.sentence-italique { font-style: italic; }
+.sentence.sentence-citation { padding-left: 26px; font-style: italic; border-left-color: var(--line); }
+.sentence.sentence-citation.current-sentence { border-left-color: var(--accent); }
 /* Karaoké : la phrase reste calme, seul le mot lu porte la couleur. */
 .mot { border-radius: 3px; transition: background 0.12s ease, color 0.12s ease; }
 .mot-lu { opacity: 0.86; }
@@ -100,6 +104,18 @@
 .speed-chip { display: flex; align-items: baseline; gap: 1px; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; min-height: 36px; padding: 7px 10px; border-radius: 9px; border: 1px solid var(--line); color: var(--ink); }
 .speed-chip span { font-size: 9px; font-weight: 600; color: var(--muted); }
 .player-top .sleep-chip { margin-left: auto; }
+.focus-button { width: 32px; height: 32px; color: var(--muted); }
+.focus-button svg { width: 16px; height: 16px; }
+/* Lecteur réduit : une seule ligne, le texte respire. */
+.player.reduit { padding-top: 10px; padding-bottom: calc(10px + var(--safe-bottom)); }
+.player.reduit .reader-jumps,
+.player.reduit .progress-slider,
+.player.reduit .time-row,
+.player.reduit .transport .icon-button,
+.player.reduit .player-status { display: none; }
+.player.reduit .play-button { width: 40px; height: 40px; }
+.player.reduit .player-top { margin-bottom: 0; }
+.player.reduit .transport { justify-content: center; margin-top: 6px; }
 /* Sauts page + paragraphe, dans les deux dispositions. */
 .reader-jumps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 10px 0 2px; }
 .jump { display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 38px; border-radius: 9px; border: 1px solid var(--line); font-size: 10px; font-weight: 600; color: var(--muted); }

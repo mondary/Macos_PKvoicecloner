@@ -611,6 +611,23 @@ class AttributionMobileContracts(StudioContracts):
         self.assertEqual(self.client.post('/api/attribuer', json={'phrases': ['x' * 601]}).status_code, 400)
         self.assertEqual(self.client.post('/api/attribuer', json={'phrases': 'pas une liste'}).status_code, 400)
 
+    def test_quota_ia_devient_un_message_actionnable(self):
+        self.ia_file.write_text(json.dumps({"base_url": "http://x", "cle": "k", "modele": "m"}), encoding="utf-8")
+
+        def quota(*args, **kwargs):
+            raise server.ia.IaErreur("l'API a répondu HTTP 429 : {\"error\":{\"code\":\"1308\",\"message\":\"Usage limit reached\"}}")
+
+        with patch.object(server.livres.ia, 'completer_detail', side_effect=quota):
+            reponse = self.client.post('/api/attribuer', json={'titre': 'Test', 'phrases': ['Bonjour.']})
+        self.assertEqual(reponse.status_code, 429)
+        self.assertIn('limite d’usage', reponse.json()['detail'])
+        self.assertIn('Réglages IA', reponse.json()['detail'])
+        self.assertNotIn('1308', reponse.json()['detail'])
+
+    def test_cle_refusee_devient_un_message_actionnable(self):
+        self.assertEqual(server.ia.message_lisible(server.ia.IaErreur('HTTP 401 unauthorized')),
+                         "Le fournisseur IA refuse la clé ou l’accès — vérifie la clé API dans Réglages IA.")
+
     def test_attribution_aligne_un_locuteur_par_phrase(self):
         appels = []
 

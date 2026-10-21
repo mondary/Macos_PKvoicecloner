@@ -77,6 +77,23 @@ def completer(cfg: dict, messages: list[dict], **options) -> str:
     return _texte(appeler(cfg, messages, **options))
 
 
+def est_quota(erreur: object) -> bool:
+    """Le fournisseur a-t-il refusé pour limite d'usage (429, quota, rate limit) ?"""
+    texte = str(erreur).lower()
+    return any(marque in texte for marque in ("429", "quota", "usage limit", "rate limit", "insufficient_quota"))
+
+
+def message_lisible(erreur: object) -> str:
+    """Traduit une erreur d'API en message actionnable, sans jargon."""
+    texte = str(erreur)
+    if est_quota(erreur):
+        return ("Le fournisseur IA a atteint sa limite d’usage — attends le renouvellement du quota "
+                "ou choisis un autre provider dans Réglages IA.")
+    if "401" in texte or "403" in texte:
+        return "Le fournisseur IA refuse la clé ou l’accès — vérifie la clé API dans Réglages IA."
+    return texte
+
+
 def completer_detail(cfg: dict, messages: list[dict], **options) -> tuple[str, dict]:
     """Comme completer, mais renvoie aussi l'usage (tokens consommés)."""
     corps = appeler(cfg, messages, **options)

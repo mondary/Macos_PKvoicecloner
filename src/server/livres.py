@@ -1068,6 +1068,6 @@ def analyser_livre(racine: Path, ident: str, cfg: dict,
         _ecrire_projet(racine, ident, projet)
         return projet
     except ia.IaErreur as erreur:
-        projet["analyse"] = {"etat": "erreur", "erreur": str(erreur)[:300]}
+        projet["analyse"] = {"etat": "erreur", "erreur": ia.message_lisible(erreur)[:300]}
         _ecrire_projet(racine, ident, projet)
         return projet

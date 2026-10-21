@@ -12,14 +12,14 @@ class StudioClient(private val server: String, private val token: String) {
         require(uri.scheme in listOf("http", "https") && !uri.host.isNullOrBlank() && uri.userInfo == null && uri.query == null && uri.fragment == null) { "Adresse du studio invalide." }
         require(token.length >= 16) { "Recopiez le code de connexion affiché par le Mac." }
     }
-    private fun connection(path: String): HttpURLConnection {
+    private fun connection(path: String, timeout: Int = 20000): HttpURLConnection {
         val c = URI(server.trimEnd('/') + path).toURL().openConnection() as HttpURLConnection
-        c.connectTimeout = 10000; c.readTimeout = 20000; c.instanceFollowRedirects = false
+        c.connectTimeout = 10000; c.readTimeout = timeout; c.instanceFollowRedirects = false
         c.setRequestProperty("Authorization", "Bearer $token")
         return c
     }
-    private fun request(path: String, body: JSONObject? = null): String {
-        val c = connection(path)
+    private fun request(path: String, body: JSONObject? = null, timeout: Int = 20000): String {
+        val c = connection(path, timeout)
         try {
             if (body != null) { c.requestMethod="POST"; c.doOutput=true; c.setRequestProperty("Content-Type","application/json"); c.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) } }
             val status = c.responseCode
@@ -29,6 +29,12 @@ class StudioClient(private val server: String, private val token: String) {
             }
             return c.inputStream.bufferedReader().use { it.readText() }
         } finally { c.disconnect() }
+    }
+    /** Analyse studio : distribution (personnages + genre) et un locuteur par phrase.
+     *  L'IA tourne sur le Mac ; le téléphone n'embarque aucun modèle de langage. */
+    fun analyser(titre: String, phrases: List<String>): String {
+        val body = JSONObject().put("titre", titre).put("phrases", JSONArray(phrases))
+        return request("/api/attribuer", body, timeout = 600000)
     }
     fun voices(): JSONArray {
         val raw = request("/api/voix")

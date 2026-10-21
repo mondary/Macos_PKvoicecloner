@@ -49,6 +49,17 @@ class GatewayAccessTests(unittest.TestCase):
     def test_rejects_invalid_generation_payload(self):
         self.assertEqual(self.status("/api/generer", self.server.token, b'{"texte":"hi"}'), 400)
 
+    def test_attribution_exposee_et_validee(self):
+        """L'analyse du studio est exposée au téléphone, avec sa propre validation."""
+        self.assertEqual(self.status("/api/attribuer", self.server.token, b'{"phrases":[]}'), 400)
+        self.assertEqual(self.status("/api/attribuer", self.server.token,
+                                     b'{"phrases":["ok"],"titre":123}'), 400)
+        self.assertEqual(self.status("/api/attribuer", self.server.token,
+                                     b'{"phrases":["' + b"x" * 601 + b'"]}'), 400)
+        # payload valide : le studio n'écoute pas ici → 503, pas 404
+        self.assertEqual(self.status("/api/attribuer", self.server.token,
+                                     b'{"titre":"Test","phrases":["Bonjour."]}'), 503)
+
 
 if __name__ == "__main__":
     unittest.main()

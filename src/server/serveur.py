@@ -1669,6 +1669,31 @@ def arreter_lecture(lid: str):
     return {"ok": True}
 
 
+@app.post("/api/attribuer")
+def attribuer_voix_telephone(req: dict = Body(...)):
+    """Attribution des voix pour le lecteur Android (via la passerelle mobile).
+
+    Reçoit les phrases du chapitre telles que le téléphone les a découpées et
+    rend la distribution (personnages + genre de voix) puis un locuteur par
+    phrase, dans l'ordre — l'analyse IA tourne ici, comme pour les livres."""
+    titre = str(req.get("titre") or "Livre").strip()[:120]
+    phrases = req.get("phrases")
+    if not isinstance(phrases, list) or not 1 <= len(phrases) <= 400:
+        raise HTTPException(400, "entre 1 et 400 phrases sont attendues")
+    nettes: list[str] = []
+    for phrase in phrases:
+        if not isinstance(phrase, str) or not 1 <= len(phrase.strip()) <= 600:
+            raise HTTPException(400, "phrase invalide (1 à 600 caractères)")
+        nettes.append(phrase.strip())
+    cfg = _lire_ia()
+    if not (cfg.get("base_url") and cfg.get("cle") and cfg.get("modele")):
+        raise HTTPException(400, "configuration IA absente : renseigne l'endpoint, la clé et le modèle dans Réglages IA")
+    try:
+        return livres.attribuer_telephone(cfg, titre, nettes)
+    except ia.IaErreur as erreur:
+        raise HTTPException(400, str(erreur))
+
+
 # --------------------------------------------------------------- livres/audiobooks
 
 def _id_livre(lid: str) -> str:

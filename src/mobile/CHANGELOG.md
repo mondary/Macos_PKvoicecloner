@@ -1,5 +1,16 @@
 # PK Reader Android
 
+## [2026.10.54] - 2026-10-21
+
+### Added
+- **Attribution des voix par l'analyse du studio** : dans « Personnages & voix » → Attribution des passages, un bouton **« Analyser ce chapitre avec le studio »** envoie les phrases du chapitre au Mac connecté. Le studio détecte les personnages et le **sexe de leur voix** (la même analyse que sur l'ordi), puis chaque phrase reçoit son personnage. On choisit les voix **narrateur / masculine / féminine** avant l'analyse ; tout reste modifiable ensuite, phrase par phrase.
+- **Karaoké mot à mot** : pendant la lecture, la phrase en cours est rendue mot par mot et le mot prononcé est surligné. Le TTS Android donne la plage exacte du mot (`onRangeStart`) ; une voix Piper ou clonée est estimée d'après la position et la durée du WAV.
+- Le suivi de lecture diffuse sa progression (~5 fois par seconde) sans redessiner la page : position, durée, mot courant.
+
+### Changed
+- Le surlignage de la phrase en cours devient discret (un filet à gauche, plus le bloc bleu) : le mot lu porte l'attention — on garde le fil sans perdre le fil de la page.
+- La proposition d'attribution hors ligne reste disponible (« Proposer les attributions localement »), en repli quand le Mac n'est pas connecté.
+
 ## [2026.10.53] - 2026-10-19
 
 ### Added

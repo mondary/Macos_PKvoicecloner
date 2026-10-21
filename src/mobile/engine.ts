@@ -9,6 +9,9 @@ interface ReaderPlugin {
   removeModel(options: { id: string }): Promise<void>;
   voiceSettings(): Promise<void>;
   connect(options: { server: string; token: string }): Promise<{ voices: Voice[] }>;
+  analyser(options: { server: string; token: string; titre: string; phrases: string[] }): Promise<{
+    personnages: { id: string; nom: string; genre: string; role: string }[]; locuteurs: string[];
+  }>;
   load(options: Record<string, unknown>): Promise<void>;
   command(options: { action: string; index?: number; rate?: number; minutes?: number; end?: number }): Promise<void>;
   getState(): Promise<Playback>;

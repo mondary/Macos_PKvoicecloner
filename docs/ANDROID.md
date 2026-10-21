@@ -38,7 +38,9 @@ Comme dans le studio du Mac, un livre peut se lire avec **une voix par personnag
 1. **Personnages** — activer l’option pour le livre, puis donner à chaque rôle un nom, une voix (voix du téléphone ou voix Piper installée), un **pitch** (0,50×–2×) et une **vitesse** (0,75×–1,50×). Une seule voix en stock peut donc jouer toute la distribution : narrateur à 1,20, protagoniste à 0,80. « Écouter un exemple » fait entendre le rôle avant d’enregistrer.
 2. **Attribution des passages** — choisir le personnage de chaque phrase ; « Proposer les attributions de ce chapitre » repère localement les noms explicites (« Pierre : », « dit Pierre ») sans jamais deviner un dialogue ambigu, et vos choix manuels sont conservés.
 
-Le personnage en cours s’affiche dans le lecteur et dans la barre « EN COURS ». Les réglages voyagent avec le livre : ils survivent à la fermeture de l’app.
+Le personnage en cours s’affiche dans le lecteur et dans la barre « EN COURS ». Pendant la lecture, la phrase est rendue **mot à mot** : le mot prononcé est surligné (karaoké) — plage exacte avec le TTS Android, estimation au prorata avec une voix Piper ou clonée. Les réglages voyagent avec le livre : ils survivent à la fermeture de l’app.
+
+**Analyse du studio** — dans « Attribution des passages », le bouton **« Analyser ce chapitre avec le studio »** envoie les phrases au Mac connecté (passerelle `mobile_gateway.py` + provider IA configuré dans le studio). Le studio détecte les personnages et le sexe de leur voix — la même analyse que sur l’ordi — puis attribue chaque phrase. Choisissez avant l’analyse les voix **Narrateur / masculine / féminine** ; chaque rôle et chaque phrase restent modifiables ensuite. Sans Mac connecté, « Proposer les attributions localement » reste disponible (noms explicites uniquement).
 
 Deux limites claires : l’attribution locale n’utilise que des voix du téléphone ou Piper (une voix clonée demande le Mac, elle n’est donc pas proposée comme rôle) ; et **préparer un chapitre hors ligne demande une voix Piper pour chaque rôle utilisé** — avec une voix du téléphone, le chapitre se lit en direct mais ne se met pas en cache.
 

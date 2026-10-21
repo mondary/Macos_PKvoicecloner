@@ -79,6 +79,20 @@ class ReaderPlugin : Plugin() {
         val client=StudioClient(call.getString("server") ?: "",call.getString("token") ?: "")
         call.resolve(JSObject().put("voices",client.voices()))
     }
+    @PluginMethod fun analyser(call: PluginCall) = work(call) {
+        val server = call.getString("server") ?: error("Adresse du studio manquante")
+        val token = call.getString("token") ?: error("Code de connexion manquant")
+        val titre = (call.getString("titre") ?: "Livre").take(120)
+        val source = call.getArray("phrases") ?: error("Chapitre vide")
+        require(source.length() in 1..400) { "Chapitre trop long pour l’analyse (400 phrases maximum)." }
+        val phrases = ArrayList<String>(source.length())
+        for (i in 0 until source.length()) {
+            val phrase = runCatching { source.getString(i) }.getOrNull()?.trim().orEmpty()
+            require(phrase.length in 1..600) { "Passage invalide pour l’analyse." }
+            phrases.add(phrase)
+        }
+        call.resolve(JSObject.fromJSONObject(JSONObject(StudioClient(server, token).analyser(titre, phrases))))
+    }
     @PluginMethod fun load(call: PluginCall) = work(call) {
         val data=call.data
         val id=data.optString("bookId")

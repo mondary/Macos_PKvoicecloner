@@ -18,5 +18,8 @@ export interface Settings {
 export interface Playback {
   bookId: string; index: number; playing: boolean; loading: boolean;
   error?: string; sleepAt?: number; preparing?: boolean; prepared?: number; total?: number;
+  speaker?: string; voice?: string;
+  /** Suivi de lecture : position et durée du passage (WAV), ou plage du mot lu (TTS). */
+  position?: number; duree?: number; mot?: { debut: number; fin: number } | null;
 }
 export const defaults: Settings = { voice: 'system:default', rate: 1, theme: 'light', fontSize: 22, layout: 'pages', server: '', token: '' };

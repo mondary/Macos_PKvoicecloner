@@ -1,4 +1,4 @@
-import type { Book, Casting, Character, Settings } from './types';
+import type { Book, Casting, Character, Settings, Voice } from './types';
 
 export function ensureCasting(book: Book): Casting {
   return book.casting ??= { enabled: false, characters: [
@@ -36,4 +36,54 @@ export function suggestCasting(book: Book, start: number, end: number): number {
     if (matches.length === 1) { casting.assignments[String(index)] = matches[0].id; added++; }
   }
   return added;
+}
+
+/* ---------------------------------------------- analyse du studio (via le Mac) */
+
+export interface AnalysePersonnage { id: string; nom: string; genre: string; role: string }
+export interface AnalyseStudio { personnages: AnalysePersonnage[]; locuteurs: string[] }
+
+/** Voix proposées par sexe : les Piper connues d'abord, sinon la voix du lecteur. */
+export function voixParGenreParDefaut(options: Voice[], defaut: string) {
+  const dispo = new Set(options.map(v => v.id));
+  const choisir = (...ids: string[]) =>
+    ids.find(id => dispo.has(id)) ?? (dispo.has(defaut) ? defaut : options[0]?.id ?? defaut);
+  return {
+    narrateur: dispo.has(defaut) ? defaut : choisir('neural:siwis', 'system:default'),
+    homme: choisir('neural:tom', 'system:default'),
+    femme: choisir('neural:siwis', 'system:default'),
+  };
+}
+
+/** Applique l'analyse du studio : un rôle par personnage détecté (voix selon le
+ *  sexe), puis un locuteur par phrase à partir de `depart`. Tout reste éditable. */
+export function appliquerAnalyse(draft: Casting, analyse: AnalyseStudio,
+  choix: { narrateur: string; homme: string; femme: string }, depart: number) {
+  const narrateur: Character = draft.characters.find(c => c.id === 'narrator')
+    ?? { id: 'narrator', name: 'Narrateur', voice: '', pitch: 1, rate: 1 };
+  if (choix.narrateur) narrateur.voice = choix.narrateur;
+  const voix = (genre: string) => genre === 'homme' ? choix.homme
+    : genre === 'femme' ? choix.femme : narrateur.voice;
+  const personnages = (analyse.personnages || []).filter(p =>
+    p && p.id !== 'narrateur' && p.id !== 'narrator' && p.role !== 'narrateur');
+  const correspondance = new Map<string, string>([['narrateur', 'narrator'], ['narrator', 'narrator']]);
+  const roles: Character[] = [narrateur];
+  personnages.forEach((personnage, rang) => {
+    const id = `studio-${personnage.id}`;      // préfixe : jamais en collision avec un id existant
+    correspondance.set(personnage.id, id);
+    roles.push({
+      id, name: (personnage.nom || personnage.id).slice(0, 60), voice: voix(personnage.genre),
+      pitch: rang % 3 === 1 ? 0.94 : rang % 3 === 2 ? 1.06 : 1, rate: 1,
+    });
+  });
+  draft.characters = roles;
+  draft.enabled = true;
+  let phrases = 0;
+  (analyse.locuteurs || []).forEach((locuteur, offset) => {
+    const index = String(depart + offset);
+    const id = correspondance.get(locuteur);
+    draft.assignments[index] = id ?? 'narrator';
+    if (id && id !== 'narrator') phrases++;
+  });
+  return { personnages: personnages.length, phrases };
 }

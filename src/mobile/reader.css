@@ -28,7 +28,13 @@
 .reader-text { font-family: 'Literata', serif; font-size: var(--reader-size); line-height: 1.95; letter-spacing: -0.15px; }
 .sentence { display: block; width: 100%; text-align: left; padding: 9px 14px; margin: 0 -14px 7px; border-radius: 10px; font: inherit; color: var(--ink); line-height: inherit; border-left: 3px solid transparent; position: relative; transition: background 0.2s ease, border-color 0.2s ease; }
 .sentence:hover { background: var(--accent-soft); }
-.sentence.current-sentence { background: var(--accent-soft); border-left-color: var(--accent); }
+.sentence.current-sentence { background: transparent; border-left-color: var(--accent); }
+/* Karaoké : la phrase reste calme, seul le mot lu porte la couleur. */
+.mot { border-radius: 3px; transition: background 0.12s ease, color 0.12s ease; }
+.mot-lu { opacity: 0.86; }
+.mot-actif { background: var(--accent); color: #fff; padding: 0 2px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+:root[data-theme='dark'] .mot-actif { color: #12161c; }
+:root[data-theme='paper'] .sentence.current-sentence { border-left-color: var(--accent); }
 .sentence.marked::after { content: ''; position: absolute; right: 1px; top: 15px; width: 5px; height: 8px; border-radius: 0 0 3px 3px; background: var(--gold); }
 .next-chapter { display: flex; align-items: center; gap: 12px; margin: 35px auto 0; font-size: 12px; color: var(--accent); padding: 14px; }
 .next-chapter:hover { background: var(--accent-soft); border-radius: 10px; }

@@ -898,6 +898,87 @@ def _classer_genres(cfg: dict, titre: str, repliques: dict[str, list[str]], comp
         return {identifiant: "indetermine" for identifiant in repliques}
 
 
+def _tagger_lignes(cfg: dict, titre: str, lot: list[str], cast: list[dict],
+                   compteur: dict) -> tuple[list[str], dict[str, list[str]]]:
+    """Attribue un locuteur à chaque phrase d'un lot déjà découpé par le téléphone.
+
+    Contrairement au tagage des livres (où l'IA réécrit des lignes), ici l'ordre
+    d'entrée fait foi : la réponse est un tableau d'identifiants, aligné ligne à
+    ligne — c'est ce qui permet de recoller l'analyse sur les segments Android."""
+    distribution = "\n".join(
+        f"- {voice['id']} ({voice['nom']}, voix {voice['genre']}"
+        f"{', narrateur' if voice['role'] == 'narrateur' else ''})"
+        for voice in cast)
+    lignes = "\n".join(f"{i}. {phrase}" for i, phrase in enumerate(lot, 1))
+    message = (
+        "TÂCHE: ATTRIBUTION.\n"
+        f"Livre : « {titre} ». Voix disponibles :\n{distribution}\n\n"
+        "Chaque ligne numérotée ci-dessous est UNE phrase du livre, dans l'ordre exact.\n"
+        f"<<<\n{lignes}\n>>>\n\n"
+        'Réponds UNIQUEMENT en JSON : {"locuteurs": ["narrateur", "pierre", …]}\n'
+        "Règles strictes :\n"
+        "- exactement UN identifiant par ligne numérotée, dans l'ordre, sans rien sauter ;\n"
+        "- déduis le locuteur du contexte (verbes de parole, noms, accords, style d'élocution) ;\n"
+        "- le récit hors réplique revient au narrateur ;\n"
+        "- un locuteur absent de la liste reçoit un identifiant court (np1, np2…) réutilisé ensuite ;\n"
+        "- aucun commentaire, aucune ligne en plus."
+    )
+    reponse, usage = ia.completer_detail(cfg, [{"role": "user", "content": message}], json_mode=True)
+    compteur["tokens"] += usage.get("total_tokens", 0)
+    donnees = ia.extraire_json(reponse)
+    brutes = donnees.get("locuteurs") if isinstance(donnees, dict) else donnees
+    if not isinstance(brutes, list):
+        raise ia.IaErreur("l'IA n'a pas renvoyé d'attribution exploitable")
+    connus = {voice["id"] for voice in cast}
+    locuteurs: list[str] = []
+    nouveaux: dict[str, list[str]] = {}
+    for position, phrase in enumerate(lot):
+        identifiant = _slug(str(brutes[position])) if position < len(brutes) else ""
+        if not identifiant:            # ligne manquante : on garde le locuteur précédent
+            identifiant = locuteurs[-1] if locuteurs else "narrateur"
+        if identifiant not in connus:
+            connus.add(identifiant)
+            nouveaux[identifiant] = []
+        if identifiant in nouveaux and len(nouveaux[identifiant]) < 6:
+            nouveaux[identifiant].append(phrase)
+        locuteurs.append(identifiant)
+    return locuteurs, nouveaux
+
+
+def attribuer_telephone(cfg: dict, titre: str, phrases: list[str]) -> dict:
+    """Analyse studio pour le lecteur Android.
+
+    Les phrases viennent du lecteur (son propre découpage) : on rend la
+    distribution avec le genre de chaque voix et un locuteur par phrase, dans
+    l'ordre reçu. Le téléphone n'a plus qu'à assigner ses voix selon le genre —
+    le même parcours que l'ordi, sans embarquer de LLM sur le téléphone."""
+    compteur = {"tokens": 0}
+    echantillon = "\n\n".join(phrases)
+    if len(echantillon) > 9000:
+        echantillon = echantillon[:4500] + "\n[…]\n" + echantillon[-3500:]
+    cast = _detecter_cast(cfg, titre, echantillon, compteur)
+    connus = {voice["id"] for voice in cast}
+    locuteurs: list[str] = []
+    nouveaux: dict[str, list[str]] = {}
+    for debut in range(0, len(phrases), 40):
+        lot = phrases[debut:debut + 40]
+        ids, decouverts = _tagger_lignes(cfg, titre, lot, cast, compteur)
+        locuteurs.extend(ids)
+        for identifiant, repliques in decouverts.items():
+            if identifiant not in connus:
+                connus.add(identifiant)
+                nouveaux[identifiant] = repliques
+    personnages = [dict(voice) for voice in cast]
+    if nouveaux:
+        genres = _classer_genres(cfg, titre, nouveaux, compteur)
+        for identifiant in nouveaux:
+            personnages.append({"id": identifiant, "nom": identifiant.capitalize(),
+                                "genre": genres.get(identifiant, "indetermine"),
+                                "role": "personnage", "description": "",
+                                "importance": "secondaire"})
+    return {"personnages": personnages, "locuteurs": locuteurs, "tokens": compteur["tokens"]}
+
+
 def analyser_livre(racine: Path, ident: str, cfg: dict,
                    numeros: list[int] | None = None, forcer: bool = False) -> dict:
     """Analyse IA complète : distribution des voix puis tagage des chapitres.

@@ -1,5 +1,5 @@
-import { ensureCasting, suggestCasting } from './casting';
-import { audio } from './engine';
+import { appliquerAnalyse, ensureCasting, suggestCasting, voixParGenreParDefaut } from './casting';
+import { audio, native, Reader } from './engine';
 import { library } from './storage';
 import type { Book, Casting, Settings, Voice } from './types';
 
@@ -20,6 +20,9 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
   first = Math.max(0, first);
   let preview = false;
   let busy = false;
+  const choixGenre = voixParGenreParDefaut(options, settings.voice);
+  const voixSelect = (selection: string) => options.map(v =>
+    `<option value="${esc(v.id)}" ${v.id === selection ? 'selected' : ''}>${esc(v.name)}</option>`).join('');
   const editedBook = () => ({ ...book, casting: draft });
   const message = (text: string, invalid = false) => {
     const el = sheet.querySelector<HTMLElement>('#casting-status');
@@ -55,7 +58,14 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
         <button type="button" class="setting-row" data-cast="add">+ Ajouter un personnage</button><p class="sheet-description">La vitesse du rôle se combine avec la vitesse générale du lecteur. Un pitch de 1,20 rend la voix plus aiguë ; 0,80 la rend plus grave.</p>` : `
         <label for="cast-chapter">Chapitre</label><select id="cast-chapter">${book.chapters.map((ch, i) => `<option value="${i}" ${i === chapter ? 'selected' : ''}>${esc(ch.title)}</option>`).join('')}</select>
         <p class="sheet-description">Choisissez qui parle pour chaque passage. Les passages sans attribution utilisent le narrateur. L’aide locale reconnaît les noms explicites (« Pierre : » ou « dit Pierre »), sans deviner les dialogues ambigus.</p>
-        <button type="button" class="setting-row" data-cast="suggest">Proposer les attributions de ce chapitre</button>
+        <fieldset class="casting-analyse"><legend>Analyse du studio</legend>
+          <p class="sheet-description">Le Mac lit le chapitre, détecte les personnages et leur sexe, puis attribue chaque phrase — comme à l’ordi. Les voix sont choisies par sexe ici, puis restent modifiables une à une.</p>
+          <label for="cast-voix-narrateur">Narrateur</label><select id="cast-voix-narrateur">${voixSelect(choixGenre.narrateur)}</select>
+          <label for="cast-voix-homme">Voix masculine</label><select id="cast-voix-homme">${voixSelect(choixGenre.homme)}</select>
+          <label for="cast-voix-femme">Voix féminine</label><select id="cast-voix-femme">${voixSelect(choixGenre.femme)}</select>
+          <button type="button" class="primary" data-cast="analyser">${settings.server && settings.token ? 'Analyser ce chapitre avec le studio' : 'Connecter le studio dans Réglages'}</button>
+        </fieldset>
+        <button type="button" class="setting-row" data-cast="suggest">Proposer les attributions localement (hors ligne)</button>
         <div class="casting-passages">${book.segments.slice(start, end).map((text, offset) => `<div class="casting-passage"><p>${esc(text)}</p><label for="cast-segment-${start + offset}">Passage ${start + offset + 1} · personnage</label><select id="cast-segment-${start + offset}" data-segment="${start + offset}">${roleOptions()}</select></div>`).join('')}</div>
         <div class="casting-pagination"><button type="button" data-cast="prev" ${first <= 0 ? 'disabled' : ''}>Précédents</button><span>${first + 1}–${end - c.start} / ${c.end - c.start}</span><button type="button" data-cast="next" ${end >= c.end ? 'disabled' : ''}>Suivants</button></div>`}
       <p id="casting-status" role="status" aria-live="polite"></p><button type="button" class="primary casting-save" data-cast="save">Enregistrer pour ce livre</button></div>`);
@@ -73,6 +83,9 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
   const onChange = (event: Event) => {
     const el = event.target as HTMLSelectElement;
     if (el.dataset.segment) draft.assignments[el.dataset.segment] = el.value;
+    if (el.id === 'cast-voix-narrateur') choixGenre.narrateur = el.value;
+    if (el.id === 'cast-voix-homme') choixGenre.homme = el.value;
+    if (el.id === 'cast-voix-femme') choixGenre.femme = el.value;
     if (el.id === 'cast-chapter') { chapter = Number(el.value); first = 0; draw(); }
   };
   const act = async (button: HTMLButtonElement) => {
@@ -88,6 +101,27 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
       case 'reset': if (role) { role.pitch = 1; role.rate = 1; draw(); } break;
       case 'prev': first = Math.max(0, first - 20); draw(); break;
       case 'next': first += 20; draw(); break;
+      case 'analyser': {
+        if (!native) { message('L’analyse du studio est disponible dans l’APK Android.', true); return; }
+        if (!settings.server || !settings.token) { message('Connecte le studio dans Réglages → Votre studio vocal.', true); return; }
+        const c = book.chapters[chapter];
+        const phrases = book.segments.slice(c.start, c.end);
+        if (phrases.length > 400) { message('Chapitre trop long (400 phrases maximum) : analyse-le en plusieurs fois.', true); return; }
+        busy = true; button.disabled = true;
+        message(`Le studio lit ${phrases.length} phrases… (cela peut prendre une minute)`);
+        try {
+          const resultat = await Reader.analyser({ server: settings.server, token: settings.token,
+            titre: book.title, phrases });
+          const bilan = appliquerAnalyse(draft, resultat, choixGenre, c.start);
+          draw();
+          message(`${bilan.personnages} personnage${bilan.personnages > 1 ? 's' : ''} détecté${bilan.personnages > 1 ? 's' : ''} · ${bilan.phrases} phrase${bilan.phrases > 1 ? 's' : ''} attribuée${bilan.phrases > 1 ? 's' : ''}. Vérifie dans « Personnages », corrige au besoin, puis enregistre.`);
+        } catch (error) {
+          message(error instanceof Error ? error.message : String(error), true);
+        } finally {
+          busy = false; button.disabled = false;
+        }
+        break;
+      }
       case 'suggest': {
         const c = book.chapters[chapter]; const n = suggestCasting(editedBook(), c.start, c.end);
         draw(); message(`${n} attribution${n > 1 ? 's' : ''} proposée${n > 1 ? 's' : ''}. Les choix manuels sont conservés. Vérifiez les autres passages.`); break;

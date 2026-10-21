@@ -586,4 +586,51 @@ class LiveReadContracts(PiperContracts):
             self.assertEqual(voix_vues, [None, 1])       # une voix par rôle, locuteur compris
 
 
+class AttributionMobileContracts(StudioContracts):
+    """Analyse du studio réutilisée par le lecteur Android (passerelle mobile)."""
+
+    def setUp(self):
+        super().setUp()
+        self.ia_file = self.root / 'ia.json'
+        self.ia_patch = patch.object(server, 'FICHIER_IA', self.ia_file)
+        self.ia_patch.start()
+
+    def tearDown(self):
+        self.ia_patch.stop()
+        super().tearDown()
+
+    def test_refuse_sans_provider_ia(self):
+        self.ia_file.write_text('{}', encoding='utf-8')
+        reponse = self.client.post('/api/attribuer', json={'titre': 'Test', 'phrases': ['Bonjour.']})
+        self.assertEqual(reponse.status_code, 400)
+        self.assertIn('configuration IA', reponse.json()['detail'])
+
+    def test_valide_les_phrases(self):
+        self.ia_file.write_text('{}', encoding='utf-8')
+        self.assertEqual(self.client.post('/api/attribuer', json={'phrases': []}).status_code, 400)
+        self.assertEqual(self.client.post('/api/attribuer', json={'phrases': ['x' * 601]}).status_code, 400)
+        self.assertEqual(self.client.post('/api/attribuer', json={'phrases': 'pas une liste'}).status_code, 400)
+
+    def test_attribution_aligne_un_locuteur_par_phrase(self):
+        appels = []
+
+        def faux_completer(cfg, messages, **options):
+            texte = messages[0]['content']
+            appels.append(texte)
+            if 'TÂCHE: CAST' in texte:
+                return (json.dumps({'cast': [
+                    {'id': 'narrateur', 'nom': 'Narrateur', 'genre': 'indetermine', 'role': 'narrateur'},
+                    {'id': 'pierre', 'nom': 'Pierre', 'genre': 'homme', 'role': 'personnage'},
+                ]}), {'total_tokens': 1})
+            return (json.dumps({'locuteurs': ['narrateur', 'pierre', 'narrateur']}), {'total_tokens': 1})
+
+        with patch.object(server.livres.ia, 'completer_detail', side_effect=faux_completer):
+            resultat = server.livres.attribuer_telephone({}, 'Test', ['Le soir tombe.', '— Bonjour !', 'Il repart.'])
+        self.assertEqual(resultat['locuteurs'], ['narrateur', 'pierre', 'narrateur'])
+        self.assertEqual([p['id'] for p in resultat['personnages']], ['narrateur', 'pierre'])
+        self.assertTrue(all(p['id'] and p['nom'] for p in resultat['personnages']))
+        # une seule passe de tagage pour un chapitre court
+        self.assertEqual(sum(1 for appel in appels if 'TÂCHE: ATTRIBUTION' in appel), 1)
+
+
 if __name__ == '__main__': unittest.main()

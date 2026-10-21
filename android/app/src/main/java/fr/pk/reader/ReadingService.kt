@@ -42,6 +42,10 @@ class ReadingService : Service() {
     private var prepareTotal=0
     private var error=""
     private var rate=1f
+    private var dureeMs=0
+    private var motDebut=-1          // plage de caractères du mot lu (TTS Android)
+    private var motFin=-1
+    private var progressTicker:Runnable?=null
     @Volatile private var generation=0
     private var sleepAt=0L
     private var tts:TextToSpeech?=null
@@ -124,6 +128,7 @@ class ReadingService : Service() {
     }
     private fun pause(){
         generation++;playing=false;loading=false;preparing=false
+        stopProgress();motDebut=-1;motFin=-1;dureeMs=0
         tts?.stop();player?.release();player=null
         audioManager.abandonAudioFocusRequest(focus)
         if(wake.isHeld)wake.release()
@@ -156,11 +161,12 @@ class ReadingService : Service() {
                             setOnPreparedListener { mp->
                                 if(ticket!=generation){mp.release();return@setOnPreparedListener}
                                 val speech=profile(at)
+                                dureeMs=mp.duration;motDebut=-1;motFin=-1
                                 mp.playbackParams=PlaybackParams().setSpeed(speech.rate).setPitch(speech.pitch)
-                                loading=false;mp.start();publish()
+                                loading=false;mp.start();publish();startProgress()
                             }
-                            setOnCompletionListener{if(ticket==generation){index++;publish();speak()}}
-                            setOnErrorListener{_,_,_->if(ticket==generation)fail("Ce passage audio est illisible.");true}
+                            setOnCompletionListener{if(ticket==generation){stopProgress();motDebut=-1;dureeMs=0;index++;publish();speak()}}
+                            setOnErrorListener{_,_,_->stopProgress();if(ticket==generation)fail("Ce passage audio est illisible.");true}
                             prepareAsync()
                         }
                     }catch(e:Exception){fail(e.message ?: "Lecture audio impossible")}
@@ -191,12 +197,17 @@ class ReadingService : Service() {
             if(chosen==null){fail("Cette voix n’est plus disponible. Choisissez une autre voix.");return}
             synthesizer.voice=chosen
         }
+        motDebut=-1;motFin=-1;dureeMs=0
         synthesizer.setSpeechRate(profile().rate)
         synthesizer.setPitch(profile().pitch)
         synthesizer.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
         val utterance="$ticket:$index"
         synthesizer.setOnUtteranceProgressListener(object:UtteranceProgressListener(){
             override fun onStart(id:String?){main.post{if(ticket==generation){loading=false;publish()}}}
+            // Karaoké : le moteur Android donne la plage du mot prononcé.
+            override fun onRangeStart(id:String?,start:Int,end:Int,frame:Int){
+                main.post{if(ticket==generation){motDebut=start;motFin=end;publishProgress()}}
+            }
             override fun onDone(id:String?){main.post{if(ticket==generation&&id==utterance&&playing){index++;publish();speak()}}}
             @Deprecated("Android callback") override fun onError(id:String?){main.post{if(ticket==generation)fail("La voix Android ne peut pas lire ce passage.")}}
         })
@@ -242,6 +253,24 @@ class ReadingService : Service() {
         }
     }
     private fun state()=JSONObject().put("bookId",queue.optString("bookId")).put("index",index).put("playing",playing).put("loading",loading).put("error",error).put("sleepAt",sleepAt).put("preparing",preparing).put("prepared",prepared).put("total",prepareTotal).put("speaker",profile().role).put("voice",profile().voice)
+        .put("position",if(player?.isPlaying==true)player?.currentPosition ?: 0 else 0).put("duree",dureeMs)
+        .put("mot",if(motDebut>=0)JSONObject().put("debut",motDebut).put("fin",motFin) else JSONObject.NULL)
+    /** Diffusion seule (sans notification ni écriture disque) : ~5 fois par seconde
+     *  pendant la lecture, pour le karaoké mot à mot. */
+    private fun publishProgress(){
+        sendBroadcast(Intent(STATE).setPackage(packageName).putExtra("state",state().toString()))
+    }
+    private fun startProgress(){
+        stopProgress()
+        val tick=object:Runnable{
+            override fun run(){
+                if(!playing||player?.isPlaying!=true)return
+                publishProgress();main.postDelayed(this,200)
+            }
+        }
+        progressTicker=tick;main.postDelayed(tick,200)
+    }
+    private fun stopProgress(){progressTicker?.let{main.removeCallbacks(it)};progressTicker=null}
     @SuppressLint("MissingPermission") // Active media-session notifications are exempt on Android 13+.
     private fun publish(){
         val state=state().toString()

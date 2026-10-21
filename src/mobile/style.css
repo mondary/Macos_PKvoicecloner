@@ -542,3 +542,10 @@ dialog header .icon-button { width: 38px; height: 38px; }
 #casting-status{line-height:1.5;min-height:1.5em}
 #casting-status.error{color:var(--danger, #b33a32)}
 .casting-editor :focus-visible{outline:2px solid currentColor;outline-offset:3px}
+
+/* Analyse du studio dans l'attribution des passages. */
+.casting-analyse{border:1px solid var(--line,#ddd);border-radius:16px;padding:16px;margin:18px 0;background:var(--surface,#fff)}
+.casting-analyse legend{padding:0 8px;font-weight:600}
+.casting-analyse label{display:block;margin:12px 0 6px;font-size:13px}
+.casting-analyse select{width:100%;min-height:44px;border:1px solid var(--line,#ddd);border-radius:10px;padding:10px;background:var(--surface,#fff);color:var(--ink,#222);font:inherit}
+.casting-analyse .primary{width:100%;margin-top:14px}

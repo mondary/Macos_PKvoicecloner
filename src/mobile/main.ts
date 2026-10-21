@@ -15,6 +15,7 @@ import { audio, native, Reader, modelCatalog } from './engine';
 import type { Book, Voice } from './types';
 import { openCasting } from './casting-ui';
 import { characterAt, speechProfile } from './casting';
+import { decouperMots, motPourPlage, motPourProgression, rendreMots } from './karaoke';
 
 /* ------------------------------------------------------------------ état */
 
@@ -52,6 +53,8 @@ let fontsChecked = false;
 /** Les défilements déclenchés par l'app sont ignorés par la détection de geste. */
 let scrollGuard = 0;
 let playerObserver: ResizeObserver | undefined;
+/** Signature du dernier état « structurel » : la progression seule ne redessine pas la page. */
+let derniereLecture = '';
 
 type PageRun = { index: number; from: number; to: number };
 type Page = PageRun[];
@@ -200,9 +203,9 @@ function readerSubhead() {
   const step = (dir: -1 | 1, name: string) => `<button class="chapter-step" data-action="chapter-step" data-id="${dir}" ${index + dir < 0 || index + dir >= book.chapters.length ? 'disabled' : ''} aria-label="${name}">${icon(dir < 0 ? 'chevron-left' : 'chevron-right')}</button>`;
   return `<div class="reader-subhead">${step(-1,'Chapitre précédent')}<button class="chapter-current" data-action="chapters">${icon('list')}<span class="chapter-name">${esc(chapter.title)}</span>${icon('chevron-down')}</button>${step(1,'Chapitre suivant')}${iconButton(book.bookmarks.includes(book.position) ? 'bookmark-check' : 'bookmark','Marquer le passage','bookmark')}</div>`;
 }
-function sentenceButton(text: string, index: number, book: Book) {
+function sentenceButton(text: string, index: number, book: Book, debut = 0) {
   const isCurrent = index === book.position;
-  return `<button class="sentence ${isCurrent?'current-sentence':''} ${book.bookmarks.includes(index)?'marked':''}" data-action="sentence" data-index="${index}" ${isCurrent?'aria-current="true"':''}>${esc(text)}</button>`;
+  return `<button class="sentence ${isCurrent?'current-sentence':''} ${book.bookmarks.includes(index)?'marked':''}" data-action="sentence" data-index="${index}" data-debut="${debut}" ${isCurrent?'aria-current="true"':''}>${esc(text)}</button>`;
 }
 function readingScroll() {
   const book = current()!; const chapter = chapterAt(book);
@@ -266,7 +269,7 @@ function drawPage(direction?: 'next' | 'prev' | 'auto') {
     if (eyebrow) eyebrow.textContent = book.sample ? 'PRENDRE LE TEMPS' : book.author.toUpperCase();
     if (heading) heading.textContent = chapter.title;
   }
-  box.innerHTML = (pages[page] ?? []).map(run => sentenceButton(book.segments[run.index].slice(run.from, run.to), run.index, book)).join('');
+  box.innerHTML = (pages[page] ?? []).map(run => sentenceButton(book.segments[run.index].slice(run.from, run.to), run.index, book, run.from)).join('');
   box.classList.remove('turn-next', 'turn-prev');
   if (direction === 'next' || direction === 'prev') { void box.offsetWidth; box.classList.add(direction === 'next' ? 'turn-next' : 'turn-prev'); }
   footer.innerHTML = `<button class="page-turn" data-action="page-prev" ${first?'disabled':''} aria-label="Page précédente">${icon('chevron-left')}</button><span class="page-count"><b>${page+1}</b><i> / ${pages.length}</i></span><button class="page-turn" data-action="page-next" ${page>=pages.length-1?'disabled':''} aria-label="Page suivante">${icon('chevron-right')}</button>`;
@@ -296,6 +299,49 @@ function replacePlayer() {
   const temp = document.createElement('div'); temp.innerHTML = playerHTML();
   player.replaceWith(temp.querySelector('.player')!); decorate(); observePlayer();
 }
+const karaoke = { index: -1, mot: -1 };
+
+function suivreMot(phrase: HTMLElement) {
+  if (!follow) return;
+  const actif = phrase.querySelector<HTMLElement>('.mot-actif');
+  if (!actif) return;
+  const rect = actif.getBoundingClientRect();
+  if (rect.top < innerHeight * 0.28 || rect.bottom > innerHeight * 0.72) {
+    actif.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+  }
+}
+
+/** Karaoké : la phrase en cours est rendue mot à mot, le mot lu en surbrillance.
+ *  TTS Android = plage exacte ; WAV Piper = estimation au prorata des caractères. */
+function syncKaraoke() {
+  const book = active();
+  const courante = document.querySelector<HTMLElement>('.sentence.current-sentence');
+  document.querySelectorAll<HTMLElement>('.sentence[data-karaoke]').forEach((autre) => {
+    if (autre === courante) return;
+    if (autre.dataset.texte != null) autre.textContent = autre.dataset.texte;
+    delete autre.dataset.karaoke; delete autre.dataset.texte;
+  });
+  if (!book || !courante) return;
+  const debut = Number(courante.dataset.debut || 0);
+  const texte = courante.dataset.texte ?? courante.textContent ?? '';
+  courante.dataset.texte = texte;
+  const mots = decouperMots(texte);
+  let actif = -1;
+  if (audio.state.bookId === book.id && audio.state.playing && !audio.state.loading) {
+    if (audio.state.mot) actif = motPourPlage(mots, audio.state.mot.debut - debut, audio.state.mot.fin - debut);
+    else if (audio.state.duree) actif = motPourProgression(mots, audio.state.position ?? 0, audio.state.duree);
+  } else if (karaoke.index === book.position) {
+    actif = karaoke.mot;                       // à l'arrêt : le dernier mot lu reste marqué
+  }
+  const cle = `${book.position}:${actif}`;
+  if (courante.dataset.karaoke !== cle) {
+    courante.dataset.karaoke = cle;
+    courante.innerHTML = rendreMots(texte, actif, esc);
+  }
+  karaoke.index = book.position; karaoke.mot = actif;
+  suivreMot(courante);
+}
+
 function syncHighlight() {
   const book = current(); if (!book) return;
   document.querySelectorAll('.sentence').forEach(el => {
@@ -303,6 +349,7 @@ function syncHighlight() {
     el.classList.toggle('current-sentence', selected);
     if (selected) el.setAttribute('aria-current', 'true'); else el.removeAttribute('aria-current');
   });
+  syncKaraoke();
 }
 function jumpToCurrent() {
   const book = current(); if (!book) return;
@@ -401,6 +448,14 @@ async function importFiles(files: File[]) {
 /* ------------------------------------------------------------ lecture suivie */
 
 function updatePlayback() {
+  // La progression (position du WAV, mot du TTS) arrive ~5 fois par seconde :
+  // on ne redessine que le karaoké, pas toute la page.
+  const lecture = active();
+  const signature = lecture ? `${lecture.id}:${audio.state.index}:${audio.state.playing}:${audio.state.loading}:`
+    + `${audio.state.error ?? ''}:${audio.state.preparing ? 1 : 0}:${audio.state.prepared ?? 0}:${audio.state.sleepAt ?? 0}` : '';
+  const progressionSeule = signature === derniereLecture;
+  derniereLecture = signature;
+  if (progressionSeule && lecture) { syncKaraoke(); return; }
   if (wasPreparing && !audio.state.preparing && !audio.state.error && audio.state.prepared === audio.state.total && (audio.state.total ?? 0) > 0) toast('Chapitre prêt à être écouté hors ligne.');
   wasPreparing = !!audio.state.preparing;
   const book = active();

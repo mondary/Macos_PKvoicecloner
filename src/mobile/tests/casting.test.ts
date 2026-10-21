@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ensureCasting, characterAt, speechProfile, suggestCasting } from '../casting';
+import { appliquerAnalyse, ensureCasting, characterAt, speechProfile, suggestCasting, voixParGenreParDefaut } from '../casting';
 import { defaults, type Book } from '../types';
 
 function fixture(): Book {
@@ -40,5 +40,51 @@ describe('local multi-character reading', () => {
   it('never routes local casting to a connected Mac even when the global voice is a clone', () => {
     const book = fixture(); ensureCasting(book).enabled = true;
     expect(speechProfile(book, { ...defaults, voice: 'clone:abcdef' }, 0).voice).toBe('system:default');
+  });
+});
+
+describe('analyse du studio reportée sur le téléphone', () => {
+  it('crée un rôle par personnage avec la voix de son sexe et attribue chaque phrase', () => {
+    const book = fixture();
+    const cast = ensureCasting(book);
+    const options = [
+      { id: 'neural:siwis', name: 'Siwis', language: 'fr-FR', kind: 'neural' as const, installed: true },
+      { id: 'neural:tom', name: 'Tom', language: 'fr-FR', kind: 'neural' as const, installed: true },
+    ];
+    const choix = voixParGenreParDefaut(options, 'neural:siwis');
+    expect(choix).toEqual({ narrateur: 'neural:siwis', homme: 'neural:tom', femme: 'neural:siwis' });
+    const bilan = appliquerAnalyse(cast, {
+      personnages: [
+        { id: 'narrateur', nom: 'Narrateur', genre: 'indetermine', role: 'narrateur' },
+        { id: 'pierre', nom: 'Pierre', genre: 'homme', role: 'personnage' },
+        { id: 'alice', nom: 'Alice', genre: 'femme', role: 'personnage' },
+      ],
+      locuteurs: ['narrateur', 'pierre', 'alice', 'pierre'],
+    }, choix, 0);
+
+    expect(bilan).toEqual({ personnages: 2, phrases: 3 });
+    expect(cast.enabled).toBe(true);
+    expect(cast.characters.map(c => c.name)).toEqual(['Narrateur', 'Pierre', 'Alice']);
+    expect(cast.characters.find(c => c.name === 'Pierre')?.voice).toBe('neural:tom');
+    expect(cast.characters.find(c => c.name === 'Alice')?.voice).toBe('neural:siwis');
+    expect(cast.characters[0].voice).toBe('neural:siwis');
+    expect(cast.assignments['0']).toBe('narrator');
+    expect(cast.assignments['1']).toBe('studio-pierre');
+    expect(cast.assignments['2']).toBe('studio-alice');
+    expect(cast.assignments['3']).toBe('studio-pierre');
+    // les phrases restent lisibles par le moteur de lecture
+    expect(speechProfile(book, { ...defaults, voice: 'system:default' }, 1).voice).toBe('neural:tom');
+  });
+
+  it('décale les attributions au chapitre analysé et retombe sur le narrateur', () => {
+    const book = fixture();
+    const cast = ensureCasting(book);
+    const bilan = appliquerAnalyse(cast, {
+      personnages: [{ id: 'pierre', nom: 'Pierre', genre: 'indetermine', role: 'personnage' }],
+      locuteurs: ['pierre', 'inconnu'],
+    }, { narrateur: 'neural:siwis', homme: 'neural:tom', femme: 'neural:siwis' }, 3);
+    expect(bilan.phrases).toBe(1);
+    expect(cast.assignments['3']).toBe('studio-pierre');
+    expect(cast.assignments['4']).toBe('narrator');
   });
 });

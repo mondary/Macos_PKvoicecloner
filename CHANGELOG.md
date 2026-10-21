@@ -1,6 +1,15 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.63] - 2026-10-21
+
+### Added
+- **Analyse des personnages pour le téléphone** : le studio expose `POST /api/attribuer` — il reçoit les phrases du chapitre telles que le lecteur Android les a découpées et rend la distribution (personnages, sexe de leur voix) puis un locuteur par phrase, dans l'ordre exact. La passerelle mobile l'expose avec sa propre validation (400 phrases de 600 caractères maximum, 600 s de délai) ; l'IA du studio fait le travail, rien ne tourne sur le téléphone.
+- `livres.attribuer_telephone` réutilise la détection de distribution et le classement des genres du studio, avec un tagage par lots de 40 lignes qui garantit l'alignement un-pour-un avec les segments Android.
+
+### Changed
+- Le lecteur Android diffuse sa progression de lecture (position, durée, plage du mot prononcé) pour le karaoké mot à mot ; le TTS donne les plages exactes, les voix Piper sont estimées au prorata.
+
 ## [2026.10.62] - 2026-10-21
 
 ### Changed

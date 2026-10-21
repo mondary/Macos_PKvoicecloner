@@ -19,6 +19,9 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 READ_PATHS = re.compile(r"/api/(?:etat|voix|job/[a-f0-9]{10}|audio/[a-f0-9]{10}\.wav)\Z")
+ASSIGN_PATH = "/api/attribuer"          # analyse IA du studio, à la demande du téléphone
+ASSIGN_BODY_MAX = 512 * 1024            # un chapitre entier de phrases numérotées
+ASSIGN_TIMEOUT = 600                    # l'analyse LLM peut durer plusieurs minutes
 
 
 class Gateway(BaseHTTPRequestHandler):
@@ -38,6 +41,9 @@ class Gateway(BaseHTTPRequestHandler):
         authorization = self.headers.get("Authorization", "")
         if not hmac.compare_digest(authorization, f"Bearer {self.server.token}"):
             self.reply(401, {"detail": "Code de connexion incorrect."})
+            return
+        if self.command == "POST" and self.path == ASSIGN_PATH:
+            self.forward_attribution()
             return
         if not ((self.command == "GET" and READ_PATHS.fullmatch(self.path)) or
                 (self.command == "POST" and self.path == "/api/generer")):
@@ -60,10 +66,37 @@ class Gateway(BaseHTTPRequestHandler):
             except (ValueError, TypeError, AttributeError):
                 self.reply(400, {"detail": "Passage ou voix invalide."})
                 return
+        self.relay(body, 30)
+
+    def forward_attribution(self):
+        """Analyse des personnages demandée par le lecteur : phrases du téléphone
+        → distribution + un locuteur par phrase (l'IA du studio fait le travail)."""
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            if not 0 < length <= ASSIGN_BODY_MAX:
+                raise ValueError("Taille invalide")
+            payload = json.loads(self.rfile.read(length))
+            if not isinstance(payload, dict):
+                raise ValueError("Corps invalide")
+            titre = payload.get("titre") or "Livre"
+            phrases = payload.get("phrases")
+            if not isinstance(titre, str) or len(titre) > 120:
+                raise ValueError("Titre invalide")
+            if not isinstance(phrases, list) or not 1 <= len(phrases) <= 400:
+                raise ValueError("Phrases invalides")
+            if any(not isinstance(p, str) or not 1 <= len(p.strip()) <= 600 for p in phrases):
+                raise ValueError("Phrase invalide")
+            body = json.dumps({"titre": titre, "phrases": phrases}, ensure_ascii=False).encode()
+        except (ValueError, TypeError, AttributeError):
+            self.reply(400, {"detail": "Chapitre invalide (400 phrases de 600 caractères maximum)."})
+            return
+        self.relay(body, ASSIGN_TIMEOUT)
+
+    def relay(self, body: bytes | None, timeout: int):
         request = Request(self.server.upstream + self.path, data=body,
                           headers={"Content-Type": "application/json"}, method=self.command)
         try:
-            response = urlopen(request, timeout=30)
+            response = urlopen(request, timeout=timeout)
         except HTTPError as error:
             response = error
         except (URLError, TimeoutError):

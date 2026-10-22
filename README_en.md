@@ -2,7 +2,9 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.66** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
+version **2026.10.67** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
+
+📱 **Android** — [download the APK](https://github.com/mondary/Macos_PKvoicecloner/releases/latest/download/PK-Reader-latest.apk) (stable link following the latest version) · 🍎 **macOS** — [DMG 2026.10.66](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/v2026.10.66)
 
 🎙️ **Open source AI voice studio — 100 % local.** Your voice says any text. Powered by [VoxCPM2](https://github.com/OpenBMB/VoxCPM), [dots.tts](https://github.com/studio-dots-ai/dots.tts), [Piper](https://github.com/OHF-Voice/piper1-gpl) and [faster-whisper](https://github.com/SYSTRAN/faster-whisper) on Apple Silicon via MPS. **No data ever leaves the machine.**
 
@@ -14,11 +16,15 @@ version **2026.10.66** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANG
 
 The **PK Reader** Android app reads EPUB, text PDFs and TXT using Android voices, downloaded Piper voices, or your PK Voice Studio clones. Local library, chapters, bookmarks, light/paper/night themes and a native audio service for background listening. Turn pages or keep a continuous scroll, a bottom bar keeps the sentence being read in view, voices can be changed without leaving the reader, and — like in the studio — **one voice per character**: each role gets its own voice, pitch and speed, each sentence its speaker — with the studio's character analysis (voice gender, sentence-by-sentence casting) and **word-by-word karaoke** while listening. Cloned voices require the Mac to generate new passages; prepared chapters can then be played offline.
 
-[Android installation and guide (French)](docs/ANDROID.md) · [Current APK](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.58) (`pk-<version>` release, direct link) · [Android changelog](src/mobile/CHANGELOG.md)
+**Automatic characters (Android 2026.10.59)** — import splits the text then, with the studio connected, analyzes the whole book: names, voice gender and speakers. In **The voices of this book**, simply confirm the suggested voices. A summary lists missing timbres and offers downloads; sentence corrections remain optional. Without the studio, local detection only recognizes names explicitly attached to dialogue. Full analysis uses the AI provider configured on the Mac (local or remote).
+
+[Android installation and guide (French)](docs/ANDROID.md) · [Current APK](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.59) (`pk-<version>` release, direct link) · [Android changelog](src/mobile/CHANGELOG.md)
 
 > APKs live in `pk-<version>` releases (newest first on the releases page). The **Latest** badge follows the last published release, Android or macOS: it may point at the DMG without the APK disappearing — the direct link above stays valid.
 
 <img src="store/screenshots/android-reader/library.png" width="230" alt="PK Reader library web preview" /> <img src="store/screenshots/android-reader/reader.png" width="230" alt="PK Reader reading screen web preview" />
+
+<img src="store/screenshots/android-reader/casting.png" width="300" alt="Web preview of detected characters and suggested voices using demonstration data" />
 
 ### macOS · PK Voice Studio
 

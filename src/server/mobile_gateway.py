@@ -86,9 +86,17 @@ class Gateway(BaseHTTPRequestHandler):
                 raise ValueError("Phrases invalides")
             if any(not isinstance(p, str) or not 1 <= len(p.strip()) <= 600 for p in phrases):
                 raise ValueError("Phrase invalide")
-            body = json.dumps({"titre": titre, "phrases": phrases}, ensure_ascii=False).encode()
+            personnages = payload.get("personnages", [])
+            if not isinstance(personnages, list) or len(personnages) > 200:
+                raise ValueError("Distribution invalide")
+            if any(not isinstance(p, dict) or
+                   any(not isinstance(p.get(k), str) or not 1 <= len(p[k]) <= 80 for k in ("id", "nom")) or
+                   p.get("genre") not in ("homme", "femme", "indetermine") or
+                   p.get("role") not in ("narrateur", "personnage") for p in personnages):
+                raise ValueError("Personnage invalide")
+            body = json.dumps({"titre": titre, "phrases": phrases, "personnages": personnages}, ensure_ascii=False).encode()
         except (ValueError, TypeError, AttributeError):
-            self.reply(400, {"detail": "Chapitre invalide (400 phrases de 600 caractères maximum)."})
+            self.reply(400, {"detail": "Analyse invalide (400 phrases de 600 caractères et 200 personnages maximum)."})
             return
         self.relay(body, ASSIGN_TIMEOUT)
 

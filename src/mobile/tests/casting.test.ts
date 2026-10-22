@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { appliquerAnalyse, ensureCasting, characterAt, speechProfile, suggestCasting, voixParGenreParDefaut } from '../casting';
-import { defaults, type Book } from '../types';
+import { appliquerAnalyse, ensureCasting, characterAt, speechProfile, suggestCasting, voixParGenreParDefaut, preparerDistributionLocale, proposerVoix, besoinsVoix } from '../casting';
+import { analyserLivre } from '../casting-analysis';
+import { defaults, type Book, type Voice } from '../types';
 
 function fixture(): Book {
   return { id: 'cast', title: 'Deux voix', author: '', format: 'TXT', language: 'fr', color: 0,
@@ -40,6 +41,108 @@ describe('local multi-character reading', () => {
   it('never routes local casting to a connected Mac even when the global voice is a clone', () => {
     const book = fixture(); ensureCasting(book).enabled = true;
     expect(speechProfile(book, { ...defaults, voice: 'clone:abcdef' }, 0).voice).toBe('system:default');
+  });
+});
+
+const catalog: Voice[] = [
+  { id: 'system:default', name: 'Téléphone', kind: 'system', language: 'fr', installed: true },
+  ...['siwis', 'tom', 'gilles', 'upmc', 'upmc_pierre'].map(id => ({ id: `neural:${id}`, name: id, kind: 'neural' as const, language: 'fr-FR', installed: false, size: 22 })),
+];
+describe('préparation automatique du livre', () => {
+  it('découvre les noms explicites dès l’import sans demander de créer les personnages', () => {
+    const book = fixture();
+    book.segments.push('— Venez, dit Monsieur Dupont.', 'Madame Martin : Bonjour.', 'Chapitre : Le départ');
+    preparerDistributionLocale(book, catalog, defaults.voice);
+    expect(book.casting!.characters.map(c => c.name)).toEqual(['Narrateur', 'Pierre', 'Alice', 'Monsieur Dupont', 'Madame Martin']);
+    expect(book.casting!.characters.find(c => c.name === 'Madame Martin')?.gender).toBe('femme');
+    expect(book.casting!.characters.find(c => c.name === 'Pierre')?.gender).toBe('indetermine');
+    expect(characterAt(book, 1)?.name).toBe('Pierre');
+    expect(book.casting!.assignments['3']).toBeUndefined(); // mention narrative, pas une réplique
+    expect(book.casting!.analysis?.state).toBe('local'); // pas une analyse complète
+  });
+
+  it('conserve les rôles, voix, réglages et corrections d’un chapitre à l’autre', () => {
+    const book = fixture(); const cast = ensureCasting(book);
+    const choix = { narrateur: 'system:default', homme: 'neural:tom', femme: 'neural:siwis' };
+    appliquerAnalyse(cast, { personnages: [{ id: 'pierre', nom: 'Pierre', genre: 'homme', role: 'personnage' }], locuteurs: ['pierre'] }, choix, 0);
+    const pierre = cast.characters[1]; pierre.voice = 'neural:gilles'; pierre.pitch = 0.8; pierre.rate = 1.2; pierre.automaticVoice = false;
+    cast.manualAssignments = { '1': true }; cast.assignments['1'] = pierre.id;
+    appliquerAnalyse(cast, { personnages: [{ id: 'alice', nom: 'Alice', genre: 'femme', role: 'personnage' }], locuteurs: ['alice'] }, choix, 1);
+    expect(cast.characters).toContain(pierre);
+    expect(cast.assignments['0']).toBe(pierre.id);
+    expect(cast.assignments['1']).toBe(pierre.id);
+    appliquerAnalyse(cast, { personnages: [{ id: 'pierre_dupont', nom: 'Pierre', genre: 'homme', role: 'personnage' }], locuteurs: ['pierre_dupont'] }, choix, 2);
+    expect(cast.characters).toHaveLength(3);
+    expect(cast.assignments['2']).toBe(pierre.id);
+    proposerVoix(cast, catalog.map(v => ({ ...v, installed: true })), defaults.voice, 'fr');
+    expect(pierre).toMatchObject({ voice: 'neural:gilles', pitch: 0.8, rate: 1.2 });
+  });
+
+  it('traite un chapitre de plus de 400 phrases et reprend après une coupure sans perdre de texte', async () => {
+    const book = fixture();
+    book.segments = Array.from({ length: 505 }, (_, i) => `Phrase ${i}.`);
+    book.chapters = [{ title: 'Long', start: 0, end: 500 }, { title: 'Suite', start: 500, end: 505 }];
+    const original = [...book.segments];
+    let calls = 0;
+    const request = async (input: Parameters<Parameters<typeof analyserLivre>[3]>[0]) => {
+      calls++;
+      if (calls === 2) throw new Error('Studio déconnecté');
+      expect(input.phrases.length).toBeLessThanOrEqual(126);
+      return { personnages: [{ id: 'pierre', nom: 'Pierre', genre: 'homme', role: 'personnage' }], locuteurs: input.phrases.map(() => 'pierre') };
+    };
+    const saved: string[][] = [];
+    const checkpoint = async () => { saved.push([...book.casting!.analysis!.completed]); };
+    await expect(analyserLivre(book, catalog, defaults.voice, request, checkpoint)).rejects.toThrow('déconnecté');
+    expect(book.casting!.analysis).toMatchObject({ state: 'error', completed: ['0:120'] });
+    await analyserLivre(book, catalog, defaults.voice, request, checkpoint);
+    expect(calls).toBe(7); // premier lot conservé, seul le lot échoué est recommencé
+    expect(book.casting!.analysis!.state).toBe('ready');
+    expect(Object.keys(book.casting!.assignments)).toHaveLength(505);
+    expect(new Set(Object.values(book.casting!.assignments)).size).toBe(1);
+    expect(book.casting!.characters).toHaveLength(2);
+    expect(book.segments).toEqual(original);
+  });
+
+  it('refuse une réponse tronquée plutôt que de décaler les locuteurs', async () => {
+    const book = fixture();
+    await expect(analyserLivre(book, catalog, defaults.voice, async () => ({ personnages: [], locuteurs: ['narrateur'] }), async () => {})).rejects.toThrow('incomplète');
+    expect(book.casting!.analysis!.completed).toEqual([]);
+    expect(book.casting!.analysis!.state).toBe('error');
+  });
+
+  it('propose des timbres distincts et respecte langue, genre et voix manuelles', () => {
+    const cast = ensureCasting(fixture());
+    cast.characters.push({ id: 'pierre', name: 'Pierre', gender: 'homme', voice: '', pitch: 1, rate: 1 },
+      { id: 'alice', name: 'Alice', gender: 'femme', voice: '', pitch: 1, rate: 1 });
+    const available = [...catalog.map(v => ({ ...v, installed: ['neural:tom', 'neural:siwis', 'system:default'].includes(v.id) })),
+      { id: 'neural:lessac', name: 'English', kind: 'neural' as const, language: 'en-US', installed: true }];
+    expect(proposerVoix(cast, available, defaults.voice, 'fr').missing).toHaveLength(0);
+    expect(cast.characters.find(c => c.id === 'pierre')?.voice).toBe('neural:tom');
+    expect(cast.characters.find(c => c.id === 'alice')?.voice).toBe('neural:siwis');
+    expect(new Set(cast.characters.map(c => c.voice)).size).toBe(3);
+    expect(cast.characters.some(c => c.voice === 'neural:lessac')).toBe(false);
+  });
+
+  it('compte les voix manquantes et regroupe les deux timbres UPMC en un téléchargement', () => {
+    const cast = ensureCasting(fixture());
+    for (let i = 0; i < 6; i++) cast.characters.push({ id: `p${i}`, name: `P${i}`, voice: '', gender: i % 2 ? 'femme' : 'homme', pitch: 1, rate: 1 });
+    const plan = proposerVoix(cast, catalog, defaults.voice, 'fr');
+    expect(plan.missing).toHaveLength(6);
+    expect(plan.downloads).toHaveLength(4);
+    expect(plan.downloads.flatMap(d => d.voices)).toHaveLength(5);
+    expect(plan.downloads.find(d => d.voices.length === 2)?.roles).toHaveLength(2);
+    const installed = catalog.map(v => ({ ...v, installed: true }));
+    proposerVoix(cast, installed, defaults.voice, 'fr');
+    expect(besoinsVoix(cast, installed, 'fr').missing).toHaveLength(1);
+  });
+
+  it('ne présente pas le genre inconnu des voix Android comme une correspondance vérifiée', () => {
+    const cast = ensureCasting(fixture());
+    cast.characters.push({ id: 'alice', name: 'Alice', gender: 'femme', voice: '', pitch: 1, rate: 1 });
+    const voices: Voice[] = [...catalog, { id: 'system:unknown', name: 'Voix Android', language: 'fr', kind: 'system', installed: true }];
+    const plan = proposerVoix(cast, voices, defaults.voice, 'fr');
+    expect(plan.missing.some(c => c.id === 'alice')).toBe(true);
+    expect(plan.downloads.flatMap(d => d.voices).some(v => v.id === 'neural:siwis')).toBe(true);
   });
 });
 

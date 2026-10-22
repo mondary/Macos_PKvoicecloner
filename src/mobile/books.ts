@@ -50,7 +50,9 @@ export function couperLongue(texte: string, maxi = 400): string[] {
 /** Phrases d'un texte, paragraphe d'origine et style (italique, citation).
  *  `i` = italique, `q` = citation — appliqués à la phrase entière au rendu. */
 export function paragraphsOf(text: string): Decoupage {
-  const cleaned = text.replace(/\r/g, '').replace(/[\t\u00a0]/g, ' ').trim();
+  const cleaned = text.replace(/\r/g, '').replace(/[\t\u00a0]/g, ' ')
+    // Les répliques sur des lignes consécutives restent des tours de parole.
+    .replace(/(^|\n)([ ]*[—–][^\n]*)/g, '\n\n$2\n\n').trim();
   const phrases: string[] = [];
   const paragraphes: number[] = [];
   const styles: string[] = [];
@@ -60,7 +62,15 @@ export function paragraphsOf(text: string): Decoupage {
     const { plain, italique, citation } = extraire(block.replace(/\s+/g, ' ').trim());
     if (!plain.trim()) continue;
     let compte = 0;
-    for (const { segment, index } of segmenter.segment(plain)) {
+    const decoupes = Array.from(segmenter.segment(plain));
+    for (let i = 0; i < decoupes.length; i++) {
+      let { segment } = decoupes[i];
+      const { index } = decoupes[i];
+      // Intl coupe parfois « M. Dupont » après le titre : garder le nom avec
+      // sa réplique, indispensable à la détection des personnages.
+      while (/\b(?:M|Mme|Mlle|Dr|Pr|Mr|Mrs|Ms)\.$/.test(segment.trimEnd()) && i + 1 < decoupes.length) {
+        segment += decoupes[++i].segment;
+      }
       const debut = index + (segment.length - segment.trimStart().length);
       const fin = index + segment.trimEnd().length;
       if (fin <= debut) continue;

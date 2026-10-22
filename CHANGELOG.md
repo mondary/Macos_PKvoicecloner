@@ -1,6 +1,12 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.67] - 2026-10-22
+
+### Changed
+- **Préparation automatique des livres Android (2026.10.59)** : `/api/attribuer` accepte la distribution déjà rencontrée pour conserver les identités entre les chapitres. Le tagage transmet le contexte précédent et réutilise immédiatement les nouveaux locuteurs.
+- La passerelle mobile valide et transmet jusqu’à 200 personnages connus. Les réponses IA doivent contenir exactement un locuteur par phrase ; une réponse tronquée est rejetée et le téléphone peut reprendre le lot.
+
 ## [2026.10.66] - 2026-10-21
 
 ### Added

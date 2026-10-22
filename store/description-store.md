@@ -23,6 +23,14 @@ pas autonomes et nécessitent encore le dépôt et son environnement Python.
 
 ## Assets
 
+### PK Reader Android — sources 2026.10.59
+
+**FR** — Importe un livre, valide une voix par personnage. Avec le studio connecté, le découpage, les noms, le genre de voix et les locuteurs sont préparés automatiquement pour tout le livre. Le bilan indique les voix manquantes et propose leurs téléchargements Piper. Sans studio, la détection locale se limite aux noms explicites des répliques. L’analyse complète dépend du provider IA local ou distant configuré sur le Mac. APK 2026.10.59 (release `pk-2026.10.59`).
+
+**EN** — Import a book, confirm one voice per character. With the studio connected, segmentation, names, voice gender and speakers are prepared automatically throughout the book. A summary lists missing voices and offers Piper downloads. Without the studio, local detection is limited to explicit dialogue names. Full analysis uses the local or remote AI provider configured on the Mac. APK 2026.10.59 (release `pk-2026.10.59`).
+
+Capture mobile : `store/screenshots/android-reader/casting.png` — véritable interface web, texte fictif, détection locale. Les voix système de l’aperçu navigateur ne représentent pas le catalogue d’un téléphone Android.
+
 | Fichier | Usage |
 |---|---|
 | `store/assets/banner-1544x500.png` | bannière store |

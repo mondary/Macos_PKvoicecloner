@@ -1,5 +1,16 @@
 # PK Reader Android
 
+## [2026.10.59] - 2026-10-22
+
+### Changed
+- **Un seul parcours « Les voix de ce livre »** : l’import prépare les personnages et propose une voix par rôle. L’utilisateur valide ou change ces voix ; les corrections de locuteur restent facultatives et repliées. Les paragraphes, phrases et tours de parole sont découpés automatiquement, y compris les noms précédés de M. ou Mme.
+- **Tout le livre est analysé automatiquement avec le studio connecté**, par lots de 120 phrases avec contexte, sans limite de 400 phrases par chapitre. Chaque lot est sauvegardé ; une coupure se reprend sans refaire les lots terminés. Sans studio, seuls les noms explicitement rattachés aux répliques sont détectés, avec une invitation à connecter le studio pour compléter.
+- **Voix proposées selon la langue et le genre détecté**, avec préférence pour des timbres distincts. Le bilan nomme les rôles nécessitant une voix supplémentaire et propose les téléchargements Piper disponibles. Jessica et Pierre partagent un seul téléchargement UPMC. Les voix manuelles et leurs réglages sont conservés.
+
+### Fixed
+- Analyser un chapitre ne supprime plus les personnages des précédents ; les corrections manuelles sont préservées. Une réponse IA incomplète est signalée au lieu de décaler silencieusement les locuteurs.
+- Les appels d’analyse utilisent un exécuteur Android séparé pour ne pas bloquer le chargement du lecteur pendant une requête IA.
+
 ## [2026.10.58] - 2026-10-21
 
 ### Added

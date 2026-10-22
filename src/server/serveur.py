@@ -1689,11 +1689,19 @@ def attribuer_voix_telephone(req: dict = Body(...)):
         if not isinstance(phrase, str) or not 1 <= len(phrase.strip()) <= 600:
             raise HTTPException(400, "phrase invalide (1 à 600 caractères)")
         nettes.append(phrase.strip())
+    personnages = req.get("personnages", [])
+    if not isinstance(personnages, list) or len(personnages) > 200 or any(
+        not isinstance(p, dict) or
+        any(not isinstance(p.get(k), str) or not 1 <= len(p[k]) <= 80 for k in ("id", "nom")) or
+        p.get("genre") not in ("homme", "femme", "indetermine") or
+        p.get("role") not in ("narrateur", "personnage") for p in personnages
+    ):
+        raise HTTPException(400, "distribution invalide (200 personnages maximum)")
     cfg = _lire_ia()
     if not (cfg.get("base_url") and cfg.get("cle") and cfg.get("modele")):
         raise HTTPException(400, "configuration IA absente : renseigne l'endpoint, la clé et le modèle dans Réglages IA")
     try:
-        return livres.attribuer_telephone(cfg, titre, nettes)
+        return livres.attribuer_telephone(cfg, titre, nettes, personnages)
     except ia.IaErreur as erreur:
         raise HTTPException(429 if ia.est_quota(erreur) else 400, ia.message_lisible(erreur))
 

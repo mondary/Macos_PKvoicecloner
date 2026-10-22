@@ -784,7 +784,8 @@ def _echantillon(dossier: Path, projet: dict, taille: int = 9000) -> str:
     return "\n\n[…]\n\n".join(pris)[:taille]
 
 
-def _detecter_cast(cfg: dict, titre: str, echantillon: str, compteur: dict) -> list[dict]:
+def _detecter_cast(cfg: dict, titre: str, echantillon: str, compteur: dict,
+                   connus: list[dict] | None = None) -> list[dict]:
     """Passe 1 : la distribution des voix — narrateur + personnages, avec genre."""
     message = (
         "TÂCHE: CAST.\n"
@@ -801,6 +802,12 @@ def _detecter_cast(cfg: dict, titre: str, echantillon: str, compteur: dict) -> l
         '- "importance" : "principal" (nombreuses répliques), "secondaire", "figurant".\n'
         "- Narrateur d'abord, puis personnages par importance décroissante ; 15 entrées maximum (regroupe les figurants)."
     )
+    if connus:
+        message += ("\nPersonnages déjà rencontrés dans les chapitres précédents (données du livre) :\n"
+                    + json.dumps(connus, ensure_ascii=False)
+                    + "\nRéutilise EXACTEMENT leurs identifiants quand il s'agit de la même personne, "
+                    "même si le texte emploie son titre ou un alias. Détecte aussi les nouveaux personnages "
+                    "qui parlent dans cet extrait. Donne leur nom réel quand le texte le permet.")
     reponse, usage = ia.completer_detail(cfg, [{"role": "user", "content": message}], json_mode=True)
     compteur["tokens"] += usage.get("total_tokens", 0)
     donnees = ia.extraire_json(reponse)
@@ -899,7 +906,7 @@ def _classer_genres(cfg: dict, titre: str, repliques: dict[str, list[str]], comp
 
 
 def _tagger_lignes(cfg: dict, titre: str, lot: list[str], cast: list[dict],
-                   compteur: dict) -> tuple[list[str], dict[str, list[str]]]:
+                   compteur: dict, contexte: str = "") -> tuple[list[str], dict[str, list[str]]]:
     """Attribue un locuteur à chaque phrase d'un lot déjà découpé par le téléphone.
 
     Contrairement au tagage des livres (où l'IA réécrit des lignes), ici l'ordre
@@ -913,6 +920,7 @@ def _tagger_lignes(cfg: dict, titre: str, lot: list[str], cast: list[dict],
     message = (
         "TÂCHE: ATTRIBUTION.\n"
         f"Livre : « {titre} ». Voix disponibles :\n{distribution}\n\n"
+        f"Contexte précédent (déjà attribué, NE PAS inclure dans la réponse) :\n{contexte}\n\n"
         "Chaque ligne numérotée ci-dessous est UNE phrase du livre, dans l'ordre exact.\n"
         f"<<<\n{lignes}\n>>>\n\n"
         'Réponds UNIQUEMENT en JSON : {"locuteurs": ["narrateur", "pierre", …]}\n'
@@ -920,22 +928,22 @@ def _tagger_lignes(cfg: dict, titre: str, lot: list[str], cast: list[dict],
         "- exactement UN identifiant par ligne numérotée, dans l'ordre, sans rien sauter ;\n"
         "- déduis le locuteur du contexte (verbes de parole, noms, accords, style d'élocution) ;\n"
         "- le récit hors réplique revient au narrateur ;\n"
-        "- un locuteur absent de la liste reçoit un identifiant court (np1, np2…) réutilisé ensuite ;\n"
+        "- un locuteur absent de la liste reçoit un identifiant issu de son NOM réel si connu, sinon un nouvel id inconnu1, inconnu2… ;\n"
+        "- réutilise toujours l'identifiant d'une personne déjà présente dans la distribution ;\n"
         "- aucun commentaire, aucune ligne en plus."
     )
     reponse, usage = ia.completer_detail(cfg, [{"role": "user", "content": message}], json_mode=True)
     compteur["tokens"] += usage.get("total_tokens", 0)
     donnees = ia.extraire_json(reponse)
     brutes = donnees.get("locuteurs") if isinstance(donnees, dict) else donnees
-    if not isinstance(brutes, list):
-        raise ia.IaErreur("l'IA n'a pas renvoyé d'attribution exploitable")
+    if (not isinstance(brutes, list) or len(brutes) != len(lot)
+            or any(not isinstance(v, str) or not v.strip() for v in brutes)):
+        raise ia.IaErreur("l'IA a renvoyé une attribution incomplète : reprends la préparation pour réessayer ce passage")
     connus = {voice["id"] for voice in cast}
     locuteurs: list[str] = []
     nouveaux: dict[str, list[str]] = {}
     for position, phrase in enumerate(lot):
-        identifiant = _slug(str(brutes[position])) if position < len(brutes) else ""
-        if not identifiant:            # ligne manquante : on garde le locuteur précédent
-            identifiant = locuteurs[-1] if locuteurs else "narrateur"
+        identifiant = _slug(brutes[position])
         if identifiant not in connus:
             connus.add(identifiant)
             nouveaux[identifiant] = []
@@ -945,7 +953,7 @@ def _tagger_lignes(cfg: dict, titre: str, lot: list[str], cast: list[dict],
     return locuteurs, nouveaux
 
 
-def attribuer_telephone(cfg: dict, titre: str, phrases: list[str]) -> dict:
+def attribuer_telephone(cfg: dict, titre: str, phrases: list[str], personnages: list[dict] | None = None) -> dict:
     """Analyse studio pour le lecteur Android.
 
     Les phrases viennent du lecteur (son propre découpage) : on rend la
@@ -956,27 +964,38 @@ def attribuer_telephone(cfg: dict, titre: str, phrases: list[str]) -> dict:
     echantillon = "\n\n".join(phrases)
     if len(echantillon) > 9000:
         echantillon = echantillon[:4500] + "\n[…]\n" + echantillon[-3500:]
-    cast = _detecter_cast(cfg, titre, echantillon, compteur)
+    cast = [dict(p, id=_slug(p["id"])) for p in (personnages or [])]
+    detectes = _detecter_cast(cfg, titre, echantillon, compteur, cast)
+    for nouveau in detectes:
+        existant = next((p for p in cast if p["id"] == nouveau["id"]
+                         or _slug(p["nom"]) == _slug(nouveau["nom"])
+                         or p["role"] == nouveau["role"] == "narrateur"), None)
+        if existant:
+            if nouveau["genre"] != "indetermine":
+                existant["genre"] = nouveau["genre"]
+        else:
+            cast.append(nouveau)
     connus = {voice["id"] for voice in cast}
     locuteurs: list[str] = []
     nouveaux: dict[str, list[str]] = {}
     for debut in range(0, len(phrases), 40):
         lot = phrases[debut:debut + 40]
-        ids, decouverts = _tagger_lignes(cfg, titre, lot, cast, compteur)
+        contexte = "\n".join(f"{locuteurs[i]} : {phrases[i]}" for i in range(max(0, debut - 6), debut))
+        ids, decouverts = _tagger_lignes(cfg, titre, lot, cast, compteur, contexte)
         locuteurs.extend(ids)
         for identifiant, repliques in decouverts.items():
             if identifiant not in connus:
                 connus.add(identifiant)
                 nouveaux[identifiant] = repliques
-    personnages = [dict(voice) for voice in cast]
+                cast.append({"id": identifiant, "nom": identifiant.replace("-", " ").replace("_", " ").title(),
+                             "genre": "indetermine", "role": "personnage"})
+    resultat = [dict(voice) for voice in cast]
     if nouveaux:
         genres = _classer_genres(cfg, titre, nouveaux, compteur)
-        for identifiant in nouveaux:
-            personnages.append({"id": identifiant, "nom": identifiant.capitalize(),
-                                "genre": genres.get(identifiant, "indetermine"),
-                                "role": "personnage", "description": "",
-                                "importance": "secondaire"})
-    return {"personnages": personnages, "locuteurs": locuteurs, "tokens": compteur["tokens"]}
+        for personnage in resultat:
+            if personnage["id"] in nouveaux:
+                personnage["genre"] = genres.get(personnage["id"], "indetermine")
+    return {"personnages": resultat, "locuteurs": locuteurs, "tokens": compteur["tokens"]}
 
 
 def analyser_livre(racine: Path, ident: str, cfg: dict,

@@ -14,7 +14,8 @@ import { importBook, welcomeBook, chapterAt, minutesLeft, reparerParagraphes } f
 import { audio, native, Reader, modelCatalog } from './engine';
 import type { Book, Voice } from './types';
 import { openCasting } from './casting-ui';
-import { characterAt, speechProfile } from './casting';
+import { besoinsVoix, characterAt, speechProfile } from './casting';
+import { castingBusy, prepareCasting, watchCasting } from './casting-jobs';
 import { decouperMots, motPourPlage, motPourProgression, rendreMots } from './karaoke';
 
 /* ------------------------------------------------------------------ état */
@@ -175,6 +176,11 @@ function libraryView() {
   <div class="books-grid">${filtered.map((b, i) => `<article class="book-item" style="--i:${Math.min(i, 12)}">${b.completed?`<span class="book-flag">Terminé</span>`:''}<button class="book-open" data-action="open" data-id="${b.id}">${cover(b)}<strong>${esc(b.title.replace(/\n/g,' '))}</strong><span>${esc(b.author)}</span></button><div class="book-bottom"><span>${b.completed?'Lu en entier':b.position>0?`${percent(b)} % · ${minutes(b)} restantes`:b.sample?'GUIDE DE DÉCOUVERTE':b.format}</span>${iconButton('ellipsis','Options du livre','book-menu').replace('data-action="book-menu"',`data-action="book-menu" data-id="${b.id}"`)}</div>${b.position>0?`<div class="book-progress"><span style="width:${percent(b)}%"></span></div>`:''}</article>`).join('')}${filter==='all'&&!search?`<button class="import-tile" data-action="import"><span>${icon('plus')}</span><strong>La suite vous appartient.</strong><small>Importez votre prochain livre<br>EPUB, PDF ou texte</small></button>`:''}</div>
   ${!filtered.length?'<div class="empty-state">Aucun livre ici pour le moment.</div>':''}</section>
   <div class="privacy-note">${icon('lock-keyhole')}<p>Votre bibliothèque, sur votre appareil.<br><span>Sans compte. Sans publicité. Juste vos livres.</span></p></div>
+  ${real.some(b => b.casting) ? `<section class="settings-section"><h2>Les voix de vos livres</h2>${real.filter(b => b.casting).map(b => {
+    const missing = besoinsVoix(b.casting!, [...voices, ...models], b.language).missing.length;
+    const state = castingBusy(b) ? 'Préparation automatique en cours…' : b.casting!.analysis?.state === 'ready' ? `${b.casting!.characters.length} rôles · ${missing ? `${missing} voix à compléter` : 'voix proposées'}` : 'Analyse à compléter avec le studio';
+    return `<button class="setting-row casting-library-row" data-action="casting" data-id="${b.id}"><span><strong>${esc(b.title)}</strong><small>${esc(state)}</small></span>${icon('chevron-right')}</button>`;
+  }).join('')}</section>` : ''}
   <p class="build-line">PK Reader <b>${version}</b></p>`;
 }
 
@@ -483,6 +489,20 @@ function modal(title: string, body: string) {
   sheet.innerHTML = `<div class="sheet-handle"></div><header><h2 id="sheet-title">${title}</h2>${iconButton('x','Fermer','close')}</header>${body}`;
   if (!sheet.open) sheet.showModal(); decorate();
 }
+const allVoices = () => [...voices, ...models];
+function castingSheet(book: Book) {
+  return openCasting(book, allVoices(), settings, modal, render,
+    () => { screen = 'settings'; render(); }, updated => { models = updated; });
+}
+function prepareBook(book: Book) {
+  if (!book.sample && book.casting?.analysis?.state !== 'ready') {
+    void prepareCasting(book, allVoices(), settings).catch(error => toast(`${book.title} : ${error instanceof Error ? error.message : error}`));
+  }
+}
+watchCasting(id => {
+  const book = books.find(b => b.id === id);
+  if (book && !castingBusy(book) && screen === 'library') render();
+});
 async function openBook(id: string, listen = false) {
   const ancien = books.find(b => b.id === id);
   if (ancien && (!ancien.paragraphs || ancien.paragraphs.length !== ancien.segments.length)) {
@@ -491,6 +511,7 @@ async function openBook(id: string, listen = false) {
   }
   sheet.close();
   const book = books.find(b => b.id === id); if (!book) return;
+  prepareBook(book);
   currentId = id; book.opened = Date.now();
   if (book.completed && listen) { book.position = 0; book.completed = false; }
   await library.save(book);
@@ -503,17 +524,19 @@ async function openBook(id: string, listen = false) {
 }
 async function importFiles(files: File[]) {
   if (importing) return; importing = true; sheet.close(); toast('Import des livres…');
-  let count = 0;
+  let count = 0; const imported: Book[] = [];
   for (const file of files) {
     try {
       const book = await importBook(file);
       if (books.some(b => b.id === book.id)) { toast(`${book.title} est déjà dans votre bibliothèque.`); continue; }
-      await library.save(book); books.unshift(book); count++;
+      await library.save(book); books.unshift(book); imported.push(book); count++;
+      prepareBook(book);
     } catch (e) { toast(`${file.name} : ${e instanceof Error?e.message:e}`); }
   }
   importing = false; screen = 'library'; filter = 'all'; search = ''; render();
   if (count) toast(`${count} livre${count>1?'s':''} ajouté${count>1?'s':''} à votre bibliothèque.`);
   fileInput.value = '';
+  if (imported.length === 1) await castingSheet(imported[0]);
 }
 
 /* ------------------------------------------------------------ lecture suivie */
@@ -570,7 +593,7 @@ async function handle(action: string, el: HTMLElement) {
     case 'back': screen = 'library'; follow = true; render(); window.scrollTo(0, 0); break;
     case 'open': await openBook(id); break;
     case 'listen': await openBook(id, true); break;
-    case 'toggle': if (audio.state.playing || audio.state.loading) await audio.pause(); else { if (book && audio.state.bookId !== book.id) await audio.load(book, settings); await audio.play(); } break;
+    case 'toggle': if (audio.state.playing || audio.state.loading) await audio.pause(); else { if (book) await audio.load(book, settings); await audio.play(); } break;
     case 'previous': await seekTo(audio.state.index - 1); break;
     case 'next': await seekTo(audio.state.index + 1); break;
     case 'sentence': await seekTo(Number(el.dataset.index)); break;
@@ -622,7 +645,7 @@ async function handle(action: string, el: HTMLElement) {
     case 'chapter-next': if (book) { const next = chapterAt(book).end; if (next < book.segments.length) { follow = true; page = 0; await audio.seek(next); render(); window.scrollTo(0, 0); } else { screen = 'library'; render(); } } break;
     case 'bookmark': if (book) { const pos = Math.min(book.position, book.segments.length - 1); book.bookmarks = book.bookmarks.includes(pos) ? book.bookmarks.filter(i => i !== pos) : [...book.bookmarks, pos].sort((a, b) => a - b); await library.save(book); render(); toast(book.bookmarks.includes(pos)?'Passage ajouté aux signets.':'Signet retiré.'); } break;
     case 'voice-tab': voiceTab = id; render(); break;
-    case 'casting': if (book) await openCasting(book, [...voices, ...models], settings, modal, render); break;
+    case 'casting': { const target = id ? books.find(b => b.id === id) : book; if (target) await castingSheet(target); break; }
     case 'choose-voice': modal('Changer de voix', `${book ? '<button class="setting-row" data-action="casting">Une voix par personnage →</button>' : ''}${quickVoiceBody()}`); break;
     case 'select-voice': settings.voice = id; settings.rate = settings.voiceRates?.[id] ?? settings.rate; savePrefs(); if (sheet.open) sheet.close(); if (active()) await audio.load(active()!, settings); render(); toast(`Voix appliquée à cette écoute · ${settings.rate.toLocaleString('fr')}×`); break;
     case 'preview': {
@@ -636,7 +659,7 @@ async function handle(action: string, el: HTMLElement) {
     case 'voice-settings': if (native) await Reader.voiceSettings(); else toast('Les réglages des voix Android sont accessibles dans l’APK.'); break;
     case 'prepare': if (native && book) { if (book.segments.slice(chapterAt(book).start, chapterAt(book).end).some((_, offset) => speechProfile(book, settings, chapterAt(book).start + offset).voice.startsWith('system:'))) { toast('Pour préparer ce chapitre, choisissez une voix Piper pour chaque rôle utilisé.'); break; } modal('Emporter ce chapitre',`<p class="sheet-description">Les passages de « ${esc(chapterAt(book).title)} » seront générés et conservés sur le téléphone. Avec une voix clonée, votre Mac doit rester connecté pendant la préparation.</p><button class="primary" data-action="prepare-confirm">${icon('download')} Préparer le chapitre</button>`); } else toast('La préparation hors ligne est disponible dans l’APK Android.'); break;
     case 'prepare-confirm': if (book) { await Reader.command({ action:'prepare', index:chapterAt(book).start, end:chapterAt(book).end }); sheet.close(); toast('Préparation du chapitre démarrée.'); } break;
-    case 'book-menu': { const b = books.find(b => b.id === id); if (b) modal(esc(b.title.replace(/\n/g,' ')),`<button class="setting-row" data-action="open" data-id="${id}"><span>${icon('book-open')} Ouvrir le livre</span></button><button class="setting-row" data-action="reparagrapher" data-id="${id}"><span>${icon('pilcrow')} Reconstituer les paragraphes</span></button><button class="setting-row" data-action="clear-audio" data-id="${id}"><span>${icon('hard-drive')} Effacer les audios préparés</span></button><button class="setting-row danger" data-action="delete-confirm" data-id="${id}"><span>${icon('trash-2')} Retirer de la bibliothèque</span></button>`); break; }
+    case 'book-menu': { const b = books.find(b => b.id === id); if (b) modal(esc(b.title.replace(/\n/g,' ')),`<button class="setting-row" data-action="open" data-id="${id}"><span>${icon('book-open')} Ouvrir le livre</span></button><button class="setting-row" data-action="casting" data-id="${id}"><span>${icon('users')} Les voix de ce livre${castingBusy(b) ? ' · préparation en cours' : b.casting?.analysis?.state === 'ready' ? ' · prêtes' : ' · à préparer'}</span></button><button class="setting-row" data-action="reparagrapher" data-id="${id}"><span>${icon('pilcrow')} Reconstituer les paragraphes</span></button><button class="setting-row" data-action="clear-audio" data-id="${id}"><span>${icon('hard-drive')} Effacer les audios préparés</span></button><button class="setting-row danger" data-action="delete-confirm" data-id="${id}"><span>${icon('trash-2')} Retirer de la bibliothèque</span></button>`); break; }
     case 'reparagrapher': {
       const b = books.find(b => b.id === id);
       if (b) {
@@ -648,7 +671,7 @@ async function handle(action: string, el: HTMLElement) {
       break;
     }
     case 'clear-audio': if (native) { await audio.pause(); await Reader.clearAudio({ bookId: id }); toast('Audios de ce livre effacés.'); } else toast('Aucun audio conservé dans cet aperçu web.'); sheet.close(); break;
-    case 'delete-confirm': modal('Retirer ce livre ?',`<p class="sheet-description">Le livre, sa position et ses signets seront retirés de cette bibliothèque. Le fichier d’origine restera intact.</p><button class="primary danger-button" data-action="delete" data-id="${id}">Retirer le livre</button>`); break;
+    case 'delete-confirm': if (books.some(b => b.id === id && castingBusy(b))) { toast('Attendez la fin de la préparation de ce livre avant de le retirer.'); break; } modal('Retirer ce livre ?',`<p class="sheet-description">Le livre, sa position et ses signets seront retirés de cette bibliothèque. Le fichier d’origine restera intact.</p><button class="primary danger-button" data-action="delete" data-id="${id}">Retirer le livre</button>`); break;
     case 'delete': if (audio.state.bookId === id) await audio.pause(); await library.remove(id); books = books.filter(b => b.id !== id); sheet.close(); render(); toast('Livre retiré de la bibliothèque.'); break;
   }
 }
@@ -726,7 +749,7 @@ document.addEventListener('submit', e => {
     const data = new FormData(form); settings.server = String(data.get('server')).replace(/\/+$/,''); settings.token = String(data.get('token')).trim();
     if (!native) { toast('La connexion au studio se fait dans l’APK Android.'); return; }
     const button = form.querySelector<HTMLButtonElement>('button')!; button.disabled = true; button.textContent = 'Connexion…';
-    void Reader.connect({ server: settings.server, token: settings.token }).then(r => { clones = r.voices; savePrefs(); voiceTab = 'clone'; screen = 'voices'; render(); toast(`${clones.length} voix retrouvée${clones.length>1?'s':''}.`); }).catch(error => { button.disabled = false; button.textContent = 'Connecter le studio'; toast(error.message ?? String(error)); });
+    void Reader.connect({ server: settings.server, token: settings.token }).then(r => { clones = r.voices; savePrefs(); books.forEach(prepareBook); screen = 'library'; render(); toast('Studio connecté. Préparation automatique des personnages de vos livres.'); }).catch(error => { button.disabled = false; button.textContent = 'Connecter le studio'; toast(error.message ?? String(error)); });
   }
 });
 window.addEventListener('hashchange', () => { if (location.hash === '#library') { screen = 'library'; render(); } });

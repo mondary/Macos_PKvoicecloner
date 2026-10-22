@@ -670,5 +670,36 @@ class AttributionMobileContracts(StudioContracts):
         # une seule passe de tagage pour un chapitre court
         self.assertEqual(sum(1 for appel in appels if 'TÂCHE: ATTRIBUTION' in appel), 1)
 
+    def test_mobile_conserve_la_distribution_et_le_contexte_entre_lots(self):
+        existants = [{'id': 'pierre-stable', 'nom': 'Pierre', 'genre': 'homme', 'role': 'personnage'}]
+        appels = []
+
+        def completer(cfg, messages, **options):
+            texte = messages[0]['content']
+            appels.append(texte)
+            if 'TÂCHE: CAST' in texte:
+                self.assertIn('pierre-stable', texte)
+                return json.dumps({'cast': [{'id': 'pierre', 'nom': 'Pierre', 'genre': 'homme', 'role': 'personnage'}]}), {}
+            self.assertIn('pierre-stable (Pierre', texte)
+            self.assertNotIn('\n41. ', texte)  # les lots ne dépassent pas 40 lignes
+            n = 40 if len(appels) == 2 else 2
+            if n == 2:
+                self.assertIn('pierre-stable : Réplique 39.', texte)
+            return json.dumps({'locuteurs': ['pierre-stable'] * n}), {}
+
+        with patch.object(server.livres.ia, 'completer_detail', side_effect=completer):
+            resultat = server.livres.attribuer_telephone({}, 'Test', [f'Réplique {i}.' for i in range(42)], existants)
+        self.assertEqual(resultat['locuteurs'], ['pierre-stable'] * 42)
+        self.assertEqual(sum(p['nom'] == 'Pierre' for p in resultat['personnages']), 1)
+
+    def test_mobile_refuse_une_reponse_ia_desalignee(self):
+        with patch.object(server.livres.ia, 'completer_detail', return_value=('{"locuteurs":["pierre"]}', {})):
+            with self.assertRaisesRegex(server.ia.IaErreur, 'incomplète'):
+                server.livres._tagger_lignes({}, 'Test', ['Un.', 'Deux.'], [], {'tokens': 0})
+
+    def test_mobile_valide_les_personnages_avant_l_appel_ia(self):
+        for personnages in ({}, [None], [{'id': 'a', 'nom': 42}], [{'id': 'a', 'nom': 'A', 'genre': 'homme', 'role': 'system'}]):
+            self.assertEqual(self.client.post('/api/attribuer', json={'phrases': ['Bonjour.'], 'personnages': personnages}).status_code, 400)
+
 
 if __name__ == '__main__': unittest.main()

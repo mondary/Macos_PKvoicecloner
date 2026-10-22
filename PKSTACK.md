@@ -25,6 +25,8 @@
 
 ## Skills récemment appliquées
 
+- `fixing-accessibility` / `app-presence-sync` / `premium-promo-media` / `-pk-COMMIT` — Android 2026.10.59 : préparation automatique des personnages, propositions et téléchargements de voix, contrôles nommés et corrections repliées ; documentation FR/EN et landing synchronisées. Studio 2026.10.67 : identités et contexte conservés entre lots.
+- `ego-browser` / `ego-browser-user-policy` / `macos-build` — contrôle du parcours mobile dans un TaskSpace isolé, capture de la vraie interface web avec texte de démonstration et build Dev du studio via le script du projet.
 - `capacitor-pnpm-setup` / `frontend-design` / `nosdk-cloud-builds` — PK Reader Android : interface originale dans `src/mobile`, service de lecture natif, modèles Piper, passerelle mobile et APK/test émulateur GitHub Actions. Version Android suivie séparément dans `src/mobile/CHANGELOG.md`.
 - `ego-browser` / `ego-browser-user-policy` — références Readexa et contrôle de l’interface mobile dans un TaskSpace isolé.
 - `pk-commits` — commits Android ciblés, documentation et version CalVer mobile.

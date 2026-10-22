@@ -1,4 +1,5 @@
 import importlib.util
+import json
 from pathlib import Path
 import threading
 import unittest
@@ -33,7 +34,8 @@ class GatewayAccessTests(unittest.TestCase):
             with urlopen(req) as response:
                 return response.status
         except HTTPError as error:
-            return error.code
+            with error:
+                return error.code
 
     def test_rejects_missing_or_wrong_code(self):
         self.assertEqual(self.status("/api/voix"), 401)
@@ -59,6 +61,13 @@ class GatewayAccessTests(unittest.TestCase):
         # payload valide : le studio n'écoute pas ici → 503, pas 404
         self.assertEqual(self.status("/api/attribuer", self.server.token,
                                      b'{"titre":"Test","phrases":["Bonjour."]}'), 503)
+
+    def test_distribution_validee_et_transmise(self):
+        payload = {'phrases': ['Bonjour.'], 'personnages': [
+            {'id': 'pierre', 'nom': 'Pierre', 'genre': 'homme', 'role': 'personnage'}]}
+        self.assertEqual(self.status('/api/attribuer', self.server.token, json.dumps(payload).encode()), 503)
+        for value in ({}, [None], [{'id': 'pierre', 'nom': 42}], payload['personnages'] * 201):
+            self.assertEqual(self.status('/api/attribuer', self.server.token, json.dumps({**payload, 'personnages': value}).encode()), 400)
 
 
 if __name__ == "__main__":

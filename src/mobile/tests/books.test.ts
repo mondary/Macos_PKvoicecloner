@@ -23,6 +23,11 @@ describe('EPUB import',()=>{
   });
 });
 describe('speech segmentation',()=>{
+  it('préserve les tours de parole et les noms précédés de M. ou Mme.', () => {
+    const result = paragraphsOf('— Bonjour, dit M. Dupont.\n— Bonsoir, répondit Mme. Martin.\nIl partit.');
+    expect(result.phrases).toEqual(['— Bonjour, dit M. Dupont.', '— Bonsoir, répondit Mme. Martin.', 'Il partit.']);
+    expect(result.paragraphes).toEqual([0, 1, 2]);
+  });
   it('keeps sentences bounded for native TTS without losing words',()=>{
     const source='Un mot très long. '+Array(150).fill('lecture').join(' ')+'.';
     const result=sentences(source);expect(result.every(s=>s.length<=400)).toBe(true);expect(result.join(' ')).toBe(source);

@@ -17,6 +17,7 @@ import java.util.concurrent.ConcurrentHashMap
 @CapacitorPlugin(name="Reader")
 class ReaderPlugin : Plugin() {
     private val worker = Executors.newSingleThreadExecutor()
+    private val analysisWorker = Executors.newSingleThreadExecutor()
     private val downloads = Executors.newSingleThreadExecutor()
     private val installing = ConcurrentHashMap.newKeySet<String>()
     private val main = Handler(Looper.getMainLooper())
@@ -30,7 +31,7 @@ class ReaderPlugin : Plugin() {
         ContextCompat.registerReceiver(context,receiver,IntentFilter(ReadingService.STATE),ContextCompat.RECEIVER_NOT_EXPORTED)
     }
     override fun handleOnDestroy() {
-        context.unregisterReceiver(receiver); tts?.shutdown(); worker.shutdown(); downloads.shutdown()
+        context.unregisterReceiver(receiver); tts?.shutdown(); worker.shutdown(); downloads.shutdown(); analysisWorker.shutdown()
     }
     @PluginMethod fun getState(call: PluginCall) { call.resolve(JSObject(ReadingService.savedState(context).toString())) }
     @PluginMethod fun models(call: PluginCall) {
@@ -79,7 +80,7 @@ class ReaderPlugin : Plugin() {
         val client=StudioClient(call.getString("server") ?: "",call.getString("token") ?: "")
         call.resolve(JSObject().put("voices",client.voices()))
     }
-    @PluginMethod fun analyser(call: PluginCall) = work(call) {
+    @PluginMethod fun analyser(call: PluginCall) { analysisWorker.execute { try {
         val server = call.getString("server") ?: error("Adresse du studio manquante")
         val token = call.getString("token") ?: error("Code de connexion manquant")
         val titre = (call.getString("titre") ?: "Livre").take(120)
@@ -91,8 +92,10 @@ class ReaderPlugin : Plugin() {
             require(phrase.length in 1..600) { "Passage invalide pour l’analyse." }
             phrases.add(phrase)
         }
-        call.resolve(JSObject.fromJSONObject(JSONObject(StudioClient(server, token).analyser(titre, phrases))))
-    }
+        val personnages = call.getArray("personnages") ?: JSArray()
+        require(personnages.length() <= 200) { "Distribution trop volumineuse." }
+        call.resolve(JSObject.fromJSONObject(JSONObject(StudioClient(server, token).analyser(titre, phrases, personnages))))
+    } catch (e: Exception) { call.reject(e.message ?: "Analyse interrompue", e) } } }
     @PluginMethod fun load(call: PluginCall) = work(call) {
         val data=call.data
         val id=data.optString("bookId")

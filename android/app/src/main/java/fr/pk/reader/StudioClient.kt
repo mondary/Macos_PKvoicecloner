@@ -25,15 +25,16 @@ class StudioClient(private val server: String, private val token: String) {
             val status = c.responseCode
             if (status !in 200..299) {
                 val detail = c.errorStream?.bufferedReader()?.use { it.readText().take(300) } ?: ""
-                error(if(status==401) "Code de connexion incorrect." else "Studio : HTTP $status. $detail")
+                val message = runCatching { JSONObject(detail).optString("detail") }.getOrDefault("")
+                error(if(status==401) "Code de connexion incorrect." else message.ifBlank { "Studio : HTTP $status. $detail" })
             }
             return c.inputStream.bufferedReader().use { it.readText() }
         } finally { c.disconnect() }
     }
     /** Analyse studio : distribution (personnages + genre) et un locuteur par phrase.
      *  L'IA tourne sur le Mac ; le téléphone n'embarque aucun modèle de langage. */
-    fun analyser(titre: String, phrases: List<String>): String {
-        val body = JSONObject().put("titre", titre).put("phrases", JSONArray(phrases))
+    fun analyser(titre: String, phrases: List<String>, personnages: JSONArray = JSONArray()): String {
+        val body = JSONObject().put("titre", titre).put("phrases", JSONArray(phrases)).put("personnages", personnages)
         return request("/api/attribuer", body, timeout = 600000)
     }
     fun voices(): JSONArray {

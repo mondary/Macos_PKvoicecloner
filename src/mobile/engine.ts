@@ -1,6 +1,7 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 import type { Book, Settings, Voice, Playback } from './types';
 import { speechProfile } from './casting';
+import type { AnalyseRequest } from './casting-analysis';
 
 interface ReaderPlugin {
   voices(): Promise<{ voices: Voice[] }>;
@@ -9,7 +10,7 @@ interface ReaderPlugin {
   removeModel(options: { id: string }): Promise<void>;
   voiceSettings(): Promise<void>;
   connect(options: { server: string; token: string }): Promise<{ voices: Voice[] }>;
-  analyser(options: { server: string; token: string; titre: string; phrases: string[] }): Promise<{
+  analyser(options: AnalyseRequest & { server: string; token: string }): Promise<{
     personnages: { id: string; nom: string; genre: string; role: string }[]; locuteurs: string[];
   }>;
   load(options: Record<string, unknown>): Promise<void>;
@@ -23,6 +24,9 @@ export const Reader = registerPlugin<ReaderPlugin>('Reader');
 export const modelCatalog: Voice[] = [
   { id: 'neural:siwis', name: 'Siwis', language: 'fr-FR', kind: 'neural', detail: 'Français · Piper · douce et posée', size: 20.9, installed: false },
   { id: 'neural:tom', name: 'Tom', language: 'fr-FR', kind: 'neural', detail: 'Français · Piper · claire et chaleureuse', size: 21, installed: false },
+  { id: 'neural:gilles', name: 'Gilles', language: 'fr-FR', kind: 'neural', detail: 'Français · Piper · voix masculine', size: 21.2, installed: false },
+  { id: 'neural:upmc', name: 'UPMC · Jessica', language: 'fr-FR', kind: 'neural', detail: 'Français · Piper · voix féminine', size: 22.6, installed: false },
+  { id: 'neural:upmc_pierre', name: 'UPMC · Pierre', language: 'fr-FR', kind: 'neural', detail: 'Français · Piper · voix masculine · même téléchargement que Jessica', size: 22.6, installed: false },
   { id: 'neural:lessac', name: 'Lessac', language: 'en-US', kind: 'neural', detail: 'English · Piper · récit naturel', size: 21, installed: false },
 ];
 

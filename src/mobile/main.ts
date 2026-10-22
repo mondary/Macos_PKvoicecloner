@@ -491,8 +491,7 @@ function modal(title: string, body: string) {
 }
 const allVoices = () => [...voices, ...models];
 function castingSheet(book: Book) {
-  return openCasting(book, allVoices(), settings, modal, render,
-    () => { screen = 'settings'; render(); }, updated => { models = updated; });
+  return openCasting(book, allVoices(), settings, modal, render, updated => { models = updated; });
 }
 function prepareBook(book: Book) {
   if (!book.sample && book.casting?.analysis?.state !== 'ready') {

@@ -23,11 +23,11 @@ pas autonomes et nécessitent encore le dépôt et son environnement Python.
 
 ## Assets
 
-### PK Reader Android — sources 2026.10.59
+### PK Reader Android — 2026.10.60
 
-**FR** — Importe un livre, valide une voix par personnage. Avec le studio connecté, le découpage, les noms, le genre de voix et les locuteurs sont préparés automatiquement pour tout le livre. Le bilan indique les voix manquantes et propose leurs téléchargements Piper. Sans studio, la détection locale se limite aux noms explicites des répliques. L’analyse complète dépend du provider IA local ou distant configuré sur le Mac. APK 2026.10.59 (release `pk-2026.10.59`).
+**FR** — Importe un livre, valide une voix par personnage. Le découpage, les personnages, le sexe des voix et l'attribution des dialogues sont déduits **sur le téléphone** (lexique de prénoms embarqué, titres, incises « dit-elle », alternance des répliques) — sans Mac ni réseau. Le bilan indique les voix manquantes et propose leurs téléchargements Piper. Le studio Mac reste facultatif (affinage des dialogues ambigus, voix clonées). APK 2026.10.60 (release `pk-2026.10.60`).
 
-**EN** — Import a book, confirm one voice per character. With the studio connected, segmentation, names, voice gender and speakers are prepared automatically throughout the book. A summary lists missing voices and offers Piper downloads. Without the studio, local detection is limited to explicit dialogue names. Full analysis uses the local or remote AI provider configured on the Mac. APK 2026.10.59 (release `pk-2026.10.59`).
+**EN** — Import a book, confirm one voice per character. Splitting, characters, voice gender and dialogue attribution are all deduced **on the phone** (embedded first-name lexicon, titles, “dit-elle” incises, turn alternation) — no Mac, no network. A summary lists missing voices and offers Piper downloads. The Mac studio remains optional (ambiguous-dialogue refinement, cloned voices). APK 2026.10.60 (release `pk-2026.10.60`).
 
 Capture mobile : `store/screenshots/android-reader/casting.png` — véritable interface web, texte fictif, détection locale. Les voix système de l’aperçu navigateur ne représentent pas le catalogue d’un téléphone Android.
 

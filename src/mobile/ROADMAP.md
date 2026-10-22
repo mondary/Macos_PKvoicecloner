@@ -1,6 +1,6 @@
 # PK Reader — feuille de route lecteur
 
-Retours des 21 et 22/10. État des sources au 2026.10.59.
+Retours des 21 et 22/10. État des sources au 2026.10.60.
 
 ## Fait
 
@@ -13,7 +13,8 @@ Retours des 21 et 22/10. État des sources au 2026.10.59.
 - Navigation page ET paragraphe, suivi de lecture plus doux — 2026.10.56.
 - Mode focus, interligne/marges/zone de suivi, italiques et citations de l'EPUB, paragraphes reconstitués, quota IA lisible — 2026.10.57.
 - Surlignage réglable (mots / phrase / aucun), coupes de phrases longues sur la ponctuation, couvertures compactées, moteurs chauds documentés — 2026.10.58.
-- Préparation automatique du livre à l’import, noms et genres via le studio, voix par défaut, bilan des voix manquantes et téléchargements groupés, corrections facultatives, conservation des personnages et reprise après coupure — 2026.10.59.
+- Préparation automatique du livre à l'import, noms et genres via le studio, voix par défaut, bilan des voix manquantes et téléchargements groupés, corrections facultatives, conservation des personnages et reprise après coupure — 2026.10.59.
+- Analyse 100 % sur le téléphone : lexique de prénoms embarqué, titres, incises « dit-elle », attribution par alternance des répliques — le studio devient un affinage facultatif — 2026.10.60.
 
 ## Reste
 

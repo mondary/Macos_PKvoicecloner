@@ -49,16 +49,34 @@ const catalog: Voice[] = [
   ...['siwis', 'tom', 'gilles', 'upmc', 'upmc_pierre'].map(id => ({ id: `neural:${id}`, name: id, kind: 'neural' as const, language: 'fr-FR', installed: false, size: 22 })),
 ];
 describe('préparation automatique du livre', () => {
-  it('découvre les noms explicites dès l’import sans demander de créer les personnages', () => {
+  it('découvre les personnages et leur sexe sur le téléphone, sans Mac ni réseau', () => {
     const book = fixture();
     book.segments.push('— Venez, dit Monsieur Dupont.', 'Madame Martin : Bonjour.', 'Chapitre : Le départ');
     preparerDistributionLocale(book, catalog, defaults.voice);
-    expect(book.casting!.characters.map(c => c.name)).toEqual(['Narrateur', 'Pierre', 'Alice', 'Monsieur Dupont', 'Madame Martin']);
+    expect(book.casting!.characters.map(c => c.name)).toEqual(['Narrateur', 'Pierre', 'Alice', 'Madame Martin', 'Monsieur Dupont']);
     expect(book.casting!.characters.find(c => c.name === 'Madame Martin')?.gender).toBe('femme');
-    expect(book.casting!.characters.find(c => c.name === 'Pierre')?.gender).toBe('indetermine');
+    expect(book.casting!.characters.find(c => c.name === 'Monsieur Dupont')?.gender).toBe('homme');
+    expect(book.casting!.characters.find(c => c.name === 'Pierre')?.gender).toBe('homme');
     expect(characterAt(book, 1)?.name).toBe('Pierre');
     expect(book.casting!.assignments['3']).toBeUndefined(); // mention narrative, pas une réplique
-    expect(book.casting!.analysis?.state).toBe('local'); // pas une analyse complète
+    expect(book.casting!.analysis?.state).toBe('local');    // analyse locale complète
+  });
+
+  it('attribue les répliques alternées entre deux locuteurs ancrés', () => {
+    const book = fixture();
+    book.segments = ['— Bonjour, dit Pierre.', '— Salut !', '— Ça va ?', '— Oui, dit Alice.'];
+    preparerDistributionLocale(book, catalog, defaults.voice);
+    expect([0, 1, 2, 3].map(i => characterAt(book, i)?.name)).toEqual(['Pierre', 'Alice', 'Pierre', 'Alice']);
+  });
+
+  it('« dit-elle » désigne la seule femme repérée dans le livre', () => {
+    const book = fixture();
+    book.segments = ['Alice arriva.', '— Merci, dit-elle.', '— De rien, dit Pierre.'];
+    preparerDistributionLocale(book, catalog, defaults.voice);
+    expect(characterAt(book, 0)?.id).toBe('narrator');
+    expect(characterAt(book, 1)?.name).toBe('Alice');
+    expect(characterAt(book, 2)?.name).toBe('Pierre');
+    expect(book.casting!.characters.find(c => c.name === 'Alice')?.gender).toBe('femme');
   });
 
   it('conserve les rôles, voix, réglages et corrections d’un chapitre à l’autre', () => {

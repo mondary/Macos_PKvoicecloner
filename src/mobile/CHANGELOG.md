@@ -1,5 +1,12 @@
 # PK Reader Android
 
+## [2026.10.60] - 2026-10-22
+
+### Changed
+- **L'analyse des personnages tourne entièrement sur le téléphone** : plus besoin du Mac pour préparer un livre. Personnages nommés repérés (titres « Mme Martin », prénoms connus, locuteurs des répliques), **sexe des voix** déduit des titres, d'un lexique de prénoms embarqué et des incises (« dit-elle »), et **dialogues attribués par alternance des répliques** entre deux locuteurs ancrés. Les corrections manuelles servent d'ancre à l'alternance.
+- L'écran « Les voix de ce livre » ne propose plus de connecter un studio : il présente directement les personnages repérés, leur sexe et les phrases attribuées, puis les voix proposées. Le studio Mac devient une amélioration **facultative** (affinage des dialogues ambigus, voix clonées) qui tourne en arrière-plan quand il est connecté.
+- Un prénom ambigu (Claude, Camille…) reste « genre non déterminé » : l'app ne devine pas.
+
 ## [2026.10.59] - 2026-10-22
 
 ### Changed

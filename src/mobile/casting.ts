@@ -1,4 +1,5 @@
 import type { Book, Casting, Character, Gender, Settings, Voice } from './types';
+import { genreDuNom, prenomConnu } from './prenoms';
 
 export function ensureCasting(book: Book): Casting {
   return book.casting ??= { enabled: false, characters: [
@@ -165,28 +166,129 @@ export function besoinsVoix(casting: Casting, available: Voice[], language: stri
   return { missing, downloads };
 }
 
-/** Première passe hors ligne : seuls les noms explicitement rattachés à une
- *  réplique sont créés. Le studio résout ensuite les dialogues contextuels. */
+/* ----------------------------- analyse locale complète (sur le téléphone) */
+
+const VERBES_PAROLE = ['dit', 'demanda', 'répondit', 'ajouta', 'murmura', 'cria', 'souffla',
+  's’écria', 's\'exclama', 'reprit', 'lança', 'soupira', 'grogna', 'bafouilla', 'articula',
+  'chuchota', 'insista', 'objecta', 'remarqua', 'conclut', 'commença', 'poursuivit',
+  'interrogea', 'acquiesça', 'lâcha', 'cracha', 'said', 'asked', 'replied', 'whispered'];
+const VERBES = VERBES_PAROLE.map(v => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+const TITRE = String.raw`(?:M\.|Mme\.?|Mlle\.?|Monsieur|Madame|Mademoiselle)`;
+const NOM_GROUPE = String.raw`(?:\p{Lu}[\p{L}'’-]*)(?:[\s]+\p{Lu}[\p{L}'’-]*){0,2}`;
+const RE_ETIQUETTE = new RegExp(String.raw`^(?:[—–«“"]\s*)?((?:${TITRE}\s+)?${NOM_GROUPE})\s*[:：]`, 'u');
+const RE_DEBUT = new RegExp(String.raw`^((?:${TITRE}\s+)?${NOM_GROUPE})\s+(?:${VERBES})\s*[:：]`, 'u');
+const RE_INCISE = new RegExp(String.raw`[,;»”"!?…]\s*(?:[—–-]\s*)?(?:${VERBES})\s+((?:${TITRE}\s+)?${NOM_GROUPE})[.!?…»”"\s]*$`, 'u');
+const RE_PRONOM = new RegExp(String.raw`\b(?:${VERBES})-(elles?|ils?)\b`, 'u');
+const RE_TOUR = /^\s*[—–«“"]/;
+const RE_SUITE = new RegExp(String.raw`^[,;»”"…]|^(?:${VERBES})\s+(?:${TITRE}\s+)?${NOM_GROUPE}\b`, 'u');
+const RE_MENTION = new RegExp(String.raw`^(?:[—–«“"]\s*)?((?:${TITRE}\s+)?${NOM_GROUPE})\b(?=[\s,.:;!?])`, 'u');
+const RE_TITRE = new RegExp(`^${TITRE}`, 'i');
+const INTERDITS = /^(chapitre|chapter|note|notes|attention|titre|prologue|epilogue|fin|livre|partie|acte|scene|premiere|deuxieme|troisieme|quatrieme|cinquieme)\b/i;
+
+/** Clé de fusion : le nom sans titre ni casse (« Mme Martin » = « Martin »). */
+const cleNom = (nom: string) => normaliser(nom).replace(/^(?:m|mme|mlle|monsieur|madame|mademoiselle)\s+/g, '');
+
+interface TourParole { nom?: string; genre?: Gender; tour: boolean }
+
+/** Une réplique est attribuée : étiquette (« Pierre : »), incise (« … », dit
+ *  Pierre), annonce (Pierre dit :) ou marque de genre (dit-elle). */
+const detecterTour = (texte: string): TourParole => {
+  const t = texte.trim();
+  if (!t) return { tour: false };
+  for (const re of [RE_ETIQUETTE, RE_DEBUT, RE_INCISE]) {
+    const nom = t.match(re)?.[1]?.trim();
+    if (nom && !INTERDITS.test(nom)) return { nom, tour: true };
+  }
+  const pronom = t.match(RE_PRONOM)?.[1];
+  if (pronom) return { genre: /^el/i.test(pronom) ? 'femme' : 'homme', tour: true };
+  return { tour: RE_TOUR.test(t) || RE_SUITE.test(t) };
+};
+
+/** Analyse du livre entièrement sur le téléphone : personnages (titres,
+ *  prénoms connus, locuteurs nommés), sexe des voix, attribution des répliques
+ *  par alternance et incises. Aucun réseau, aucun Mac. */
 export function preparerDistributionLocale(book: Book, available: Voice[], fallback: string) {
   const cast = ensureCasting(book);
   if (cast.analysis) return;
   // Les attributions des anciennes versions sont des choix utilisateur à conserver.
   cast.manualAssignments ??= Object.fromEntries(Object.keys(cast.assignments).map(key => [key, true]));
-  const nom = String.raw`(?:(?:M\.|Mme\.?|Mlle\.?|Monsieur|Madame|Mademoiselle)\s+)?\p{Lu}[\p{L}’'-]*(?:[ \t]+\p{Lu}[\p{L}’'-]*){0,2}`;
-  const etiquette = new RegExp(`^\\s*(?:[—–«“"]\\s*)?(${nom})\\s*[:：]`, 'u');
-  const incise = new RegExp(`[,»”"!?]\\s*(?:[—–-]\\s*)?(?:dit|demanda|répondit|ajouta|murmura|cria|souffla|said|asked|replied)\\s+(${nom})[.!?…»”"\\s]*$`, 'u');
-  book.segments.forEach((text, index) => {
-    const name = (text.match(etiquette)?.[1] ?? text.match(incise)?.[1])?.trim();
-    if (!name || /^(chapitre|chapter|note|attention|titre)\b/i.test(name)) return;
-    let role = cast.characters.find(c => normaliser(c.name) === normaliser(name));
+  cast.enabled = true;
+
+  const retrouver = (nom: string): Character => {
+    const cle = cleNom(nom);
+    let role = cast.characters.find(c => c.id !== 'narrator' && cleNom(c.name) === cle);
     if (!role) {
-      role = { id: crypto.randomUUID(), name, voice: '', pitch: 1, rate: 1,
-        gender: /^(Mme\.?|Mlle\.?|Madame|Mademoiselle)\s/.test(name) ? 'femme' : /^(M\.|Monsieur)\s/.test(name) ? 'homme' : 'indetermine', automaticVoice: true };
+      role = { id: crypto.randomUUID(), name: nom.trim().slice(0, 80), voice: '', pitch: 1, rate: 1,
+        gender: genreDuNom(nom), automaticVoice: true };
       cast.characters.push(role);
     }
-    if (!cast.manualAssignments?.[String(index)]) cast.assignments[String(index)] = role.id;
+    const genre = genreDuNom(nom);
+    if (genre !== 'indetermine' && (role.gender ?? 'indetermine') === 'indetermine') role.gender = genre;
+    if (RE_TITRE.test(nom) && !RE_TITRE.test(role.name)) role.name = nom.trim().slice(0, 80);
+    return role;
+  };
+  const manuel = (index: number) => !!cast.manualAssignments?.[String(index)];
+  const roleDe = (id: string) => cast.characters.find(c => c.id === id);
+
+  const infos = book.segments.map(segment => detecterTour(segment));
+
+  // Personnages nommés dans le récit : titre (« Mme Martin ») ou prénom connu.
+  // Cette passe précède l'attribution : « dit-elle » désigne ensuite la seule
+  // femme déjà repérée dans le livre.
+  book.segments.forEach((text) => {
+    const nom = text.trim().match(RE_MENTION)?.[1]?.trim();
+    if (!nom || INTERDITS.test(nom)) return;
+    if (RE_TITRE.test(nom) || prenomConnu(nom)) retrouver(nom);
   });
-  cast.enabled = true;
+
+  // Séries de répliques consécutives : à l'intérieur, les locuteurs alternent.
+  const attribuerRun = (debut: number, fin: number) => {
+    const ancres = new Map<number, string>();
+    for (let i = debut; i < fin; i++) {
+      const info = infos[i];
+      if (info.nom) {
+        const role = retrouver(info.nom);
+        if (!manuel(i)) cast.assignments[String(i)] = role.id;
+        ancres.set(i, role.id);
+      } else if (manuel(i) && cast.assignments[String(i)] && cast.assignments[String(i)] !== 'narrator') {
+        ancres.set(i, cast.assignments[String(i)]);      // une correction manuelle ancre l'alternance
+      }
+    }
+    const locuteurs = [...new Set(ancres.values())];
+    const autre = (id: string) => locuteurs.find(x => x !== id);
+    const positions = [...ancres.keys()].sort((a, b) => a - b);
+    for (let i = debut; i < fin; i++) {
+      if (cast.assignments[String(i)] || manuel(i) || infos[i].nom) continue;
+      if (infos[i].genre) {
+        // « dit-elle » : la locutrice du genre si elle est unique dans l'échange,
+        // sinon la seule femme (ou le seul homme) repéré(e) dans le livre.
+        const locales = locuteurs.filter(id => roleDe(id)?.gender === infos[i].genre);
+        if (locales.length === 1) { cast.assignments[String(i)] = locales[0]; continue; }
+        if (!locales.length) {
+          const candidates = cast.characters.filter(c => c.id !== 'narrator' && c.gender === infos[i].genre);
+          if (candidates.length === 1) cast.assignments[String(i)] = candidates[0].id;
+        }
+        continue;
+      }
+      if (locuteurs.length !== 2) continue;              // alternance fiable à deux locuteurs seulement
+      const precedent = positions.filter(p => p < i).pop();
+      const suivant = positions.find(p => p > i);
+      let choix: string | undefined;
+      if (precedent !== undefined) choix = (i - precedent) % 2 ? autre(ancres.get(precedent)!) : ancres.get(precedent);
+      if (suivant !== undefined) {
+        const attendu = (suivant - i) % 2 ? autre(ancres.get(suivant)!) : ancres.get(suivant);
+        choix = choix === undefined ? attendu : choix === attendu ? choix : undefined;
+      }
+      if (choix) cast.assignments[String(i)] = choix;
+    }
+  };
+  let debut = -1;
+  for (let i = 0; i <= infos.length; i++) {
+    const tour = i < infos.length && infos[i].tour;
+    if (tour && debut < 0) debut = i;
+    if (!tour && debut >= 0) { attribuerRun(debut, i); debut = -1; }
+  }
+
   cast.analysis = { completed: [], state: 'local' };
   proposerVoix(cast, available, fallback, book.language);
 }

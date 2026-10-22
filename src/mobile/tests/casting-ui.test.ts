@@ -54,8 +54,9 @@ describe('parcours personnages → voix', () => {
     await openCasting(book, available, { ...defaults, server: 'http://studio', token: 'code-test' }, show, () => {});
     await vi.waitFor(() => expect(document.querySelector('.casting-summary')?.textContent).toContain('limite d’usage'));
     expect(book.casting!.analysis!.state).toBe('error');
+    expect(document.querySelector('.casting-summary')?.textContent).toContain('analyse du téléphone reste appliquée');
+    expect(document.querySelector('[data-cast="analyse"]')).toBeNull();   // plus de bouton « connecter le studio »
     expect(document.querySelector<HTMLDetailsElement>('#casting-advanced')?.open).toBe(false);
-    expect(document.querySelector('[data-cast="analyse"]')?.textContent).toContain('tout le livre');
     document.querySelector<HTMLDialogElement>('#sheet')!.close();
   });
 

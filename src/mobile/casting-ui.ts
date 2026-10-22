@@ -12,7 +12,7 @@ type Show = (title: string, body: string) => void;
 /** Le parcours principal est personnage → voix. L'attribution est automatique ;
  *  une correction ponctuelle reste accessible dans les détails facultatifs. */
 export async function openCasting(book: Book, available: Voice[], settings: Settings, show: Show, refresh: () => void,
-  connect: () => void = () => {}, modelsChanged: (voices: Voice[]) => void = () => {}) {
+  modelsChanged: (voices: Voice[]) => void = () => {}) {
   await audio.pause();
   const sheet = document.querySelector<HTMLDialogElement>('#sheet')!;
   const trigger = document.activeElement as HTMLElement | null;
@@ -55,21 +55,19 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
     const { missing, downloads } = besoinsVoix(draft, catalog, book.language);
     const progress = castingProgress(book);
     const analysing = castingBusy(book);
-    const ready = draft.analysis?.state === 'ready';
     const options = catalog.filter(v => v.installed);
     const phrases = Object.keys(draft.assignments).length;
     const counts = new Map<string, number>();
     Object.values(draft.assignments).forEach(id => counts.set(id, (counts.get(id) || 0) + 1));
-    const analysisText = analysing ? (progress ? `${progress.chapter} · ${progress.done} / ${progress.total} lots préparés. Vous pouvez fermer cet écran ; gardez l’app ouverte.` : 'Préparation du livre en attente…')
-      : ready ? `${book.chapters.length} chapitre${book.chapters.length > 1 ? 's' : ''} préparé${book.chapters.length > 1 ? 's' : ''} · ${phrases} phrases attribuées automatiquement.`
-      : draft.analysis?.error || 'Noms explicites repérés. Le studio Mac complète les personnages et les dialogues.';
+    const analysisText = analysing ? (progress ? `Analyse fine en cours · ${progress.done} / ${progress.total} blocs. Vous pouvez fermer cet écran ; gardez l’app ouverte.` : 'Analyse en attente…')
+      : draft.analysis?.error ? `${draft.analysis.error} L’analyse du téléphone reste appliquée.`
+      : `${book.chapters.length} chapitre${book.chapters.length > 1 ? 's' : ''} analysé${book.chapters.length > 1 ? 's' : ''} sur le téléphone · ${phrases} phrases attribuées automatiquement.`;
     const needsHTML = missing.length ? `<section class="casting-needs" id="casting-needs"><h3>${missing.length} voix supplémentaire${missing.length > 1 ? 's' : ''} proposée${missing.length > 1 ? 's' : ''}</h3>
-      <p>Pour un timbre adapté et distinct par rôle, il manque ${missing.length} voix : ${missing.map(c => `${esc(c.name)} (${genderLabel(c.gender).toLocaleLowerCase()})`).join(', ')}. ${ready ? '' : 'Ce bilan évoluera avec l’analyse complète.'} En attendant, certains rôles partagent une voix.</p>
+      <p>Pour un timbre adapté et distinct par rôle, il manque ${missing.length} voix : ${missing.map(c => `${esc(c.name)} (${genderLabel(c.gender).toLocaleLowerCase()})`).join(', ')}. ${analysing ? 'Ce bilan peut encore évoluer pendant l’analyse fine.' : ''} En attendant, certains rôles partagent une voix.</p>
       ${downloads.length ? `<ul>${downloads.map(d => `<li>${d.voices.map(v => esc(v.name)).join(' + ')} → ${d.roles.map(r => esc(r.name)).join(', ')} · ${d.voice.size ?? '?'} Mo</li>`).join('')}</ul><button type="button" class="primary" data-cast="download">Télécharger les voix proposées · ${downloads.reduce((n, d) => n + (d.voice.size || 0), 0).toLocaleString('fr', { maximumFractionDigits: 1 })} Mo</button>` : '<p>Aucun timbre supplémentaire adapté dans le catalogue actuel. Une même voix peut lire plusieurs rôles ; sa hauteur reste réglable.</p>'}</section>` : '';
     show('Les voix de ce livre', `<div class="casting-editor">
-      <p class="sheet-description">Le découpage et les locuteurs sont préparés automatiquement. Choisissez simplement une voix par personnage.</p>
-      <section class="casting-summary" aria-label="Préparation automatique"><strong>${draft.characters.length} rôle${draft.characters.length > 1 ? 's' : ''} repéré${draft.characters.length > 1 ? 's' : ''}, narrateur compris</strong><p role="status">${esc(analysisText)}</p>
-        ${!analysing && !ready ? `<button type="button" class="primary" data-cast="analyse">${native && settings.server && settings.token ? 'Préparer automatiquement tout le livre' : 'Connecter le studio pour analyser le livre'}</button>` : ''}
+      <p class="sheet-description">Tout se prépare sur votre téléphone : découpe du texte, personnages, sexe des voix et dialogues attribués. Vous choisissez une voix par personnage.</p>
+      <section class="casting-summary" aria-label="Analyse du livre"><strong>${draft.characters.length} rôle${draft.characters.length > 1 ? 's' : ''} repéré${draft.characters.length > 1 ? 's' : ''}, narrateur compris</strong><p role="status">${esc(analysisText)}</p>
         ${missing.length ? `<button type="button" class="casting-preview" data-cast="needs">${missing.length} voix à compléter · voir les propositions ↓</button>` : ''}</section>
       <fieldset class="casting-controls" ${working() ? 'disabled' : ''} aria-busy="${working()}">
       <div class="casting-roles">${draft.characters.map((role, i) => `<fieldset data-character="${i}" class="casting-role"><legend>${esc(role.name)}</legend>
@@ -92,20 +90,12 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
     sheet.scrollTop = scrollTop;
     if (focusId) document.getElementById(focusId)?.focus({ preventScroll: true });
   };
-  const analyse = async () => {
-    await save();
-    await prepareCasting(book, catalog, settings);
-  };
   const act = async (button: HTMLButtonElement) => {
     if (working()) return;
     collect(); advanced = sheet.querySelector<HTMLDetailsElement>('#casting-advanced')?.open ?? false;
     const role = draft.characters[Number(button.dataset.id)];
     switch (button.dataset.cast) {
       case 'needs': sheet.querySelector('#casting-needs')?.scrollIntoView({ block: 'start' }); break;
-      case 'analyse':
-        if (!native) { message('L’analyse du studio est disponible dans l’APK Android.', true); return; }
-        if (!settings.server || !settings.token) { await save(); sheet.close(); connect(); return; }
-        await analyse(); break;
       case 'add': draft.characters.push({ id: crypto.randomUUID(), name: `Personnage ${draft.characters.length}`, voice: '', pitch: 1, rate: 1 }); proposerVoix(draft, catalog, settings.voice, book.language); draw(); break;
       case 'reset': if (role) { role.pitch = 1; role.rate = 1; draw(); } break;
       case 'remove':

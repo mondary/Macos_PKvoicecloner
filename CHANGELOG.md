@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.68] - 2026-10-22
+
+### Changed
+- **PK Reader Android 2026.10.60 analyse les livres sans le Mac** : personnages, sexe des voix et attribution des dialogues sont déduits sur le téléphone (lexique de prénoms embarqué, titres, incises, alternance des répliques). La passerelle `/api/attribuer` reste disponible comme affinage facultatif.
+
 ## [2026.10.67] - 2026-10-22
 
 ### Changed

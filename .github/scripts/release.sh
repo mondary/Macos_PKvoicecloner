@@ -64,10 +64,13 @@ EOF
 echo "⬆️  GitHub release ${TAG}…"
 git add appcast.xml
 git commit -m "MAJ: appcast sparkle v${VERSION}" || true
+# Pas de --latest : le badge reste sur la release APK Android, pour que
+# https://github.com/.../releases/latest/download/PK-Reader-latest.apk
+# continue de télécharger le lecteur. La release macOS reste trouvable par
+# son titre « PK Voice Cloner · macOS · <version> » et par l'appcast Sparkle.
 gh release create "${TAG}" \
-  --title "PK Voice Cloner ${VERSION}" \
+  --title "PK Voice Cloner · macOS · ${VERSION}" \
   --generate-notes \
-  --latest \
   "releases/${ZIP_NAME}" "releases/${DMG_NAME}"
 git push
 

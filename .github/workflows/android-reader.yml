@@ -118,6 +118,10 @@ jobs:
               --latest \
               --repo "$GITHUB_REPOSITORY"
           fi
+          # Alias stable : .../releases/latest/download/PK-Reader-latest.apk
+          # (le badge Latest reste réservé à l'APK — voir release.sh)
+          cp "$APK" PK-Reader-latest.apk
+          gh release upload "$TAG" PK-Reader-latest.apk --clobber --repo "$GITHUB_REPOSITORY"
           URL="$GITHUB_SERVER_URL}/$GITHUB_REPOSITORY/releases/download/$TAG/$APK"
           echo "APK : $URL"
           {

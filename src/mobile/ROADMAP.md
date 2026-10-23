@@ -1,6 +1,6 @@
 # PK Reader — feuille de route lecteur
 
-Retours des 21 et 22/10. État des sources au 2026.10.60.
+Retours des 21 et 22/10. État des sources au 2026.10.61.
 
 ## Fait
 
@@ -15,7 +15,8 @@ Retours des 21 et 22/10. État des sources au 2026.10.60.
 - Surlignage réglable (mots / phrase / aucun), coupes de phrases longues sur la ponctuation, couvertures compactées, moteurs chauds documentés — 2026.10.58.
 - Préparation automatique du livre à l'import, noms et genres via le studio, voix par défaut, bilan des voix manquantes et téléchargements groupés, corrections facultatives, conservation des personnages et reprise après coupure — 2026.10.59.
 - Analyse 100 % sur le téléphone : lexique de prénoms embarqué, titres, incises « dit-elle », attribution par alternance des répliques — le studio devient un affinage facultatif — 2026.10.60.
+- Mise à jour depuis l'app (Réglages → Mises à jour) : vérification GitHub, téléchargement de l'APK, contrôle SHA-256 et signature, installateur Android ; clé de signature permanente dans le workflow — 2026.10.61.
 
 ## Reste
 
-Rien d'ouvert : les retours du 21/10 sont traités. Prochaines pistes possibles : téléchargement des voix Piper int8 sur le Mac, mode conversationnel, import de la progression depuis le studio.
+Rien d'ouvert : les retours du 21/10 sont traités et les mises à jour ne passent plus par GitHub. Prochaines pistes possibles : téléchargement des voix Piper int8 sur le Mac, mode conversationnel, import de la progression depuis le studio.

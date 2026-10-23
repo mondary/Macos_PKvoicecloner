@@ -11,8 +11,8 @@ import { App } from '@capacitor/app';
 import { SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { library, readSettings, saveSettings } from './storage';
 import { importBook, welcomeBook, chapterAt, minutesLeft, reparerParagraphes } from './books';
-import { audio, native, Reader, modelCatalog } from './engine';
-import type { Book, Voice } from './types';
+import { audio, native, Reader, Update, modelCatalog } from './engine';
+import type { Book, UpdateInfo, Voice } from './types';
 import { openCasting } from './casting-ui';
 import { besoinsVoix, characterAt, speechProfile } from './casting';
 import { castingBusy, prepareCasting, watchCasting } from './casting-jobs';
@@ -43,6 +43,13 @@ let toastTimer: ReturnType<typeof setTimeout>;
 let downloading = false;
 let systemTheme = '';
 let wasPreparing = false;
+
+/** Mise à jour intégrée : état de la vérification, du téléchargement et de l'installateur. */
+let updateInfo: UpdateInfo | null = null;
+let updateState: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error' = 'idle';
+let updateProgress = 0;
+let updateMessage = '';
+let updatePath = '';
 
 /** Lecture : suivi automatique du texte lu. */
 let follow = true;
@@ -459,6 +466,31 @@ function voicesView() {
 
 /* ------------------------------------------------------------------ réglages */
 
+function updateSection() {
+  const size = updateInfo?.size ? `${Math.round(updateInfo.size / 1048576)} Mo` : '';
+  const busy = updateState === 'checking' || updateState === 'downloading';
+  const label = updateState === 'checking' ? 'Vérification…'
+    : updateState === 'downloading' ? `${updateProgress} %`
+    : updateState === 'ready' ? 'Prête à installer'
+    : updateState === 'error' ? 'Échec'
+    : updateInfo?.available ? `${updateInfo.version} disponible`
+    : updateMessage ? 'À jour' : 'GitHub';
+  const actions = updateState === 'downloading' ? ''
+    : updateState === 'ready' ? `<button class="primary" data-action="install-update">${icon('download')} Installer la mise à jour</button><button class="link-button" data-action="update-permission">Autoriser l’installation</button>`
+    : updateState === 'error' ? `<button class="primary" data-action="update-now">Réessayer</button><button class="link-button" data-action="check-update">Revérifier</button>`
+    : `<button class="primary" data-action="update-now">${icon('download')} Télécharger et installer</button>`;
+  const card = updateInfo?.available ? `<div class="update-card">
+      <p><strong>PK Reader ${esc(updateInfo.version ?? '')}</strong> est disponible${size ? ` · ${size}` : ''}.</p>
+      ${updateState === 'downloading' ? `<div class="update-bar"><span id="update-progress" style="width:${updateProgress}%"></span></div><p class="update-note" id="update-percent">${updateProgress} % · gardez l’application ouverte</p>` : ''}
+      ${updateState === 'error' && updateMessage ? `<p class="update-note error">${esc(updateMessage)}</p>` : ''}
+      ${updateState === 'ready' && updateMessage ? `<p class="update-note">${esc(updateMessage)}</p>` : ''}
+      ${actions}
+      ${updateInfo.notes ? `<details><summary>Nouveautés</summary><p class="update-notes">${esc(updateInfo.notes)}</p></details>` : ''}
+      ${updateInfo.page ? `<a class="link-button" href="${esc(updateInfo.page)}" target="_blank" rel="noopener noreferrer">Voir la release</a>` : ''}
+    </div>` : updateMessage ? `<p class="update-note ${updateState === 'error' ? 'error' : ''}">${esc(updateMessage)}</p>${updateState === 'error' ? `<button class="link-button" data-action="check-update">Revérifier</button>` : ''}` : '';
+  return `<section class="settings-section"><h2>Mises à jour</h2><p class="section-description">PK Reader <strong>${version}</strong> · l’application vérifie les versions publiées sur GitHub, télécharge l’APK et ouvre l’installateur Android.</p><button class="setting-row" data-action="check-update" ${busy ? 'disabled' : ''}><span>${icon('refresh-cw')} Vérifier les mises à jour</span><strong><span id="update-label">${esc(label)}</span> ${busy ? '' : icon('chevron-right')}</strong></button>${card}${!native ? '<p class="web-note">La mise à jour intégrée fonctionne dans l’APK Android.</p>' : ''}</section>`;
+}
+
 function settingsView() {
   return `<header class="page-heading"><div><p class="eyebrow">FAITES COMME CHEZ VOUS</p><h1>À votre rythme<span>.</span></h1></div><span class="build-chip">${version}</span></header>
   <section class="settings-section"><h2>Le confort de lecture</h2><div class="theme-picker">${[['light','sun','Clair'],['paper','book-open','Papier'],['dark','moon','Nuit']].map(([id,ic,label])=>`<button class="theme-option theme-${id} ${settings.theme===id?'active':''}" data-action="theme" data-id="${id}" aria-pressed="${settings.theme===id}">${icon(ic)}<span>${label}</span></button>`).join('')}</div>
@@ -466,6 +498,7 @@ function settingsView() {
   <button class="setting-row" data-action="layout"><span>${icon('columns-2')} Mise en page</span><strong>${settings.layout==='pages'?'Pages':'Défilement'} ${icon('chevron-right')}</strong></button>
   <button class="setting-row" data-action="speed"><span>${icon('gauge')} Vitesse d’écoute</span><strong>${settings.rate.toLocaleString('fr')}× ${icon('chevron-right')}</strong></button></section>
   <section class="settings-section"><div class="section-heading"><h2>Votre studio vocal</h2><span class="pill">FACULTATIF</span></div><p class="section-description">Retrouvez vos voix clonées depuis PK Voice Studio. Les passages générés restent sur le téléphone pour les prochaines écoutes.</p><form id="studio-form"><label for="server">Adresse du studio</label><input id="server" name="server" type="url" placeholder="http://192.168.1.20:8810" value="${esc(settings.server)}" autocapitalize="none" spellcheck="false" required /><label for="token">Code de connexion</label><input id="token" name="token" type="password" placeholder="Le code affiché par votre Mac" value="${esc(settings.token)}" autocomplete="off" required /><button type="submit" class="primary">${icon('plug')} Connecter le studio</button></form><details class="connection-help"><summary>Comment connecter mon Mac ?</summary><p>Démarrez PK Voice Studio, puis la passerelle mobile depuis le dossier du projet :</p><code>python3 src/server/mobile_gateway.py</code><p>Recopiez l’adresse et le code affichés. Votre téléphone et votre Mac doivent être sur le même réseau. La génération se fait sur le Mac ; l’audio est enregistré sur le téléphone.</p></details></section>
+  ${updateSection()}
   <section class="settings-section"><h2>Crédits & inspirations</h2><div class="credits-list"><p>PK Reader est un projet original. Son ergonomie de lecture s’inspire de <a href="https://play.google.com/store/apps/details?id=voice.reader.ai" target="_blank" rel="noopener noreferrer">TTS Reader Pro</a> et de <a href="https://readexa.uk/" target="_blank" rel="noopener noreferrer">Readexa</a>.</p><p>Moteurs et bibliothèques : Capacitor, sherpa-onnx, Piper, PDF.js, fflate, Lucide, DM Sans et Literata — licences dans <code>THIRD_PARTY.md</code>.</p></div></section>
   <section class="settings-section about"><span class="brand-mark">${icon('audio-lines')}</span><div><h2>PK Reader <span>${version}</span></h2><p>Vos livres. Votre rythme. Votre voix.</p></div><a href="https://ko-fi.com/pouark" target="_blank" rel="noopener noreferrer" aria-label="Soutenir PK Reader sur Ko-fi">${icon('heart')}</a></section>`;
 }
@@ -582,6 +615,75 @@ function updatePlayback() {
 }
 audio.onChange = updatePlayback;
 
+/* -------------------------------------------------------------- mises à jour */
+
+async function checkUpdate() {
+  if (!native) { toast('Les mises à jour se vérifient dans l’application Android.'); return; }
+  updateState = 'checking';
+  updateMessage = '';
+  updateProgress = 0;
+  updatePath = '';
+  render();
+  try {
+    updateInfo = await Update.check();
+    updateState = updateInfo.available ? 'available' : 'idle';
+    updateMessage = updateInfo.available ? '' : 'PK Reader est à jour.';
+  } catch (error) {
+    updateInfo = null;
+    updateState = 'error';
+    updateMessage = `Vérification impossible : ${error instanceof Error ? error.message : error}`;
+  }
+  render();
+}
+
+async function downloadUpdate() {
+  if (!native || !updateInfo?.available || !updateInfo.url || !updateInfo.version) return;
+  updateState = 'downloading';
+  updateProgress = 0;
+  updateMessage = '';
+  updatePath = '';
+  render();
+  try {
+    const result = await Update.download({
+      url: updateInfo.url,
+      version: updateInfo.version,
+      digest: updateInfo.digest,
+      size: updateInfo.size,
+    });
+    updatePath = result.path;
+    updateState = 'ready';
+    updateProgress = 100;
+    updateMessage = 'Téléchargement terminé.';
+    render();
+    await installUpdate();
+  } catch (error) {
+    updateState = 'error';
+    updateMessage = error instanceof Error ? error.message : String(error);
+    render();
+  }
+}
+
+async function installUpdate() {
+  if (!native || !updatePath) return;
+  try {
+    const permission = await Update.canInstall();
+    if (!permission.allowed) {
+      updateState = 'ready';
+      updateMessage = 'Autorisez PK Reader à installer des applications, puis revenez installer la mise à jour.';
+      render();
+      return;
+    }
+    await Update.install({ path: updatePath });
+    updateState = 'ready';
+    updateMessage = 'L’installateur Android est ouvert. Confirmez la mise à jour.';
+    render();
+  } catch (error) {
+    updateState = 'error';
+    updateMessage = error instanceof Error ? error.message : String(error);
+    render();
+  }
+}
+
 /* ------------------------------------------------------------------ actions */
 
 async function handle(action: string, el: HTMLElement) {
@@ -672,6 +774,10 @@ async function handle(action: string, el: HTMLElement) {
     case 'clear-audio': if (native) { await audio.pause(); await Reader.clearAudio({ bookId: id }); toast('Audios de ce livre effacés.'); } else toast('Aucun audio conservé dans cet aperçu web.'); sheet.close(); break;
     case 'delete-confirm': if (books.some(b => b.id === id && castingBusy(b))) { toast('Attendez la fin de la préparation de ce livre avant de le retirer.'); break; } modal('Retirer ce livre ?',`<p class="sheet-description">Le livre, sa position et ses signets seront retirés de cette bibliothèque. Le fichier d’origine restera intact.</p><button class="primary danger-button" data-action="delete" data-id="${id}">Retirer le livre</button>`); break;
     case 'delete': if (audio.state.bookId === id) await audio.pause(); await library.remove(id); books = books.filter(b => b.id !== id); sheet.close(); render(); toast('Livre retiré de la bibliothèque.'); break;
+    case 'check-update': await checkUpdate(); break;
+    case 'update-now': await downloadUpdate(); break;
+    case 'install-update': await installUpdate(); break;
+    case 'update-permission': if (native) await Update.openInstallSettings(); else toast('Disponible dans l’application Android.'); break;
   }
 }
 
@@ -762,6 +868,15 @@ async function init() {
     voices = await audio.voices();
     if (native) { models = (await Reader.models()).voices; if (settings.server && settings.token) void Reader.connect({ server: settings.server, token: settings.token }).then(r => { clones = r.voices; if (screen === 'voices') render(); }).catch(() => {}); }
     render(); await audio.init();
+    if (native) void Update.addListener('progress', ({ progress }) => {
+      updateProgress = Math.max(0, Math.min(100, Math.round(progress)));
+      const bar = document.querySelector<HTMLElement>('#update-progress');
+      if (bar) bar.style.width = `${updateProgress}%`;
+      const rowLabel = document.querySelector<HTMLElement>('#update-label');
+      if (rowLabel) rowLabel.textContent = `${updateProgress} %`;
+      const label = document.querySelector<HTMLElement>('#update-percent');
+      if (label) label.textContent = `${updateProgress} % · gardez l’application ouverte`;
+    });
     if (native) await App.addListener('backButton', () => {
       if (sheet.open) { sheet.close(); return; }
       if (screen !== 'library') { screen = 'library'; follow = true; render(); window.scrollTo(0,0); return; }

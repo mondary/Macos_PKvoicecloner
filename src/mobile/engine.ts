@@ -19,8 +19,21 @@ interface ReaderPlugin {
   clearAudio(options: { bookId: string }): Promise<void>;
   addListener(event: 'state', callback: (state: Playback) => void): Promise<PluginListenerHandle>;
 }
+interface UpdatePlugin {
+  check(): Promise<{
+    current: string; version?: string; available: boolean;
+    url?: string; size?: number; digest?: string; notes?: string; page?: string;
+  }>;
+  download(options: { url: string; version: string; digest?: string; size?: number }): Promise<{ path: string }>;
+  install(options: { path: string }): Promise<void>;
+  canInstall(): Promise<{ allowed: boolean }>;
+  openInstallSettings(): Promise<void>;
+  addListener(event: 'progress', callback: (progress: { progress: number }) => void): Promise<PluginListenerHandle>;
+}
 export const native = Capacitor.isNativePlatform();
 export const Reader = registerPlugin<ReaderPlugin>('Reader');
+/** Mise à jour intégrée : vérification GitHub, téléchargement et installateur Android. */
+export const Update = registerPlugin<UpdatePlugin>('Update');
 export const modelCatalog: Voice[] = [
   { id: 'neural:siwis', name: 'Siwis', language: 'fr-FR', kind: 'neural', detail: 'Français · Piper · douce et posée', size: 20.9, installed: false },
   { id: 'neural:tom', name: 'Tom', language: 'fr-FR', kind: 'neural', detail: 'Français · Piper · claire et chaleureuse', size: 21, installed: false },

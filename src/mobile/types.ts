@@ -42,6 +42,11 @@ export interface Settings {
   /** Suivi visuel : mots (karaoké), phrase seule, ou aucun surlignage. */
   surlignage?: 'mots' | 'phrase' | 'aucun';
 }
+/** Réponse de la vérification de version : release GitHub `pk-…` la plus récente. */
+export interface UpdateInfo {
+  current: string; version?: string; available: boolean;
+  url?: string; size?: number; digest?: string; notes?: string; page?: string;
+}
 export interface Playback {
   bookId: string; index: number; playing: boolean; loading: boolean;
   error?: string; sleepAt?: number; preparing?: boolean; prepared?: number; total?: number;

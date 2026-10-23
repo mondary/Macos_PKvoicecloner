@@ -320,6 +320,18 @@ textarea { resize: vertical; line-height: 1.6; }
 .setting-row > strong { font-size: 12px; color: var(--muted); font-weight: 500; }
 .setting-row svg { width: 19px; height: 19px; }
 .setting-row > strong svg { width: 15px; }
+.setting-row[disabled] { opacity: .55; }
+.update-card { margin-top: 14px; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-2); background: var(--surface); }
+.update-card p { font-size: 13px; line-height: 1.6; }
+.update-card .primary { width: 100%; margin-top: 12px; }
+.update-bar { height: 6px; border-radius: 999px; background: var(--line-soft); overflow: hidden; margin: 14px 0 8px; }
+.update-bar span { display: block; height: 100%; border-radius: inherit; background: var(--accent-fill); transition: width .2s ease; }
+.update-note { color: var(--muted); font-size: 12px; margin-top: 8px; line-height: 1.6; }
+.update-note.error { color: var(--danger); }
+.update-notes { white-space: pre-wrap; font-size: 12px; line-height: 1.6; color: var(--muted); }
+.update-card details { margin-top: 12px; }
+.link-button { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--accent); padding: 8px 0; text-decoration: none; }
+.link-button:hover { text-decoration: underline; }
 .pill { font-size: 8px; font-weight: 700; letter-spacing: 1px; background: var(--accent-soft); color: var(--accent); padding: 6px 9px; border-radius: 7px; }
 .settings-section .section-heading { margin-bottom: 0; }
 form label { display: block; font-size: 12px; font-weight: 500; margin: 17px 0 8px; }

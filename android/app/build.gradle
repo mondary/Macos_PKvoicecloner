@@ -7,6 +7,17 @@ def pkPackage = new groovy.json.JsonSlurper().parse(file('../../package.json'))
 def pkVersionName = (project.findProperty('pkVersionName') ?: pkPackage.version).toString()
 def pkVersionCode = ((project.findProperty('pkVersionCode') ?: pkVersionName.replaceAll('[^0-9]', '')) as String).toInteger()
 
+/* Clé de signature permanente : sans elle, chaque build GitHub crée une
+   nouvelle clé debug et Android refuse la mise à jour sans désinstallation.
+   Le workflow fournit le keystore par PK_KEYSTORE_PATH ; un build local sans
+   cette variable reste signé par la clé debug, pour les essais uniquement. */
+def pkStorePath = System.getenv("PK_KEYSTORE_PATH")
+def pkStorePassword = System.getenv("PK_KEYSTORE_PASSWORD")
+def pkKeyAlias = System.getenv("PK_KEY_ALIAS") ?: "pk-reader"
+def pkKeyPassword = System.getenv("PK_KEY_PASSWORD") ?: pkStorePassword
+def pkSigningReady = pkStorePath != null && new File(pkStorePath).exists() &&
+    pkStorePassword != null && !pkStorePassword.isEmpty()
+
 android {
     namespace = "fr.pk.reader"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -25,8 +36,27 @@ android {
         }
     }
     kotlinOptions { jvmTarget = '21' }
+    if (pkSigningReady) {
+        signingConfigs {
+            stable {
+                storeFile file(pkStorePath)
+                storePassword pkStorePassword
+                keyAlias pkKeyAlias
+                keyPassword pkKeyPassword
+                storeType "PKCS12"
+            }
+        }
+    }
     buildTypes {
+        debug {
+            if (pkSigningReady) {
+                signingConfig signingConfigs.stable
+            }
+        }
         release {
+            if (pkSigningReady) {
+                signingConfig signingConfigs.stable
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

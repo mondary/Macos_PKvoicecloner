@@ -25,6 +25,7 @@
 
 ## Skills récemment appliquées
 
+- `capacitor-pnpm-setup` / `frontend-design` / `pk-commits` — PK Reader 2026.10.61 : clé de signature Android permanente (secrets GitHub + sauvegarde locale), mise à jour intégrée (vérification GitHub, SHA-256, signature, installateur), documentation et landing alignées. Une dernière réinstallation est nécessaire pour les versions ≤ 2026.10.60.
 - `fixing-accessibility` / `app-presence-sync` / `premium-promo-media` / `-pk-COMMIT` — Android 2026.10.59 : préparation automatique des personnages, propositions et téléchargements de voix, contrôles nommés et corrections repliées ; documentation FR/EN et landing synchronisées. Studio 2026.10.67 : identités et contexte conservés entre lots.
 - `ego-browser` / `ego-browser-user-policy` / `macos-build` — contrôle du parcours mobile dans un TaskSpace isolé, capture de la vraie interface web avec texte de démonstration et build Dev du studio via le script du projet.
 - `capacitor-pnpm-setup` / `frontend-design` / `nosdk-cloud-builds` — PK Reader Android : interface originale dans `src/mobile`, service de lecture natif, modèles Piper, passerelle mobile et APK/test émulateur GitHub Actions. Version Android suivie séparément dans `src/mobile/CHANGELOG.md`.

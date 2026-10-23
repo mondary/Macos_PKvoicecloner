@@ -1,6 +1,13 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.69] - 2026-10-23
+
+### Changed
+- **PK Reader Android 2026.10.61 se met à jour depuis l’application** : Réglages → **Mises à jour** vérifie les releases GitHub, télécharge l’APK, contrôle son empreinte SHA-256 et sa signature, puis ouvre l’installateur Android. Plus de passage par le navigateur ni par le dossier Téléchargements.
+- **Clé de signature stable** : le workflow Android signe désormais chaque APK avec une clé PK Reader permanente (secrets GitHub) au lieu d’une clé debug recréée à chaque build. Après une dernière réinstallation pour les versions ≤ 2026.10.60, les mises à jour conservent la bibliothèque et les réglages.
+- README FR/EN, guide Android et landing alignés sur la version 2026.10.61.
+
 ## [2026.10.68] - 2026-10-22
 
 ### Changed

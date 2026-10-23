@@ -1,5 +1,16 @@
 # PK Reader Android
 
+## [2026.10.61] - 2026-10-23
+
+### Added
+- **Mise à jour depuis l’application** : Réglages → **Mises à jour** vérifie les releases GitHub `pk-…`, télécharge l’APK, contrôle son empreinte SHA-256 et sa signature, puis ouvre l’installateur Android. Plus besoin d’ouvrir GitHub ni de retrouver le fichier dans les téléchargements ; la progression s’affiche pendant le téléchargement.
+- Autorisation Android « installer des applications inconnues » demandée une seule fois à PK Reader ; un raccourci ouvre directement le réglage correspondant.
+
+### Changed
+- **Clé de signature permanente** : le workflow signe chaque APK avec une clé PK Reader stable au lieu d’une clé debug recréée à chaque build GitHub. Les mises à jour s’installent désormais par-dessus l’application existante, sans désinstallation ni perte de bibliothèque.
+- **Une seule réinstallation** : les versions jusqu’à 2026.10.60 ont été signées avec l’ancienne clé éphémère. Désinstallez une dernière fois, installez 2026.10.61, puis les mises à jour suivantes se font depuis l’application.
+- La vérification de version lit uniquement la liste publique des releases ; aucune donnée de lecture n’est envoyée.
+
 ## [2026.10.60] - 2026-10-22
 
 ### Changed

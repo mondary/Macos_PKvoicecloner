@@ -48,6 +48,13 @@ jobs:
           packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
           log-accepted-android-sdk-licenses: false
       - uses: gradle/actions/setup-gradle@v4
+      - name: Préparer la clé de signature permanente
+        env:
+          KEYSTORE_BASE64: ${{ secrets.PK_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$KEYSTORE_BASE64" || { echo "Secret PK_KEYSTORE_BASE64 manquant : la mise à jour Android ne peut pas être signée."; exit 1; }
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/pk-reader.p12"
+          test -s "$RUNNER_TEMP/pk-reader.p12"
       - run: pnpm install --frozen-lockfile
       - name: Verify book imports and gateway
         run: |
@@ -57,6 +64,10 @@ jobs:
       - run: pnpm android:deps
       - name: Compile APK and Android tests
         working-directory: android
+        env:
+          PK_KEYSTORE_PATH: ${{ runner.temp }}/pk-reader.p12
+          PK_KEYSTORE_PASSWORD: ${{ secrets.PK_KEYSTORE_PASSWORD }}
+          PK_KEY_ALIAS: pk-reader
         run: ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug --stacktrace
       - name: Vérifier le nom et la version de l'APK
         run: |
@@ -78,6 +89,10 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - name: Verify offline synthesis and playback service
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          PK_KEYSTORE_PATH: ${{ runner.temp }}/pk-reader.p12
+          PK_KEYSTORE_PASSWORD: ${{ secrets.PK_KEYSTORE_PASSWORD }}
+          PK_KEY_ALIAS: pk-reader
         with:
           api-level: 35
           arch: x86_64
@@ -85,6 +100,14 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: cd android && ./gradlew :app:connectedDebugAndroidTest --stacktrace
+      - name: Vérifier la clé de mise à jour
+        run: |
+          APK="android/app/build/outputs/apk/debug/PK-Reader-${{ steps.version.outputs.name }}-debug.apk"
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort | tail -1)
+          CERT=$("$APKSIGNER" verify --print-certs "$APK" | sed -n 's/.*certificate SHA-256 digest: //p' | tr 'A-F' 'a-f')
+          echo "Certificat de signature : $CERT"
+          test "$CERT" = "${{ vars.PK_CERT_SHA256 }}" \
+            || { echo "Signature inattendue : l'APK ne pourra pas mettre à jour l'application installée."; exit 1; }
       - name: Publier l’APK sur la release pk-<version>
         env:
           GH_TOKEN: ${{ github.token }}

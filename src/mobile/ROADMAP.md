@@ -1,6 +1,6 @@
 # PK Reader — feuille de route lecteur
 
-Retours des 21 et 22/10. État des sources au 2026.10.61.
+Retours des 21 et 22/10. État des sources au 2026.10.62.
 
 ## Fait
 
@@ -16,6 +16,7 @@ Retours des 21 et 22/10. État des sources au 2026.10.61.
 - Préparation automatique du livre à l'import, noms et genres via le studio, voix par défaut, bilan des voix manquantes et téléchargements groupés, corrections facultatives, conservation des personnages et reprise après coupure — 2026.10.59.
 - Analyse 100 % sur le téléphone : lexique de prénoms embarqué, titres, incises « dit-elle », attribution par alternance des répliques — le studio devient un affinage facultatif — 2026.10.60.
 - Mise à jour depuis l'app (Réglages → Mises à jour) : vérification GitHub, téléchargement de l'APK, contrôle SHA-256 et signature, installateur Android ; clé de signature permanente dans le workflow — 2026.10.61.
+- Une vérification ou un téléchargement lancé depuis Réglages ne redessine plus l'écran de lecture au retour au livre ; le résultat reste dans Réglages → Mises à jour — 2026.10.62.
 
 ## Reste
 

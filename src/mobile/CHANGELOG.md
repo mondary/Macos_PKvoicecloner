@@ -1,5 +1,10 @@
 # PK Reader Android
 
+## [2026.10.62] - 2026-10-23
+
+### Fixed
+- **Vérification et téléchargement sans quitter sa lecture** : si l’on revient au lecteur pendant une vérification ou un téléchargement de mise à jour, l’écran de lecture n’est plus redessiné à la fin de l’opération. Le résultat reste visible dans Réglages → Mises à jour.
+
 ## [2026.10.61] - 2026-10-23
 
 ### Added

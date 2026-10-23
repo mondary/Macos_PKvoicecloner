@@ -23,11 +23,11 @@ pas autonomes et nécessitent encore le dépôt et son environnement Python.
 
 ## Assets
 
-### PK Reader Android — 2026.10.61
+### PK Reader Android — 2026.10.62
 
-**FR** — Importe un livre, valide une voix par personnage. Le découpage, les personnages, le sexe des voix et l'attribution des dialogues sont déduits **sur le téléphone** (lexique de prénoms embarqué, titres, incises « dit-elle », alternance des répliques) — sans Mac ni réseau. Le bilan indique les voix manquantes et propose leurs téléchargements Piper. Le studio Mac reste facultatif (affinage des dialogues ambigus, voix clonées). **Mise à jour depuis l'app** : Réglages → Mises à jour télécharge l'APK et ouvre l'installateur, avec une clé de signature permanente. APK 2026.10.61 (release `pk-2026.10.61`).
+**FR** — Importe un livre, valide une voix par personnage. Le découpage, les personnages, le sexe des voix et l'attribution des dialogues sont déduits **sur le téléphone** (lexique de prénoms embarqué, titres, incises « dit-elle », alternance des répliques) — sans Mac ni réseau. Le bilan indique les voix manquantes et propose leurs téléchargements Piper. Le studio Mac reste facultatif (affinage des dialogues ambigus, voix clonées). **Mise à jour depuis l'app** : Réglages → Mises à jour télécharge l'APK et ouvre l'installateur, avec une clé de signature permanente. APK 2026.10.62 (release `pk-2026.10.62`).
 
-**EN** — Import a book, confirm one voice per character. Splitting, characters, voice gender and dialogue attribution are all deduced **on the phone** (embedded first-name lexicon, titles, “dit-elle” incises, turn alternation) — no Mac, no network. A summary lists missing voices and offers Piper downloads. The Mac studio remains optional (ambiguous-dialogue refinement, cloned voices). **In-app updates**: Settings → Updates downloads the APK and opens the installer, with a permanent signing key. APK 2026.10.61 (release `pk-2026.10.61`).
+**EN** — Import a book, confirm one voice per character. Splitting, characters, voice gender and dialogue attribution are all deduced **on the phone** (embedded first-name lexicon, titles, “dit-elle” incises, turn alternation) — no Mac, no network. A summary lists missing voices and offers Piper downloads. The Mac studio remains optional (ambiguous-dialogue refinement, cloned voices). **In-app updates**: Settings → Updates downloads the APK and opens the installer, with a permanent signing key. APK 2026.10.62 (release `pk-2026.10.62`).
 
 Capture mobile : `store/screenshots/android-reader/casting.png` — véritable interface web, texte fictif, détection locale. Les voix système de l’aperçu navigateur ne représentent pas le catalogue d’un téléphone Android.
 

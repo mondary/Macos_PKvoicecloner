@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.70] - 2026-10-23
+
+### Fixed
+- **PK Reader Android 2026.10.62** : une vérification ou un téléchargement de mise à jour lancé depuis Réglages ne redessine plus l’écran de lecture si l’on revient au livre. Le résultat reste disponible dans Réglages → Mises à jour.
+
 ## [2026.10.69] - 2026-10-23
 
 ### Changed

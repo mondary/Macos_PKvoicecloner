@@ -617,13 +617,18 @@ audio.onChange = updatePlayback;
 
 /* -------------------------------------------------------------- mises à jour */
 
+/** Les mises à jour se pilotent depuis Réglages : ne pas redessiner une autre page. */
+function renderUpdateUI() {
+  if (screen === 'settings') render();
+}
+
 async function checkUpdate() {
   if (!native) { toast('Les mises à jour se vérifient dans l’application Android.'); return; }
   updateState = 'checking';
   updateMessage = '';
   updateProgress = 0;
   updatePath = '';
-  render();
+  renderUpdateUI();
   try {
     updateInfo = await Update.check();
     updateState = updateInfo.available ? 'available' : 'idle';
@@ -633,7 +638,7 @@ async function checkUpdate() {
     updateState = 'error';
     updateMessage = `Vérification impossible : ${error instanceof Error ? error.message : error}`;
   }
-  render();
+  renderUpdateUI();
 }
 
 async function downloadUpdate() {
@@ -642,7 +647,7 @@ async function downloadUpdate() {
   updateProgress = 0;
   updateMessage = '';
   updatePath = '';
-  render();
+  renderUpdateUI();
   try {
     const result = await Update.download({
       url: updateInfo.url,
@@ -654,12 +659,12 @@ async function downloadUpdate() {
     updateState = 'ready';
     updateProgress = 100;
     updateMessage = 'Téléchargement terminé.';
-    render();
+    renderUpdateUI();
     await installUpdate();
   } catch (error) {
     updateState = 'error';
     updateMessage = error instanceof Error ? error.message : String(error);
-    render();
+    renderUpdateUI();
   }
 }
 
@@ -670,17 +675,17 @@ async function installUpdate() {
     if (!permission.allowed) {
       updateState = 'ready';
       updateMessage = 'Autorisez PK Reader à installer des applications, puis revenez installer la mise à jour.';
-      render();
+      renderUpdateUI();
       return;
     }
     await Update.install({ path: updatePath });
     updateState = 'ready';
     updateMessage = 'L’installateur Android est ouvert. Confirmez la mise à jour.';
-    render();
+    renderUpdateUI();
   } catch (error) {
     updateState = 'error';
     updateMessage = error instanceof Error ? error.message : String(error);
-    render();
+    renderUpdateUI();
   }
 }
 

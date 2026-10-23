@@ -1,6 +1,6 @@
 # PK Reader — feuille de route lecteur
 
-Retours des 21 et 22/10. État des sources au 2026.10.63.
+Retours des 21 au 23/10. État des sources au 2026.10.64.
 
 ## Fait
 
@@ -17,8 +17,10 @@ Retours des 21 et 22/10. État des sources au 2026.10.63.
 - Analyse 100 % sur le téléphone : lexique de prénoms embarqué, titres, incises « dit-elle », attribution par alternance des répliques — le studio devient un affinage facultatif — 2026.10.60.
 - Mise à jour depuis l'app (Réglages → Mises à jour) : vérification GitHub, téléchargement de l'APK, contrôle SHA-256 et signature, installateur Android ; clé de signature permanente dans le workflow — 2026.10.61.
 - Une vérification ou un téléchargement lancé depuis Réglages ne redessine plus l'écran de lecture au retour au livre ; le résultat reste dans Réglages → Mises à jour — 2026.10.62.
-- Seuls les locuteurs avec une réplique reçoivent un rôle : les noms seulement cités ne créent plus de voix (168 → quelques rôles) ; les rôles sans réplique des anciennes analyses sont masqués puis supprimés à la validation — 2026.10.63.
+- Les noms seulement cités ne créent plus de voix ; les rôles sans réplique des anciennes analyses sont masqués puis supprimés à la validation — 2026.10.63. Cette correction ne traitait pas les faux locuteurs suivis de deux-points.
+- Étiquettes corroborées, mots ordinaires/pronoms exclus des rôles automatiques, réanalyse locale des livres existants et passages attribués consultables — 2026.10.64.
 
 ## Reste
 
-Rien d'ouvert : les retours du 21/10 sont traités et les mises à jour ne passent plus par GitHub. Prochaines pistes possibles : téléchargement des voix Piper int8 sur le Mac, mode conversationnel, import de la progression depuis le studio.
+- [ ] Valider le repérage et les attributions sur les romans de l’utilisateur après correction ; les tests de régression ne garantissent pas une distribution exhaustive.
+- Pistes ultérieures : téléchargement des voix Piper int8 sur le Mac, mode conversationnel, import de la progression depuis le studio.

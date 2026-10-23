@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.71** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
+version **2026.10.72** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
 
 📱 **Android** — [télécharger l’APK](https://github.com/mondary/Macos_PKvoicecloner/releases/latest/download/PK-Reader-latest.apk) (lien stable qui suit la dernière version) · 🍎 **macOS** — [DMG 2026.10.66](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/v2026.10.66)
 
@@ -16,19 +16,17 @@ version **2026.10.71** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANG
 
 L’application Android **PK Reader** lit vos EPUB, PDF texte et TXT avec les voix du téléphone, des voix Piper téléchargées ou vos clones PK Voice Studio. Bibliothèque locale, chapitres, signets, thèmes clair/papier/nuit et service audio pour l’écoute en arrière-plan. Lecture **page à page ou en défilement**, barre « en cours » qui garde la phrase lue en vue, changement de voix sans quitter le lecteur et — comme dans le studio — **une voix par personnage** : chaque rôle reçoit sa voix, son pitch et sa vitesse, chaque phrase son personnage — avec l'analyse des personnages par le studio (sexe de la voix, attribution phrase par phrase) et le **karaoké mot à mot** pendant l'écoute. Les voix clonées nécessitent le Mac pour générer les passages ; les chapitres préparés s’écoutent ensuite hors ligne.
 
-**Personnages automatiques (Android 2026.10.60)** — l'analyse tourne **entièrement sur le téléphone** : découpe du texte, personnages nommés, sexe des voix (titres, prénoms, « dit-elle ») et attribution des dialogues par alternance des répliques. Dans **Les voix de ce livre**, validez simplement les voix proposées ; le bilan indique les timbres manquants et propose leurs téléchargements. Le studio Mac reste facultatif : affinage des dialogues ambigus et voix clonées.
-
-**Distribution fidèle (Android 2026.10.63)** — seuls les personnages qui ont réellement une réplique reçoivent une voix. Un nom seulement cité dans le récit (« Pierre arriva », « Rose était là ») ne crée plus un rôle : fini les livres à 168 voix. Les rôles sans réplique hérités des analyses précédentes sont masqués, puis supprimés à la validation ; corrections et voix choisies restent intactes.
+**Personnages et voix sur le téléphone** — le repérage local utilise les incises de parole et les échanges nommés. Une majuscule ou un mot suivi de deux-points ne suffit pas à créer un personnage. Dans **Les voix de ce livre**, vérifiez les noms et leurs passages attribués, puis validez les voix proposées. Les passages incertains restent au narrateur : ce repérage par règles ne garantit pas une distribution exhaustive. Les anciennes attributions locales sont réparées à l’ouverture ; corrections manuelles et réglages conservés. Le Mac reste facultatif pour affiner les dialogues avec son provider IA et générer les voix clonées.
 
 **Mise à jour depuis l'app (Android 2026.10.61)** — Réglages → **Mises à jour** : PK Reader vérifie les releases GitHub, télécharge l'APK, contrôle son empreinte et sa signature, puis ouvre l'installateur Android. Plus besoin de passer par le navigateur ni par le dossier Téléchargements. La clé de signature est désormais **permanente** : après une dernière réinstallation pour les versions ≤ 2026.10.60, les mises à jour s'installent par-dessus l'app et conservent la bibliothèque.
 
-[Installation et guide Android](docs/ANDROID.md) · [APK de la version courante](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.63) (release `pk-<version>`, lien direct) · [Changelog Android](src/mobile/CHANGELOG.md)
+[Installation et guide Android](docs/ANDROID.md) · [APK de la version courante](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.64) (release `pk-<version>`, lien direct) · [Changelog Android](src/mobile/CHANGELOG.md)
 
 > Les APK vivent dans les releases `pk-<version>` (la plus récente en tête de la page des releases). Le badge **Latest** suit la dernière livraison publiée, Android ou macOS : il peut pointer sur le DMG sans que l'APK disparaisse — le lien direct ci-dessus reste valable.
 
 <img src="store/screenshots/android-reader/library.png" width="230" alt="Aperçu web de la bibliothèque PK Reader" /> <img src="store/screenshots/android-reader/reader.png" width="230" alt="Aperçu web du lecteur PK Reader" />
 
-<img src="store/screenshots/android-reader/casting.png" width="300" alt="Aperçu web des personnages détectés et des voix proposées avec des données de démonstration" />
+<img src="store/screenshots/android-reader/casting.png" width="300" alt="Aperçu web de la fiche personnages : rôles proposés, passage attribué et voix, données de démonstration" />
 
 ### macOS · PK Voice Studio
 

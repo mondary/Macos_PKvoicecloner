@@ -14,7 +14,7 @@ import { importBook, welcomeBook, chapterAt, minutesLeft, reparerParagraphes } f
 import { audio, native, Reader, Update, modelCatalog } from './engine';
 import type { Book, UpdateInfo, Voice } from './types';
 import { openCasting } from './casting-ui';
-import { besoinsVoix, characterAt, speechProfile } from './casting';
+import { analyseLocalePerimee, besoinsVoix, characterAt, speechProfile } from './casting';
 import { castingBusy, prepareCasting, watchCasting } from './casting-jobs';
 import { decouperMots, motPourPlage, motPourProgression, rendreMots } from './karaoke';
 
@@ -185,7 +185,7 @@ function libraryView() {
   <div class="privacy-note">${icon('lock-keyhole')}<p>Votre bibliothèque, sur votre appareil.<br><span>Sans compte. Sans publicité. Juste vos livres.</span></p></div>
   ${real.some(b => b.casting) ? `<section class="settings-section"><h2>Les voix de vos livres</h2>${real.filter(b => b.casting).map(b => {
     const missing = besoinsVoix(b.casting!, [...voices, ...models], b.language).missing.length;
-    const state = castingBusy(b) ? 'Préparation automatique en cours…' : b.casting!.analysis?.state === 'ready' ? `${b.casting!.characters.length} rôles · ${missing ? `${missing} voix à compléter` : 'voix proposées'}` : 'Analyse à compléter avec le studio';
+    const state = castingBusy(b) ? 'Préparation automatique en cours…' : analyseLocalePerimee(b) ? 'Repérage à actualiser à l’ouverture' : `${b.casting!.characters.length} rôles proposés · ${missing ? `${missing} voix à compléter` : 'voix proposées'}`;
     return `<button class="setting-row casting-library-row" data-action="casting" data-id="${b.id}"><span><strong>${esc(b.title)}</strong><small>${esc(state)}</small></span>${icon('chevron-right')}</button>`;
   }).join('')}</section>` : ''}
   <p class="build-line">PK Reader <b>${version}</b></p>`;
@@ -527,7 +527,7 @@ function castingSheet(book: Book) {
   return openCasting(book, allVoices(), settings, modal, render, updated => { models = updated; });
 }
 function prepareBook(book: Book) {
-  if (!book.sample && book.casting?.analysis?.state !== 'ready') {
+  if (!book.sample && (analyseLocalePerimee(book) || book.casting?.analysis?.state !== 'ready')) {
     void prepareCasting(book, allVoices(), settings).catch(error => toast(`${book.title} : ${error instanceof Error ? error.message : error}`));
   }
 }
@@ -543,12 +543,13 @@ async function openBook(id: string, listen = false) {
   }
   sheet.close();
   const book = books.find(b => b.id === id); if (!book) return;
+  const distributionPerimee = analyseLocalePerimee(book);
   prepareBook(book);
   currentId = id; book.opened = Date.now();
   if (book.completed && listen) { book.position = 0; book.completed = false; }
   await library.save(book);
   screen = 'reader'; follow = true; page = 0; pagesKey = '';
-  if (audio.state.bookId !== id) await audio.load(book, settings);
+  if (audio.state.bookId !== id || distributionPerimee) await audio.load(book, settings);
   render();
   if (listen) await audio.play();
   else if (settings.layout === 'pages') jumpToCurrent();

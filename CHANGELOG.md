@@ -1,6 +1,13 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.72] - 2026-10-23
+
+### Fixed
+- **PK Reader Android 2026.10.64 — faux locuteurs** : une majuscule suivie de deux-points ne crée plus un personnage. Les étiquettes demandent une confirmation par une incise/annonce de parole ou un échange entre plusieurs noms plausibles ; les pronoms et mots courants (« Voilà », « Bon », « Elle », « Moi », « Puis », « Bref », « Exemple », « Request », « Avec eux ») ne deviennent plus des rôles automatiques.
+- Les anciennes attributions locales sont recalculées à l’ouverture, même si les faux rôles avaient des phrases. Les corrections manuelles, voix choisies, progression et lots du studio sont conservés. Le repérage reste heuristique : les passages incertains sont lus par le narrateur.
+- La fiche de chaque personnage propose un passage attribué à vérifier ; le bilan distingue le repérage local de l’analyse du studio et compte les phrases réellement associées à un personnage.
+
 ## [2026.10.71] - 2026-10-23
 
 ### Fixed

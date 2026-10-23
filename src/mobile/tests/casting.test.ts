@@ -100,14 +100,14 @@ describe('préparation automatique du livre', () => {
     expect([0, 1, 2, 3].map(i => characterAt(book, i)?.name)).toEqual(['Pierre', 'Alice', 'Pierre', 'Alice']);
   });
 
-  it('« dit-elle » désigne la seule femme repérée dans le livre', () => {
+  it('ne fait pas d’une mention narrative une preuve d’identité pour « dit-elle »', () => {
     const book = fixture();
     book.segments = ['Alice arriva.', '— Merci, dit-elle.', '— De rien, dit Pierre.'];
     preparerDistributionLocale(book, catalog, defaults.voice);
     expect(characterAt(book, 0)?.id).toBe('narrator');
-    expect(characterAt(book, 1)?.name).toBe('Alice');
+    expect(characterAt(book, 1)?.id).toBe('narrator');
     expect(characterAt(book, 2)?.name).toBe('Pierre');
-    expect(book.casting!.characters.find(c => c.name === 'Alice')?.gender).toBe('femme');
+    expect(book.casting!.characters.some(c => c.name === 'Alice')).toBe(false);
   });
 
   it('conserve les rôles, voix, réglages et corrections d’un chapitre à l’autre', () => {

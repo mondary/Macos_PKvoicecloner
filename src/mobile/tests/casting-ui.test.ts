@@ -35,7 +35,8 @@ describe('parcours personnages → voix', () => {
   it('analyse automatiquement le livre puis demande seulement de valider les voix', async () => {
     const book = bookFixture();
     await openCasting(book, available, { ...defaults, server: 'http://studio', token: 'code-test' }, show, () => {});
-    await vi.waitFor(() => expect(document.querySelector('.casting-summary')?.textContent).toContain('3 phrases attribuées automatiquement'));
+    await vi.waitFor(() => expect(book.casting?.analysis?.state).toBe('ready'));
+    expect(document.querySelector('.casting-summary')?.textContent).toContain('2 phrases attribuées automatiquement à un personnage');
     expect(mocks.analyser).toHaveBeenCalledTimes(1);
     expect(document.querySelectorAll('[data-character]')).toHaveLength(3);
     expect(document.querySelector<HTMLDetailsElement>('#casting-advanced')?.open).toBe(false);
@@ -71,6 +72,25 @@ describe('parcours personnages → voix', () => {
     expect(document.body.textContent).not.toContain('Fantôme');
     document.querySelector<HTMLButtonElement>('[data-cast="save"]')!.click();
     await vi.waitFor(() => expect(book.casting!.characters.some(c => c.id === 'fantome')).toBe(false));
+  });
+
+  it('répare un ancien faux rôle avec des phrases avant le premier affichage et montre un passage vérifiable', async () => {
+    const book = bookFixture();
+    book.segments[0] = 'Exemple : <img src=x onerror=alert(1)>.';
+    const cast = ensureCasting(book);
+    cast.characters.push({ id: 'exemple', name: 'Exemple', voice: 'neural:tom', pitch: 1, rate: 1, automaticVoice: true });
+    cast.assignments = { '0': 'exemple' }; cast.manualAssignments = {};
+    cast.analysis = { state: 'local', completed: [] };
+    const renders: string[] = [];
+    await openCasting(book, available, { ...defaults }, (title, body) => { renders.push(body); show(title, body); }, () => {});
+    await vi.waitFor(() => expect(document.querySelector<HTMLFieldSetElement>('.casting-controls')?.disabled).toBe(false));
+    expect(renders.every(body => !body.includes('<legend>Exemple</legend>'))).toBe(true);
+    expect(book.casting!.assignments['0']).toBeUndefined();
+    expect(mocks.save).toHaveBeenCalledWith(book);
+    expect(document.querySelector('.casting-evidence')?.textContent).toContain('— Bonjour, dit Pierre.');
+    expect(document.querySelector('.casting-summary')?.textContent).toContain('Les passages incertains restent au narrateur');
+    expect(document.querySelector('#sheet img')).toBeNull();
+    document.querySelector<HTMLDialogElement>('#sheet')!.close();
   });
 
   it('télécharge les voix manquantes et les associe aux rôles après installation vérifiée', async () => {

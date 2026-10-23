@@ -1,5 +1,15 @@
 # PK Reader Android
 
+## [2026.10.64] - 2026-10-23
+
+### Fixed
+- **Des indices de parole avant de créer un rôle** : « Voilà : », « Bon : », « Elle : », « Moi : », « Puis : », « Bref : », « Exemple : », « Request : » et les titres/métadonnées ne deviennent plus des personnages. Une étiquette « Nom : » doit être corroborée par une incise/annonce ou un échange entre plusieurs prénoms/noms titrés. Les noms inconnus du lexique restent reconnus dans les incises.
+- **Réparation des livres déjà analysés** : les anciennes attributions locales sont recalculées une fois à l’ouverture, y compris les faux rôles ayant déjà des phrases. Les identifiants et réglages des personnages conservés, les corrections manuelles, les lots du studio, les signets et la progression sont préservés.
+- **Attribution prudente** : les pronoms ne créent plus de personnages et ne sont résolus que parmi les locuteurs nommés de l’échange. L’alternance tient compte des tours de parole, des paragraphes et des chapitres ; les passages ambigus restent au narrateur.
+
+### Changed
+- **Vérifier le résultat** : un extrait attribué est consultable sous chaque personnage. Le bilan affiche des rôles proposés, distingue repérage local et analyse du studio, et exclut la narration et les corrections manuelles du compteur d’attributions automatiques.
+
 ## [2026.10.63] - 2026-10-23
 
 ### Fixed

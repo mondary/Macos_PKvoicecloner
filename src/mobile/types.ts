@@ -9,7 +9,9 @@ export interface Character {
 export interface Casting {
   enabled: boolean; characters: Character[]; assignments: Record<string, string>;
   manualAssignments?: Record<string, boolean>;
-  analysis?: { completed: string[]; state: 'local' | 'partial' | 'ready' | 'error'; error?: string };
+  analysis?: { completed: string[]; state: 'local' | 'partial' | 'ready' | 'error'; error?: string;
+    /** Révision du repérage local, pour réparer les anciennes attributions une fois. */
+    localRevision?: number };
 }
 export interface Book {
   id: string; title: string; author: string; format: string; language: string;

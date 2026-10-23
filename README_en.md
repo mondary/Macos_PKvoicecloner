@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.71** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
+version **2026.10.72** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
 
 📱 **Android** — [download the APK](https://github.com/mondary/Macos_PKvoicecloner/releases/latest/download/PK-Reader-latest.apk) (stable link following the latest version) · 🍎 **macOS** — [DMG 2026.10.66](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/v2026.10.66)
 
@@ -16,19 +16,17 @@ version **2026.10.71** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANG
 
 The **PK Reader** Android app reads EPUB, text PDFs and TXT using Android voices, downloaded Piper voices, or your PK Voice Studio clones. Local library, chapters, bookmarks, light/paper/night themes and a native audio service for background listening. Turn pages or keep a continuous scroll, a bottom bar keeps the sentence being read in view, voices can be changed without leaving the reader, and — like in the studio — **one voice per character**: each role gets its own voice, pitch and speed, each sentence its speaker — with the studio's character analysis (voice gender, sentence-by-sentence casting) and **word-by-word karaoke** while listening. Cloned voices require the Mac to generate new passages; prepared chapters can then be played offline.
 
-**Automatic characters (Android 2026.10.60)** — the analysis runs **entirely on the phone**: text splitting, named characters, voice gender (titles, first names, “dit-elle”) and dialogue attribution by turn alternation. In **The voices of this book**, simply confirm the suggested voices; a summary lists missing timbres and offers downloads. The Mac studio remains optional: refining ambiguous dialogue and cloned voices.
-
-**Faithful casting (Android 2026.10.63)** — only characters with an actual line receive a voice. A name merely mentioned in the narration (“Pierre arrived”, “Rose was there”) no longer creates a role: no more 168-voice books. Line-less roles inherited from previous analyses are hidden, then removed when you confirm; manual corrections and chosen voices are preserved.
+**Characters and voices on your phone** — local detection uses speech attribution clauses and named exchanges. A capital letter or a word followed by a colon is not enough to create a character. In **The voices of this book**, review names and their assigned passages, then confirm the proposed voices. Uncertain passages stay with the narrator: this rule-based approach does not guarantee an exhaustive cast. Old local assignments are repaired when opening the book; manual corrections and settings are preserved. The Mac remains optional for refining dialogue with its AI provider and generating cloned voices.
 
 **In-app updates (Android 2026.10.61)** — Settings → **Updates**: PK Reader checks GitHub releases, downloads the APK, verifies its digest and signature, then opens the Android installer. No more browser or Downloads folder. The signing key is now **permanent**: after one last reinstall for versions ≤ 2026.10.60, updates install over the app and keep the library.
 
-[Android installation and guide (French)](docs/ANDROID.md) · [Current APK](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.63) (`pk-<version>` release, direct link) · [Android changelog](src/mobile/CHANGELOG.md)
+[Android installation and guide (French)](docs/ANDROID.md) · [Current APK](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.64) (`pk-<version>` release, direct link) · [Android changelog](src/mobile/CHANGELOG.md)
 
 > APKs live in `pk-<version>` releases (newest first on the releases page). The **Latest** badge follows the last published release, Android or macOS: it may point at the DMG without the APK disappearing — the direct link above stays valid.
 
 <img src="store/screenshots/android-reader/library.png" width="230" alt="PK Reader library web preview" /> <img src="store/screenshots/android-reader/reader.png" width="230" alt="PK Reader reading screen web preview" />
 
-<img src="store/screenshots/android-reader/casting.png" width="300" alt="Web preview of detected characters and suggested voices using demonstration data" />
+<img src="store/screenshots/android-reader/casting.png" width="300" alt="Web preview of the characters sheet: proposed roles, an assigned passage and voices using demonstration data" />
 
 ### macOS · PK Voice Studio
 

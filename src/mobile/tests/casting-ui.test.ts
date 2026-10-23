@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaults, type Book, type Voice } from '../types';
+import { ensureCasting } from '../casting';
 const mocks = vi.hoisted(() => ({ save: vi.fn(async () => {}), analyser: vi.fn(), models: vi.fn(), installModel: vi.fn(), load: vi.fn(async () => {}), pause: vi.fn(async () => {}) }));
 vi.mock('../storage', () => ({ library: { save: mocks.save } }));
 vi.mock('../engine', () => ({ native: true, Reader: { analyser: mocks.analyser, models: mocks.models, installModel: mocks.installModel }, audio: { pause: mocks.pause, load: mocks.load, play: vi.fn() } }));
@@ -58,6 +59,18 @@ describe('parcours personnages → voix', () => {
     expect(document.querySelector('[data-cast="analyse"]')).toBeNull();   // plus de bouton « connecter le studio »
     expect(document.querySelector<HTMLDetailsElement>('#casting-advanced')?.open).toBe(false);
     document.querySelector<HTMLDialogElement>('#sheet')!.close();
+  });
+
+  it('masque et nettoie les rôles sans réplique hérités d’une ancienne analyse', async () => {
+    const book = bookFixture();
+    // Rôle hérité d'une ancienne analyse : pas de autoRole, seulement automaticVoice.
+    ensureCasting(book).characters.push({ id: 'fantome', name: 'Fantôme', voice: '', pitch: 1, rate: 1, automaticVoice: true });
+    await openCasting(book, available, { ...defaults }, show, () => {});
+    await vi.waitFor(() => expect(document.querySelector('.casting-summary')?.textContent).toContain('2 phrases attribuées automatiquement'));
+    expect(document.querySelectorAll('[data-character]')).toHaveLength(3);
+    expect(document.body.textContent).not.toContain('Fantôme');
+    document.querySelector<HTMLButtonElement>('[data-cast="save"]')!.click();
+    await vi.waitFor(() => expect(book.casting!.characters.some(c => c.id === 'fantome')).toBe(false));
   });
 
   it('télécharge les voix manquantes et les associe aux rôles après installation vérifiée', async () => {

@@ -53,13 +53,44 @@ describe('préparation automatique du livre', () => {
     const book = fixture();
     book.segments.push('— Venez, dit Monsieur Dupont.', 'Madame Martin : Bonjour.', 'Chapitre : Le départ');
     preparerDistributionLocale(book, catalog, defaults.voice);
-    expect(book.casting!.characters.map(c => c.name)).toEqual(['Narrateur', 'Pierre', 'Alice', 'Madame Martin', 'Monsieur Dupont']);
+    expect(book.casting!.characters.map(c => c.name)).toEqual(['Narrateur', 'Pierre', 'Alice', 'Monsieur Dupont', 'Madame Martin']);
     expect(book.casting!.characters.find(c => c.name === 'Madame Martin')?.gender).toBe('femme');
     expect(book.casting!.characters.find(c => c.name === 'Monsieur Dupont')?.gender).toBe('homme');
     expect(book.casting!.characters.find(c => c.name === 'Pierre')?.gender).toBe('homme');
     expect(characterAt(book, 1)?.name).toBe('Pierre');
     expect(book.casting!.assignments['3']).toBeUndefined(); // mention narrative, pas une réplique
     expect(book.casting!.analysis?.state).toBe('local');    // analyse locale complète
+  });
+
+  it('ne crée pas de rôle pour un nom seulement cité dans le récit', () => {
+    const book = fixture();
+    book.segments = [
+      'Pierre arriva dans la maison.',
+      'Paul referma la porte.',
+      'Marie sourit.',
+      'Rose était sur la table.',
+      'Victor regarda par la fenêtre.',
+      '— Bonjour, dit Pierre.',
+      '— Salut, répondit Paul.',
+    ];
+    preparerDistributionLocale(book, catalog, defaults.voice);
+    expect(book.casting!.characters.map(c => c.name)).toEqual(['Narrateur', 'Pierre', 'Paul']);
+    expect(book.casting!.characters.some(c => ['Marie', 'Rose', 'Victor'].includes(c.name))).toBe(false);
+  });
+
+  it('ne transforme pas des dizaines de noms cités en autant de voix', () => {
+    const noms = ['Pierre', 'Paul', 'Marie', 'Rose', 'Victor', 'Claude', 'Camille', 'Martin', 'Simon',
+      'Michel', 'Jacques', 'François', 'Henri', 'Georges', 'Maurice', 'Albert', 'Charles', 'Philippe',
+      'Robert', 'Richard', 'Thomas', 'Nicolas', 'Alexandre', 'Julien', 'Antoine', 'Sébastien',
+      'Laurent', 'Vincent', 'Xavier', 'Yves', 'Bernard', 'Daniel', 'David', 'Emmanuel', 'Éric',
+      'Fabien', 'Gérard', 'Gilles', 'Guillaume', 'Hervé', 'Jean', 'Jérôme', 'Joël', 'Luc', 'Marc',
+      'Mathieu', 'Olivier', 'Pascal', 'Patrick', 'Raphaël', 'René', 'Roger', 'Roland', 'Serge',
+      'Stéphane', 'Thierry', 'Thibault', 'Timothée', 'Tristan', 'Alice', 'Jeanne', 'Louis'];
+    const book = fixture();
+    book.segments = [...noms.map(nom => `${nom} traversa la pièce.`),
+      '— Bonjour, dit Pierre.', '— Salut, répondit Alice.', '— Tu viens ? demanda Pierre.', '— Oui, dit Alice.'];
+    preparerDistributionLocale(book, catalog, defaults.voice);
+    expect(book.casting!.characters.map(c => c.name)).toEqual(['Narrateur', 'Pierre', 'Alice']);
   });
 
   it('attribue les répliques alternées entre deux locuteurs ancrés', () => {
@@ -130,8 +161,8 @@ describe('préparation automatique du livre', () => {
 
   it('propose des timbres distincts et respecte langue, genre et voix manuelles', () => {
     const cast = ensureCasting(fixture());
-    cast.characters.push({ id: 'pierre', name: 'Pierre', gender: 'homme', voice: '', pitch: 1, rate: 1 },
-      { id: 'alice', name: 'Alice', gender: 'femme', voice: '', pitch: 1, rate: 1 });
+    cast.characters.push({ id: 'pierre', name: 'Pierre', gender: 'homme', voice: '', pitch: 1, rate: 1, autoRole: false },
+      { id: 'alice', name: 'Alice', gender: 'femme', voice: '', pitch: 1, rate: 1, autoRole: false });
     const available = [...catalog.map(v => ({ ...v, installed: ['neural:tom', 'neural:siwis', 'system:default'].includes(v.id) })),
       { id: 'neural:lessac', name: 'English', kind: 'neural' as const, language: 'en-US', installed: true }];
     expect(proposerVoix(cast, available, defaults.voice, 'fr').missing).toHaveLength(0);
@@ -143,7 +174,7 @@ describe('préparation automatique du livre', () => {
 
   it('compte les voix manquantes et regroupe les deux timbres UPMC en un téléchargement', () => {
     const cast = ensureCasting(fixture());
-    for (let i = 0; i < 6; i++) cast.characters.push({ id: `p${i}`, name: `P${i}`, voice: '', gender: i % 2 ? 'femme' : 'homme', pitch: 1, rate: 1 });
+    for (let i = 0; i < 6; i++) cast.characters.push({ id: `p${i}`, name: `P${i}`, voice: '', gender: i % 2 ? 'femme' : 'homme', pitch: 1, rate: 1, autoRole: false });
     const plan = proposerVoix(cast, catalog, defaults.voice, 'fr');
     expect(plan.missing).toHaveLength(6);
     expect(plan.downloads).toHaveLength(4);
@@ -156,7 +187,7 @@ describe('préparation automatique du livre', () => {
 
   it('ne présente pas le genre inconnu des voix Android comme une correspondance vérifiée', () => {
     const cast = ensureCasting(fixture());
-    cast.characters.push({ id: 'alice', name: 'Alice', gender: 'femme', voice: '', pitch: 1, rate: 1 });
+    cast.characters.push({ id: 'alice', name: 'Alice', gender: 'femme', voice: '', pitch: 1, rate: 1, autoRole: false });
     const voices: Voice[] = [...catalog, { id: 'system:unknown', name: 'Voix Android', language: 'fr', kind: 'system', installed: true }];
     const plan = proposerVoix(cast, voices, defaults.voice, 'fr');
     expect(plan.missing.some(c => c.id === 'alice')).toBe(true);

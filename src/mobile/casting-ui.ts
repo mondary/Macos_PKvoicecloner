@@ -1,4 +1,4 @@
-import { besoinsVoix, ensureCasting, genreVoix, proposerVoix, voixLocales } from './casting';
+import { besoinsVoix, ensureCasting, genreVoix, proposerVoix, roleAuto, voixLocales } from './casting';
 import { castingBusy, castingProgress, prepareCasting, watchCasting } from './casting-jobs';
 import { audio, native, Reader } from './engine';
 import { library } from './storage';
@@ -32,15 +32,22 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
     sheet.querySelectorAll<HTMLElement>('[data-character]').forEach(row => {
       const role = draft.characters[Number(row.dataset.character)];
       if (!role) return;
-      role.name = row.querySelector<HTMLInputElement>('[name="name"]')!.value.trim();
+      const name = row.querySelector<HTMLInputElement>('[name="name"]')!.value.trim();
+      if (name !== role.name) role.autoRole = false;
+      role.name = name;
       const voice = row.querySelector<HTMLSelectElement>('[name="voice"]')!.value;
-      if (voice !== role.voice) role.automaticVoice = false;
+      if (voice !== role.voice) { role.automaticVoice = false; role.autoRole = false; }
       role.voice = voice;
       role.pitch = Number(row.querySelector<HTMLInputElement>('[name="pitch"]')!.value);
       role.rate = Number(row.querySelector<HTMLInputElement>('[name="rate"]')!.value);
     });
   };
   const save = async () => {
+    // Nettoie les rôles hérités d'anciennes analyses : un nom seulement cité
+    // dans le récit n'a pas de réplique, donc pas de voix à conserver.
+    const utilises = new Set(Object.values(draft.assignments));
+    draft.characters = draft.characters.filter(c =>
+      c.id === 'narrator' || utilises.has(c.id) || !roleAuto(c));
     const names = draft.characters.map(c => c.name.trim().toLocaleLowerCase());
     if (names.some(n => !n) || new Set(names).size !== names.length) throw new Error('Donnez un nom différent à chaque personnage.');
     const previous = book.casting;
@@ -59,6 +66,11 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
     const phrases = Object.keys(draft.assignments).length;
     const counts = new Map<string, number>();
     Object.values(draft.assignments).forEach(id => counts.set(id, (counts.get(id) || 0) + 1));
+    // Le parcours ne montre que les rôles qui parlent réellement (ou ajoutés à
+    // la main) : une mention narrative ne doit pas apparaître comme un personnage.
+    const utilises = new Set(Object.values(draft.assignments));
+    const roles = draft.characters.map((role, i) => ({ role, i }))
+      .filter(({ role }) => role.id === 'narrator' || utilises.has(role.id) || !roleAuto(role));
     const analysisText = analysing ? (progress ? `Analyse fine en cours · ${progress.done} / ${progress.total} blocs. Vous pouvez fermer cet écran ; gardez l’app ouverte.` : 'Analyse en attente…')
       : draft.analysis?.error ? `${draft.analysis.error} L’analyse du téléphone reste appliquée.`
       : `${book.chapters.length} chapitre${book.chapters.length > 1 ? 's' : ''} analysé${book.chapters.length > 1 ? 's' : ''} sur le téléphone · ${phrases} phrases attribuées automatiquement.`;
@@ -66,11 +78,11 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
       <p>Pour un timbre adapté et distinct par rôle, il manque ${missing.length} voix : ${missing.map(c => `${esc(c.name)} (${genderLabel(c.gender).toLocaleLowerCase()})`).join(', ')}. ${analysing ? 'Ce bilan peut encore évoluer pendant l’analyse fine.' : ''} En attendant, certains rôles partagent une voix.</p>
       ${downloads.length ? `<ul>${downloads.map(d => `<li>${d.voices.map(v => esc(v.name)).join(' + ')} → ${d.roles.map(r => esc(r.name)).join(', ')} · ${d.voice.size ?? '?'} Mo</li>`).join('')}</ul><button type="button" class="primary" data-cast="download">Télécharger les voix proposées · ${downloads.reduce((n, d) => n + (d.voice.size || 0), 0).toLocaleString('fr', { maximumFractionDigits: 1 })} Mo</button>` : '<p>Aucun timbre supplémentaire adapté dans le catalogue actuel. Une même voix peut lire plusieurs rôles ; sa hauteur reste réglable.</p>'}</section>` : '';
     show('Les voix de ce livre', `<div class="casting-editor">
-      <p class="sheet-description">Tout se prépare sur votre téléphone : découpe du texte, personnages, sexe des voix et dialogues attribués. Vous choisissez une voix par personnage.</p>
-      <section class="casting-summary" aria-label="Analyse du livre"><strong>${draft.characters.length} rôle${draft.characters.length > 1 ? 's' : ''} repéré${draft.characters.length > 1 ? 's' : ''}, narrateur compris</strong><p role="status">${esc(analysisText)}</p>
+      <p class="sheet-description">Tout se prépare sur votre téléphone : découpe du texte, personnages, sexe des voix et dialogues attribués. Seuls les personnages qui ont une réplique reçoivent une voix ; un nom seulement cité dans le récit reste au narrateur.</p>
+      <section class="casting-summary" aria-label="Analyse du livre"><strong>${roles.length} rôle${roles.length > 1 ? 's' : ''} repéré${roles.length > 1 ? 's' : ''}, narrateur compris</strong><p role="status">${esc(analysisText)}</p>
         ${missing.length ? `<button type="button" class="casting-preview" data-cast="needs">${missing.length} voix à compléter · voir les propositions ↓</button>` : ''}</section>
       <fieldset class="casting-controls" ${working() ? 'disabled' : ''} aria-busy="${working()}">
-      <div class="casting-roles">${draft.characters.map((role, i) => `<fieldset data-character="${i}" class="casting-role"><legend>${esc(role.name)}</legend>
+      <div class="casting-roles">${roles.map(({ role, i }) => `<fieldset data-character="${i}" class="casting-role"><legend>${esc(role.name)}</legend>
         <p class="casting-role-meta">${genderLabel(role.gender)} · ${counts.get(role.id) || 0} phrases${role.automaticVoice ? missing.includes(role) ? ' · voix provisoire' : ' · proposée' : ''}</p>
         <label class="sr-only" for="cast-voice-${i}">Voix de ${esc(role.name)}</label><select id="cast-voice-${i}" name="voice"><option value="">Voix du lecteur</option>${role.voice && !options.some(v => v.id === role.voice) ? `<option value="${esc(role.voice)}" selected>Voix indisponible — à remplacer</option>` : ''}${options.map(v => `<option value="${esc(v.id)}" ${v.id === role.voice ? 'selected' : ''}>${esc(v.name)}${genreVoix(v) === 'indetermine' ? '' : ` · ${genderLabel(genreVoix(v))}`}${v.network ? ' · réseau' : ''}</option>`).join('')}</select>
         <div class="casting-role-tools"><button type="button" class="casting-preview" data-cast="preview" data-id="${i}" aria-label="Écouter la voix de ${esc(role.name)}">Écouter un exemple</button>
@@ -83,7 +95,7 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
         <label class="casting-enable"><input type="checkbox" id="casting-enabled" ${draft.enabled ? 'checked' : ''}> Lire avec les voix des personnages</label>
         <button type="button" class="setting-row" data-cast="add">+ Ajouter un personnage manquant</button>
         <label for="cast-chapter">Chapitre à vérifier</label><select id="cast-chapter">${book.chapters.map((ch, i) => `<option value="${i}" ${i === chapter ? 'selected' : ''}>${esc(ch.title)}</option>`).join('')}</select>
-        <div class="casting-passages">${book.segments.slice(start, end).map((text, offset) => `<div class="casting-passage"><p>${esc(text)}</p><label for="cast-segment-${start + offset}">Locuteur de la phrase ${start + offset + 1}</label><select id="cast-segment-${start + offset}" data-segment="${start + offset}">${draft.characters.map(role => `<option value="${esc(role.id)}" ${(draft.assignments[String(start + offset)] || 'narrator') === role.id ? 'selected' : ''}>${esc(role.name)}</option>`).join('')}</select></div>`).join('')}</div>
+        <div class="casting-passages">${book.segments.slice(start, end).map((text, offset) => `<div class="casting-passage"><p>${esc(text)}</p><label for="cast-segment-${start + offset}">Locuteur de la phrase ${start + offset + 1}</label><select id="cast-segment-${start + offset}" data-segment="${start + offset}">${roles.map(({ role }) => `<option value="${esc(role.id)}" ${(draft.assignments[String(start + offset)] || 'narrator') === role.id ? 'selected' : ''}>${esc(role.name)}</option>`).join('')}</select></div>`).join('')}</div>
         <div class="casting-pagination"><button type="button" data-cast="prev" ${first <= 0 ? 'disabled' : ''}>Précédents</button><span>${first + 1}–${end - c.start} / ${c.end - c.start}</span><button type="button" data-cast="next" ${end >= c.end ? 'disabled' : ''}>Suivants</button></div></details>
       <button type="button" class="primary casting-save" data-cast="save">Valider les voix</button></fieldset>
       <p id="casting-status" class="${invalid ? 'error' : ''}" role="status" aria-live="polite">${esc(status)}</p></div>`);
@@ -96,7 +108,7 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
     const role = draft.characters[Number(button.dataset.id)];
     switch (button.dataset.cast) {
       case 'needs': sheet.querySelector('#casting-needs')?.scrollIntoView({ block: 'start' }); break;
-      case 'add': draft.characters.push({ id: crypto.randomUUID(), name: `Personnage ${draft.characters.length}`, voice: '', pitch: 1, rate: 1 }); proposerVoix(draft, catalog, settings.voice, book.language); draw(); break;
+      case 'add': draft.characters.push({ id: crypto.randomUUID(), name: `Personnage ${draft.characters.length}`, voice: '', pitch: 1, rate: 1, autoRole: false }); proposerVoix(draft, catalog, settings.voice, book.language); draw(); break;
       case 'reset': if (role) { role.pitch = 1; role.rate = 1; draw(); } break;
       case 'remove':
         if (role && role.id !== 'narrator') {

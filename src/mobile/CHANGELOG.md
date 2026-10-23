@@ -1,5 +1,11 @@
 # PK Reader Android
 
+## [2026.10.63] - 2026-10-23
+
+### Fixed
+- **Fini les distributions à 168 voix** : un nom seulement cité dans le récit (« Pierre arriva », « Rose était là ») ne crée plus un personnage. Seuls les locuteurs qui ont réellement une réplique — étiquette, incise ou « dit-elle » — reçoivent un rôle et une voix. Le sexe des voix et l’alternance des répliques restent calculés sur le téléphone.
+- **Anciennes analyses nettoyées** : les rôles sans réplique hérités des versions précédentes sont masqués dans « Les voix de ce livre », puis supprimés quand vous validez. Le nombre de rôles affiché reflète enfin les personnages qui parlent. Les corrections manuelles et les voix choisies sont conservées.
+
 ## [2026.10.62] - 2026-10-23
 
 ### Fixed

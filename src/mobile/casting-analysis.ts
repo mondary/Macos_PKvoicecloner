@@ -1,4 +1,4 @@
-import { appliquerAnalyse, ensureCasting, preparerDistributionLocale, proposerVoix, voixParGenreParDefaut, voixLocales, type AnalyseStudio, type AnalysePersonnage } from './casting';
+import { appliquerAnalyse, ensureCasting, preparerDistributionLocale, proposerVoix, roleAuto, voixParGenreParDefaut, voixLocales, type AnalyseStudio, type AnalysePersonnage } from './casting';
 import type { Book, Voice } from './types';
 
 export interface AnalyseRequest { titre: string; phrases: string[]; personnages: AnalysePersonnage[] }
@@ -25,13 +25,19 @@ export async function analyserLivre(book: Book, available: Voice[], fallback: st
   const analysis = cast.analysis!;
   const lots = lotsAnalyse(book);
   let done = lots.filter(lot => analysis.completed.includes(lot.key)).length;
+  // Les rôles sans réplique (anciennes analyses) ne partent pas au studio : ils
+  // ne doivent ni consommer la limite de 200 ni revenir comme des personnages.
+  const visibles = () => {
+    const utilises = new Set(Object.values(cast.assignments));
+    return cast.characters.filter(c => c.id === 'narrator' || utilises.has(c.id) || !roleAuto(c));
+  };
   for (const lot of lots) {
     if (analysis.completed.includes(lot.key)) continue;
     if (cancelled()) break;
     await checkpoint({ done, total: lots.length, chapter: lot.chapter });
     try {
       const result = await request({ titre: book.title.slice(0, 120), phrases: book.segments.slice(lot.context, lot.end),
-        personnages: cast.characters.slice(0, 200).map(c => ({ id: c.id === 'narrator' ? 'narrateur' : c.sourceId || c.id,
+        personnages: visibles().slice(0, 200).map(c => ({ id: c.id === 'narrator' ? 'narrateur' : c.sourceId || c.id,
           nom: c.name, genre: c.gender || 'indetermine', role: c.id === 'narrator' ? 'narrateur' : 'personnage' })) });
       if (cancelled()) break;
       if (!Array.isArray(result.personnages) || !Array.isArray(result.locuteurs) || result.locuteurs.length !== lot.end - lot.context ||

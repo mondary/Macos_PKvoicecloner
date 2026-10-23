@@ -3,6 +3,8 @@ export type Gender = 'homme' | 'femme' | 'indetermine';
 export interface Character {
   id: string; name: string; voice: string; pitch: number; rate: number;
   gender?: Gender; sourceId?: string; automaticVoice?: boolean;
+  /** Rôle déduit par l'analyse (par opposition à un rôle ajouté à la main). */
+  autoRole?: boolean;
 }
 export interface Casting {
   enabled: boolean; characters: Character[]; assignments: Record<string, string>;

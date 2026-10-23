@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.71] - 2026-10-23
+
+### Fixed
+- **PK Reader Android 2026.10.63 — fini les livres à 168 voix** : la préparation locale ne crée plus un personnage pour chaque nom seulement cité dans le récit. Seuls les locuteurs qui ont une réplique (étiquette, incise, « dit-elle ») reçoivent un rôle et une voix. Les rôles sans réplique des analyses précédentes sont masqués puis supprimés à la validation ; les corrections et voix manuelles restent intactes.
+
 ## [2026.10.70] - 2026-10-23
 
 ### Fixed

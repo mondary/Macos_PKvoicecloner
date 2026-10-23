@@ -58,6 +58,9 @@ export function voixParGenreParDefaut(options: Voice[], defaut: string) {
 }
 
 const normaliser = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+/** Rôle déduit par une analyse, par opposition à un rôle ajouté à la main.
+ *  Les distributions antérieures à autoRole se reconnaissent à automaticVoice. */
+export const roleAuto = (c: Character) => c.autoRole === true || (c.autoRole === undefined && c.automaticVoice === true);
 export const genre = (s?: string): Gender => s === 'homme' || s === 'femme' ? s : 'indetermine';
 
 /** Fusionne la distribution du livre : les voix/réglages et les chapitres déjà
@@ -81,7 +84,7 @@ export function appliquerAnalyse(draft: Casting, analyse: AnalyseStudio,
       (c.sourceId === personnage.id || c.id === `studio-${personnage.id}` || normaliser(c.name) === normaliser(name)));
     if (!role) {
       role = { id: `studio-${personnage.id}`, name, voice: voix(personnage.genre),
-        pitch: 1, rate: 1, automaticVoice: true };
+        pitch: 1, rate: 1, automaticVoice: true, autoRole: true };
       if (draft.characters.some(c => c.id === role!.id)) role.id = crypto.randomUUID();
       draft.characters.push(role);
     }
@@ -123,8 +126,12 @@ export function proposerVoix(casting: Casting, available: Voice[], fallback: str
   const installed = voixLocales(available).filter(v => v.installed && memeLangue(v, language));
   // Le défaut système est un alias, pas un timbre supplémentaire au catalogue Android.
   const pool = installed.filter(v => v.id !== 'system:default' || !installed.some(other => other.kind === 'system' && other.id !== v.id));
-  const used = new Set(casting.characters.filter(c => c.voice && !c.automaticVoice).map(c => c.voice));
-  const automatic = casting.characters.filter(c => !c.voice || c.automaticVoice)
+  // Une mention sans réplique n'a pas besoin d'une voix : seuls le narrateur,
+  // les rôles qui parlent et les rôles ajoutés à la main sont proposés.
+  const utilises = new Set(Object.values(casting.assignments));
+  const visible = (c: Character) => c.id === 'narrator' || utilises.has(c.id) || !roleAuto(c);
+  const used = new Set(casting.characters.filter(c => visible(c) && c.voice && !c.automaticVoice).map(c => c.voice));
+  const automatic = casting.characters.filter(c => visible(c) && (!c.voice || c.automaticVoice))
     .sort((a, b) => Number(!a.gender || a.gender === 'indetermine') - Number(!b.gender || b.gender === 'indetermine'));
   for (const role of automatic) {
     const candidates = pool.filter(v => compatible(role, v)).sort((a, b) =>
@@ -145,7 +152,9 @@ export function besoinsVoix(casting: Casting, available: Voice[], language: stri
   const voices = voixLocales(available);
   const used = new Set<string>();
   const missing: Character[] = [];
+  const utilises = new Set(Object.values(casting.assignments));
   for (const role of casting.characters) {
+    if (role.id !== 'narrator' && !utilises.has(role.id) && roleAuto(role)) continue;
     const v = voices.find(v => v.id === role.voice && v.installed && memeLangue(v, language));
     // Une voix Android au genre inconnu reste un repli lisible, mais ne prouve
     // pas qu'une demande de timbre masculin/féminin est satisfaite.
@@ -214,17 +223,37 @@ export function preparerDistributionLocale(book: Book, available: Voice[], fallb
   cast.manualAssignments ??= Object.fromEntries(Object.keys(cast.assignments).map(key => [key, true]));
   cast.enabled = true;
 
+  /** Rôles créés par cette passe : seuls ceux qui parlent seront conservés. */
+  const crees = new Set<string>();
+  /** Noms cités dans le récit : ils servent à résoudre « dit-elle »/« dit-il »,
+   *  mais ne deviennent pas des rôles tant qu'ils n'ont pas de réplique. */
+  const candidats = new Map<string, { nom: string; genre: Gender }>();
+  const candidat = (nom: string) => {
+    const cle = cleNom(nom);
+    if (!cle) return;
+    const propre = nom.trim().slice(0, 80);
+    const sexe = genreDuNom(nom);
+    const ancien = candidats.get(cle);
+    if (!ancien) { candidats.set(cle, { nom: propre, genre: sexe }); return; }
+    if (ancien.genre === 'indetermine' && sexe !== 'indetermine') ancien.genre = sexe;
+    if (propre.length > ancien.nom.length) ancien.nom = propre;
+  };
+
   const retrouver = (nom: string): Character => {
     const cle = cleNom(nom);
     let role = cast.characters.find(c => c.id !== 'narrator' && cleNom(c.name) === cle);
     if (!role) {
       role = { id: crypto.randomUUID(), name: nom.trim().slice(0, 80), voice: '', pitch: 1, rate: 1,
-        gender: genreDuNom(nom), automaticVoice: true };
+        gender: genreDuNom(nom), automaticVoice: true, autoRole: true };
       cast.characters.push(role);
+      crees.add(role.id);
     }
     const genre = genreDuNom(nom);
     if (genre !== 'indetermine' && (role.gender ?? 'indetermine') === 'indetermine') role.gender = genre;
     if (RE_TITRE.test(nom) && !RE_TITRE.test(role.name)) role.name = nom.trim().slice(0, 80);
+    const connu = candidats.get(cle);
+    if (!connu) candidats.set(cle, { nom: role.name, genre: role.gender ?? genre });
+    else if (connu.genre === 'indetermine' && (role.gender ?? genre) !== 'indetermine') connu.genre = role.gender ?? genre;
     return role;
   };
   const manuel = (index: number) => !!cast.manualAssignments?.[String(index)];
@@ -232,14 +261,16 @@ export function preparerDistributionLocale(book: Book, available: Voice[], fallb
 
   const infos = book.segments.map(segment => detecterTour(segment));
 
-  // Personnages nommés dans le récit : titre (« Mme Martin ») ou prénom connu.
-  // Cette passe précède l'attribution : « dit-elle » désigne ensuite la seule
-  // femme déjà repérée dans le livre.
+  // Noms du récit : candidats pour le sexe et « dit-elle », jamais des rôles
+  // à eux seuls. Une mention isolée ne doit pas créer une voix.
   book.segments.forEach((text) => {
     const nom = text.trim().match(RE_MENTION)?.[1]?.trim();
     if (!nom || INTERDITS.test(nom)) return;
-    if (RE_TITRE.test(nom) || prenomConnu(nom)) retrouver(nom);
+    if (RE_TITRE.test(nom) || prenomConnu(nom)) candidat(nom);
   });
+
+  // Rôles : uniquement les locuteurs explicitement nommés dans une réplique.
+  infos.forEach(info => { if (info.nom) retrouver(info.nom); });
 
   // Séries de répliques consécutives : à l'intérieur, les locuteurs alternent.
   const attribuerRun = (debut: number, fin: number) => {
@@ -261,12 +292,19 @@ export function preparerDistributionLocale(book: Book, available: Voice[], fallb
       if (cast.assignments[String(i)] || manuel(i) || infos[i].nom) continue;
       if (infos[i].genre) {
         // « dit-elle » : la locutrice du genre si elle est unique dans l'échange,
-        // sinon la seule femme (ou le seul homme) repéré(e) dans le livre.
+        // sinon la seule personne du bon sexe déjà connue. Un prénom seulement
+        // cité dans le récit ne devient un rôle qu'à ce moment-là.
         const locales = locuteurs.filter(id => roleDe(id)?.gender === infos[i].genre);
         if (locales.length === 1) { cast.assignments[String(i)] = locales[0]; continue; }
         if (!locales.length) {
-          const candidates = cast.characters.filter(c => c.id !== 'narrator' && c.gender === infos[i].genre);
-          if (candidates.length === 1) cast.assignments[String(i)] = candidates[0].id;
+          const roles = cast.characters.filter(c => c.id !== 'narrator' && c.gender === infos[i].genre);
+          if (roles.length === 1) { cast.assignments[String(i)] = roles[0].id; continue; }
+          if (!roles.length) {
+            const candidatsGenre = [...candidats.values()].filter(c => c.genre === infos[i].genre);
+            if (candidatsGenre.length === 1) {
+              cast.assignments[String(i)] = retrouver(candidatsGenre[0].nom).id;
+            }
+          }
         }
         continue;
       }
@@ -288,6 +326,13 @@ export function preparerDistributionLocale(book: Book, available: Voice[], fallb
     if (tour && debut < 0) debut = i;
     if (!tour && debut >= 0) { attribuerRun(debut, i); debut = -1; }
   }
+
+  // Seuls les rôles qui ont réellement une réplique (ou déjà présents/manuels)
+  // restent dans la distribution : une mention narrative ne mérite pas une voix.
+  const utilises = new Set(Object.values(cast.assignments));
+  cast.characters = cast.characters.filter(c =>
+    c.id === 'narrator' || utilises.has(c.id) || !crees.has(c.id)
+  );
 
   cast.analysis = { completed: [], state: 'local' };
   proposerVoix(cast, available, fallback, book.language);

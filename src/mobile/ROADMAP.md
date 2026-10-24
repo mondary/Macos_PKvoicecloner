@@ -1,6 +1,6 @@
 # PK Reader — feuille de route lecteur
 
-Retours des 21 au 23/10. État des sources au 2026.10.64.
+Retours des 21 au 23/10. État des sources au 2026.10.65.
 
 ## Fait
 
@@ -19,6 +19,7 @@ Retours des 21 au 23/10. État des sources au 2026.10.64.
 - Une vérification ou un téléchargement lancé depuis Réglages ne redessine plus l'écran de lecture au retour au livre ; le résultat reste dans Réglages → Mises à jour — 2026.10.62.
 - Les noms seulement cités ne créent plus de voix ; les rôles sans réplique des anciennes analyses sont masqués puis supprimés à la validation — 2026.10.63. Cette correction ne traitait pas les faux locuteurs suivis de deux-points.
 - Étiquettes corroborées, mots ordinaires/pronoms exclus des rôles automatiques, réanalyse locale des livres existants et passages attribués consultables — 2026.10.64.
+- Dialogue façon scénario : étiquettes en capitales suivies d’un tiret cadratin, suffixes parenthésés, noms composés avec deux-points dans un échange d’au moins deux ; le cast du studio remplace le repérage local supplanté — 2026.10.65.
 
 ## Reste
 

@@ -120,7 +120,11 @@ describe('préparation automatique du livre', () => {
     expect(cast.characters).toContain(pierre);
     expect(cast.assignments['0']).toBe(pierre.id);
     expect(cast.assignments['1']).toBe(pierre.id);
-    appliquerAnalyse(cast, { personnages: [{ id: 'pierre_dupont', nom: 'Pierre', genre: 'homme', role: 'personnage' }], locuteurs: ['pierre_dupont'] }, choix, 2);
+    // Le studio rappelle ses personnages connus dans chaque lot : ils survivent.
+    appliquerAnalyse(cast, { personnages: [
+      { id: 'pierre_dupont', nom: 'Pierre', genre: 'homme', role: 'personnage' },
+      { id: 'alice', nom: 'Alice', genre: 'femme', role: 'personnage' },
+    ], locuteurs: ['pierre_dupont'] }, choix, 2);
     expect(cast.characters).toHaveLength(3);
     expect(cast.assignments['2']).toBe(pierre.id);
     proposerVoix(cast, catalog.map(v => ({ ...v, installed: true })), defaults.voice, 'fr');
@@ -196,6 +200,22 @@ describe('préparation automatique du livre', () => {
 });
 
 describe('analyse du studio reportée sur le téléphone', () => {
+  it('le cast du studio remplace les rôles locaux supplantés', () => {
+    const book = fixture();
+    const cast = ensureCasting(book);
+    cast.characters.push(
+      { id: 'legoff', name: 'Le Goff', voice: 'neural:tom', pitch: 1, rate: 1, automaticVoice: true, autoRole: true },
+      { id: 'garde', name: 'Le gardien', voice: 'neural:gilles', pitch: 1, rate: 1, automaticVoice: false, autoRole: true });
+    cast.assignments = { '1': 'legoff' };
+    const bilan = appliquerAnalyse(cast, {
+      personnages: [{ id: 'schaltzmann', nom: 'Le Modèle Schaltzmann', genre: 'homme', role: 'personnage' }],
+      locuteurs: ['narrateur', 'schaltzmann', 'narrateur', 'narrateur'],
+    }, { narrateur: 'system:default', homme: 'neural:tom', femme: 'neural:siwis' }, 0);
+    expect(bilan).toEqual({ personnages: 1, phrases: 1 });
+    expect(cast.assignments['1']).toBe('studio-schaltzmann');
+    expect(cast.characters.map(c => c.name)).toEqual(['Narrateur', 'Le gardien', 'Le Modèle Schaltzmann']);
+  });
+
   it('crée un rôle par personnage avec la voix de son sexe et attribue chaque phrase', () => {
     const book = fixture();
     const cast = ensureCasting(book);

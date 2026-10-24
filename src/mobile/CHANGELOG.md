@@ -1,5 +1,14 @@
 # PK Reader Android
 
+## [2026.10.65] - 2026-10-23
+
+### Added
+- **Dialogue façon scénario** : les étiquettes en capitales suivies d'un tiret cadratin (« LE MODÈLE SCHALTZMANN — réplique ») et les suffixes entre parenthèses (« LE DAMNÉ (POÈTE) : ») sont reconnus, à condition d'un échange entre au moins deux étiquettes plausibles. Les noms tout en capitales sont affichés joliment (« Le Modèle Schaltzmann »).
+- Les étiquettes composées avec deux-points (« Le Goff : », « La Solution : ») sont acceptées quand l'échange en croise au moins deux ; un tiret seul reste réservé aux capitales constantes pour ne pas confondre avec l'apposition narrative.
+
+### Changed
+- **Le cast du studio remplace le repérage local** : quand l'analyse IA raffine le livre, les rôles automatiques locaux supplantés qui n'ont plus aucune phrase disparaissent au fil des lots, au lieu de s'empiler avec les personnages du studio. Les rôles listés par le studio et vos réglages manuels survivent.
+
 ## [2026.10.64] - 2026-10-23
 
 ### Fixed

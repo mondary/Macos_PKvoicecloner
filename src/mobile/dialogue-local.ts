@@ -22,7 +22,11 @@ export function nomOrdinaire(nom: string): boolean {
 const VERBES = String.raw`(?:dit|demanda|répondit|ajouta|murmura|cria|souffla|s['’]écria|s['’]exclama|reprit|lança|soupira|grogna|bafouilla|articula|chuchota|insista|objecta|remarqua|conclut|commença|poursuivit|interrogea|acquiesça|lâcha|cracha|said|asked|replied|whispered)`;
 const MOT_NOM = String.raw`(?:[dDlL]['’])?\p{Lu}[\p{L}\p{M}'’\-]*`;
 const NOM = String.raw`(?:${TITRE}\s+)?(?:(?:de|du|van|von)\s+)?${MOT_NOM}(?:\s+(?:(?:de|du|des|van|von|la|le)\s+)?${MOT_NOM}){0,3}`;
-const RE_ETIQUETTE = new RegExp(String.raw`^(?:[—–«“"]\s*)?(${NOM})\s*[:：]\s*\S`, 'u');
+/** Suffixe théâtral toléré dans une étiquette : « LE DAMNÉ (POÈTE) : ». */
+const PARENTHÈSE = String.raw`(?:\s*\([^()]{1,30}\))?`;
+const RE_ETIQUETTE = new RegExp(String.raw`^(?:[—–«“"]\s*)?(${NOM}${PARENTHÈSE})\s*[:：]\s*\S`, 'u');
+/** Étiquette séparée par un tiret cadratin, façon scénario : « LE MODÈLE — réplique ». */
+const RE_ETIQUETTE_TIRET = new RegExp(String.raw`^(${NOM}${PARENTHÈSE})\s+[—–]\s+\S`, 'u');
 const RE_ANNONCE = new RegExp(String.raw`^(${NOM})\s+${VERBES}\s*[:：]\s*\S`, 'u');
 const RE_INCISE = new RegExp(String.raw`(?:^|[,;»”"!?…])\s*(?:[—–-]\s*)?${VERBES}\s+(${NOM})(?=[,;.!?…»”"\s]*$|[,;.!?…»”"])`, 'gu');
 const RE_PRONOM = new RegExp(String.raw`\b${VERBES}-(il|elle)(?![\p{L}])`, 'u');
@@ -30,9 +34,24 @@ const RE_PLURIEL = /\b(?:dit|dirent|disaient|répondirent|demandèrent)-(?:ils|e
 const RE_TOUR = /^\s*[—–«“"]/u;
 
 interface Indice {
-  nom?: string; etiquette?: string; genre?: Gender; dialogue: boolean; nouveau: boolean; incertain?: boolean;
+  nom?: string; etiquette?: string; etiquetteTiret?: boolean; etiquetteCapitales?: boolean; genre?: Gender; dialogue: boolean; nouveau: boolean; incertain?: boolean;
 }
 export interface TourLocal extends Indice { debut: number; fin: number; chapitre: number }
+
+/** Capitales constantes hors parenthèse (style scénario) : « LE MODÈLE SCHALTZMANN ». */
+function enCapitales(nom: string): boolean {
+  const base = nom.replace(/\s*\([^()]*\)/g, '').trim();
+  return /\p{L}/u.test(base) && base === base.toLocaleUpperCase('fr');
+}
+
+/** « LE DAMNÉ (POÈTE) » → « Le Damné (poète) ». Ne touche pas aux noms déjà mixtes. */
+function jolifier(nom: string): string {
+  const base = nom.replace(/\s*\([^()]*\)/g, '');
+  const reste = nom.slice(base.length);
+  if (!base.trim() || base !== base.toLocaleUpperCase('fr')) return nom.trim();
+  const joli = base.toLocaleLowerCase('fr').replace(/(^|[\s'’-])(\p{L})/gu, (_, sep: string, lettre: string) => sep + lettre.toLocaleUpperCase('fr'));
+  return `${joli}${reste.toLocaleLowerCase('fr')}`.replace(/\s+/g, ' ').trim();
+}
 
 function indice(texte: string): Indice {
   const t = texte.trim();
@@ -42,10 +61,14 @@ function indice(texte: string): Indice {
   const distincts = [...new Map(noms.filter(n => !nomOrdinaire(n)).map(n => [cleNom(n), n])).values()];
   const incertain = distincts.length > 1 || noms.some(nomOrdinaire) || RE_PLURIEL.test(t);
   const pronom = t.match(RE_PRONOM)?.[1];
-  const etiquette = t.match(RE_ETIQUETTE)?.[1];
+  const etiquetteDeuxPoints = t.match(RE_ETIQUETTE)?.[1];
+  const etiquetteTiret = !etiquetteDeuxPoints ? t.match(RE_ETIQUETTE_TIRET)?.[1] : undefined;
+  const etiquette = etiquetteDeuxPoints ?? etiquetteTiret;
   return {
-    nom: !incertain && distincts.length === 1 ? distincts[0] : undefined,
-    etiquette: etiquette && !nomOrdinaire(etiquette) ? etiquette : undefined,
+    nom: !incertain && distincts.length === 1 ? jolifier(distincts[0]) : undefined,
+    etiquette: etiquette && !nomOrdinaire(etiquette) ? jolifier(etiquette) : undefined,
+    etiquetteTiret: !!(etiquette && etiquetteTiret),
+    etiquetteCapitales: !!(etiquette && enCapitales(etiquette)),
     genre: pronom === 'elle' ? 'femme' : pronom === 'il' ? 'homme' : undefined,
     dialogue: RE_TOUR.test(t) || distincts.length > 0 || !!pronom,
     nouveau: RE_TOUR.test(t) || !!etiquette || !!annonce,
@@ -60,14 +83,22 @@ function indice(texte: string): Indice {
 export function toursLocaux(book: Book, nomsManuels: string[] = []): TourLocal[] {
   const indices = book.segments.map(indice);
   const confirmes = new Set([...indices.flatMap(i => i.nom ? [i.nom] : []), ...nomsManuels].filter(n => !nomOrdinaire(n)).map(cleNom));
-  const etiquettePlausible = (nom: string) => confirmes.has(cleNom(nom)) || RE_TITRE.test(nom) || prenomConnu(nom);
+  // Deux-points : un nom composé (« Le Goff ») est plausible. Tiret cadratin —
+  // ambigu avec l'apposition narrative — : seulement des capitales constantes
+  // (style scénario), un prénom, un titre ou un nom confirmé ailleurs.
+  const etiquettePlausible = (info: Indice) => {
+    const nom = info.etiquette!;
+    if (nomOrdinaire(nom)) return false;
+    if (confirmes.has(cleNom(nom)) || RE_TITRE.test(nom) || prenomConnu(nom)) return true;
+    return info.etiquetteTiret ? !!info.etiquetteCapitales : cleNom(nom).split(' ').length >= 2;
+  };
   const debuts = new Set(book.chapters.map(c => c.start));
   const paragraphes = book.paragraphs?.length === indices.length ? book.paragraphs : undefined;
   const tours: TourLocal[] = [];
   let chapitre = 0;
   indices.forEach((info, i) => {
     if (debuts.has(i)) chapitre++;
-    if (info.etiquette && etiquettePlausible(info.etiquette)) info.dialogue = true;
+    if (info.etiquette && etiquettePlausible(info)) info.dialogue = true;
     const precedent = tours.at(-1);
     // Une phrase supplémentaire n'est pas un changement de locuteur. Les
     // frontières de chapitre et de paragraphe interdisent cette propagation.
@@ -87,11 +118,12 @@ export function toursLocaux(book: Book, nomsManuels: string[] = []): TourLocal[]
     let fin = debut + 1;
     while (fin < tours.length && tours[fin].dialogue && tours[fin].chapitre === tours[debut].chapitre) fin++;
     const noms = new Set(tours.slice(debut, fin).flatMap(t =>
-      t.incertain ? [] : t.nom ? [cleNom(t.nom)] : t.etiquette && etiquettePlausible(t.etiquette) ? [cleNom(t.etiquette)] : []));
+      t.incertain ? [] : t.nom ? [cleNom(t.nom)] : t.etiquette && etiquettePlausible(t) ? [cleNom(t.etiquette)] : []));
     for (let i = debut; i < fin; i++) {
       const tour = tours[i];
       if (!tour.nom && tour.etiquette) {
-        if (!tour.incertain && (confirmes.has(cleNom(tour.etiquette)) || (noms.size >= 2 && etiquettePlausible(tour.etiquette)))) {
+        if (!tour.incertain && etiquettePlausible(tour) &&
+            (confirmes.has(cleNom(tour.etiquette)) || noms.size >= 2)) {
           tour.nom = tour.etiquette;
         } else { tour.incertain = true; tour.dialogue = false; }
       }

@@ -1,6 +1,14 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.73] - 2026-10-23
+
+### Added
+- **PK Reader Android 2026.10.65 — dialogue façon scénario** : étiquettes en capitales suivies d'un tiret cadratin et suffixes parenthésés (« LE MODÈLE SCHALTZMANN — », « LE DAMNÉ (POÈTE) : ») reconnus localement, étiquettes composées acceptées dans un échange d'au moins deux noms plausibles, noms en capitales affichés proprement.
+
+### Changed
+- Le cast renvoyé par le studio remplace le repérage local : les rôles locaux supplantés sans phrase restante disparaissent au fil des lots au lieu de s'empiler.
+
 ## [2026.10.72] - 2026-10-23
 
 ### Fixed

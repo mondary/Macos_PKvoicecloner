@@ -101,6 +101,13 @@ export function appliquerAnalyse(draft: Casting, analyse: AnalyseStudio,
     if (!draft.manualAssignments?.[index]) draft.assignments[index] = id ?? 'narrator';
     if (id && id !== 'narrator') phrases++;
   });
+  // Le cast du studio remplace le repérage local : les rôles automatiques hors
+  // distribution du studio qui n'ont plus aucune phrase disparaissent au fil des
+  // lots, au lieu de s'empiler. Les rôles listés par le studio restent.
+  const listes = new Set(personnages.map(p => correspondance.get(p.id)).filter((id): id is string => !!id));
+  const utilises = new Set(Object.values(draft.assignments));
+  draft.characters = draft.characters.filter(c =>
+    c.id === 'narrator' || utilises.has(c.id) || listes.has(c.id) || !roleAuto(c) || !c.automaticVoice);
   return { personnages: personnages.length, phrases };
 }
 

@@ -72,6 +72,29 @@ describe('preuves de parole, pas de mots capitalisés transformés en personnage
     expect(book.segments.map((_, i) => characterAt(book, i)?.name)).toEqual(['Pierre', 'Pierre', 'Alice', 'Pierre', 'Pierre', 'Alice']);
   });
 
+  it('reconnaît un dialogue façon scénario : étiquettes en capitales suivies d’un tiret cadratin', () => {
+    const book = bookOf(['LE MODÈLE SCHALTZMANN — Bonjour.', 'LE DAMNÉ (POÈTE) — Qui va là ?', 'LE MODÈLE SCHALTZMANN — Entre.']);
+    prepare(book);
+    expect(names(book)).toEqual(['Narrateur', 'Le Modèle Schaltzmann', 'Le Damné (poète)']);
+    expect(characterAt(book, 0)?.name).toBe('Le Modèle Schaltzmann');
+    expect(characterAt(book, 1)?.name).toBe('Le Damné (poète)');
+    expect(characterAt(book, 2)?.name).toBe('Le Modèle Schaltzmann');
+  });
+
+  it('accepte des étiquettes composées avec deux-points quand l’échange en croise deux', () => {
+    const book = bookOf(['Le Goff : Bonjour.', 'Le Modèle Schaltzmann : Bonsoir.', 'La Solution : Asseyez-vous.']);
+    prepare(book);
+    expect(names(book)).toEqual(['Narrateur', 'Le Goff', 'Le Modèle Schaltzmann', 'La Solution']);
+    expect(characterAt(book, 2)?.name).toBe('La Solution');
+  });
+
+  it('ne prend pas une apposition narrative pour une étiquette tiret', () => {
+    const book = bookOf(['Le lendemain — il pleuvait.', 'Paris — grande ville.', 'Le Goff — il hésita, puis reprit la marche.']);
+    prepare(book);
+    expect(names(book)).toEqual(['Narrateur']);
+    expect(book.casting!.assignments).toEqual({});
+  });
+
   it('arrête les inférences à la frontière d’un chapitre et d’un passage narratif', () => {
     const book = bookOf(['— Bonjour, dit Pierre.', '— Merci.', '— Bonsoir, dit Alice.',
       'La porte se ferme.', '— Et maintenant ?']);

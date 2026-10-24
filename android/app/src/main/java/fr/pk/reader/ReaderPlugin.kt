@@ -96,6 +96,17 @@ class ReaderPlugin : Plugin() {
         require(personnages.length() <= 200) { "Distribution trop volumineuse." }
         call.resolve(JSObject.fromJSONObject(JSONObject(StudioClient(server, token).analyser(titre, phrases, personnages))))
     } catch (e: Exception) { call.reject(e.message ?: "Analyse interrompue", e) } } }
+
+    @PluginMethod fun iaConfig(call: PluginCall) { call.resolve(JSObject.fromJSONObject(PhoneAI.publicConfig(context))) }
+    @PluginMethod fun saveIA(call: PluginCall) { analysisWorker.execute { try {
+        call.resolve(JSObject.fromJSONObject(PhoneAI.configure(context, call.getString("url").orEmpty(),
+            call.getString("modele").orEmpty(), call.getString("cle").orEmpty())))
+    } catch (e: Exception) { call.reject(e.message ?: "Configuration IA impossible", e) } } }
+    @PluginMethod fun clearIA(call: PluginCall) { call.resolve(JSObject.fromJSONObject(PhoneAI.clear(context))) }
+    @PluginMethod fun chatIA(call: PluginCall) { analysisWorker.execute { try {
+        val texte = PhoneAI.chat(context, call.getString("revision").orEmpty(), call.getString("message").orEmpty(), call.getBoolean("json") ?: true)
+        call.resolve(JSObject().put("texte", texte))
+    } catch (e: Exception) { call.reject(e.message ?: "Fournisseur IA injoignable", e) } } }
     @PluginMethod fun load(call: PluginCall) = work(call) {
         val data=call.data
         val id=data.optString("bookId")

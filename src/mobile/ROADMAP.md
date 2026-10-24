@@ -1,6 +1,6 @@
 # PK Reader — feuille de route lecteur
 
-Retours des 21 au 23/10. État des sources au 2026.10.65.
+Retours des 21 au 24/10. État des sources au 2026.10.66.
 
 ## Fait
 
@@ -20,6 +20,7 @@ Retours des 21 au 23/10. État des sources au 2026.10.65.
 - Les noms seulement cités ne créent plus de voix ; les rôles sans réplique des anciennes analyses sont masqués puis supprimés à la validation — 2026.10.63. Cette correction ne traitait pas les faux locuteurs suivis de deux-points.
 - Étiquettes corroborées, mots ordinaires/pronoms exclus des rôles automatiques, réanalyse locale des livres existants et passages attribués consultables — 2026.10.64.
 - Dialogue façon scénario : étiquettes en capitales suivies d’un tiret cadratin, suffixes parenthésés, noms composés avec deux-points dans un échange d’au moins deux ; le cast du studio remplace le repérage local supplanté — 2026.10.65.
+- Analyse IA 100 % autonome sur le téléphone : fournisseur OpenAI-compatible réglé dans l’app (clé chiffrée Android Keystore), distribution étayée par des lignes de parole, attribution JSON indexée, relecture critique, lots de 40 phrases, reprise après coupure — 2026.10.66.
 
 ## Reste
 

@@ -1,5 +1,6 @@
 import { analyserLivre, type AnalysisProgress } from './casting-analysis';
 import { preparerDistributionLocale, proposerVoix } from './casting';
+import { configIA, requeteIA, type PhaseIA } from './ia-telephone';
 import { native, Reader } from './engine';
 import { library } from './storage';
 import type { Book, Settings, Voice } from './types';
@@ -21,12 +22,25 @@ export function prepareCasting(book: Book, available: Voice[], settings: Setting
   const existing = jobs.get(book.id);
   if (existing) return existing;
   preparerDistributionLocale(book, available, settings.voice);
-  const connected = native && settings.server && settings.token;
-  const connection = { server: settings.server, token: settings.token };
   const run = async () => {
     proposerVoix(book.casting!, available, settings.voice, book.language);
     await library.save(book);
-    if (!connected || book.casting?.analysis?.state === 'ready') return;
+    if (book.casting?.analysis?.state === 'ready') return;
+    // Priorité à l'IA appelée depuis le téléphone (aucun Mac requis) ; la
+    // passerelle du studio reste le repli, puis le repérage local seul.
+    const ia = native ? configIA(settings) : null;
+    if (ia) {
+      const phase = (value: PhaseIA) => {
+        const courant = progress.get(book.id);
+        if (courant) { courant.phase = value; notify(book); }
+      };
+      await analyserLivre(book, available, settings.voice, requeteIA(Reader, ia, phase),
+        async value => { progress.set(book.id, value); await library.save(book); notify(book); });
+      return;
+    }
+    const connected = native && settings.server && settings.token;
+    if (!connected) return;
+    const connection = { server: settings.server, token: settings.token };
     await analyserLivre(book, available, settings.voice,
       input => Reader.analyser({ ...input, ...connection }), async value => {
         progress.set(book.id, value);

@@ -497,6 +497,7 @@ function settingsView() {
   <button class="setting-row" data-action="appearance"><span>${icon('type')} Taille du texte</span><strong>${settings.fontSize} px ${icon('chevron-right')}</strong></button>
   <button class="setting-row" data-action="layout"><span>${icon('columns-2')} Mise en page</span><strong>${settings.layout==='pages'?'Pages':'Défilement'} ${icon('chevron-right')}</strong></button>
   <button class="setting-row" data-action="speed"><span>${icon('gauge')} Vitesse d’écoute</span><strong>${settings.rate.toLocaleString('fr')}× ${icon('chevron-right')}</strong></button></section>
+  <section class="settings-section"><div class="section-heading"><h2>Analyse IA du téléphone</h2><span class="pill">FACULTATIF</span></div><p class="section-description">La même analyse des personnages que le studio, appelée directement depuis le téléphone : aucun Mac requis. Tout fournisseur OpenAI-compatible convient — GLM, DeepSeek, OpenAI.</p>${settings.ia?.enabled ? `<p class="section-description"><strong>Active</strong> · ${esc(settings.ia.modele)}</p>` : ''}<form id="ia-form"><label for="ia-url">Adresse du fournisseur</label><input id="ia-url" name="url" type="url" placeholder="https://open.bigmodel.cn/api/paas/v4" value="${esc(settings.ia?.url ?? '')}" autocapitalize="none" spellcheck="false" required /><label for="ia-model">Modèle</label><input id="ia-model" name="model" type="text" placeholder="glm-4.7, deepseek-chat…" value="${esc(settings.ia?.modele ?? '')}" autocapitalize="none" spellcheck="false" required /><label for="ia-key">Clé API</label><input id="ia-key" name="key" type="password" placeholder="${settings.ia?.hasKey ? 'Clé enregistrée — laisser vide pour la conserver' : 'sk-…'}" autocomplete="off" /><button type="submit" class="primary">${icon('sparkles')} Tester et enregistrer</button></form><p id="ia-status" role="status"></p>${settings.ia?.enabled ? `<button class="setting-row danger" data-action="ia-clear"><span>${icon('trash-2')} Désactiver l’IA du téléphone</span>${icon('chevron-right')}</button>` : ''}<details class="connection-help"><summary>Que se passe-t-il quand elle est activée ?</summary><p>À l’ouverture d’un livre, les personnages sont identifiés puis les dialogues attribués par ce modèle, avec une relecture critique des passages incertains. La préparation prend plusieurs minutes et consomme des tokens ; chaque lot est sauvegardé et une coupure se reprend sans refaire le travail déjà fait.</p><p>Le texte des passages analysés est envoyé au fournisseur choisi. La clé reste chiffrée sur ce téléphone (Android Keystore) : elle n’est jamais réaffichée. Désactivez l’IA à tout moment : le repérage local reprend la main, les attributions déjà obtenues restent acquises.</p><p>Exemples d’adresses : GLM <code>https://open.bigmodel.cn/api/paas/v4</code> · DeepSeek <code>https://api.deepseek.com/v1</code> · OpenAI <code>https://api.openai.com/v1</code></p></details></section>
   <section class="settings-section"><div class="section-heading"><h2>Votre studio vocal</h2><span class="pill">FACULTATIF</span></div><p class="section-description">Retrouvez vos voix clonées depuis PK Voice Studio. Les passages générés restent sur le téléphone pour les prochaines écoutes.</p><form id="studio-form"><label for="server">Adresse du studio</label><input id="server" name="server" type="url" placeholder="http://192.168.1.20:8810" value="${esc(settings.server)}" autocapitalize="none" spellcheck="false" required /><label for="token">Code de connexion</label><input id="token" name="token" type="password" placeholder="Le code affiché par votre Mac" value="${esc(settings.token)}" autocomplete="off" required /><button type="submit" class="primary">${icon('plug')} Connecter le studio</button></form><details class="connection-help"><summary>Comment connecter mon Mac ?</summary><p>Démarrez PK Voice Studio, puis la passerelle mobile depuis le dossier du projet :</p><code>python3 src/server/mobile_gateway.py</code><p>Recopiez l’adresse et le code affichés. Votre téléphone et votre Mac doivent être sur le même réseau. La génération se fait sur le Mac ; l’audio est enregistré sur le téléphone.</p></details></section>
   ${updateSection()}
   <section class="settings-section"><h2>Crédits & inspirations</h2><div class="credits-list"><p>PK Reader est un projet original. Son ergonomie de lecture s’inspire de <a href="https://play.google.com/store/apps/details?id=voice.reader.ai" target="_blank" rel="noopener noreferrer">TTS Reader Pro</a> et de <a href="https://readexa.uk/" target="_blank" rel="noopener noreferrer">Readexa</a>.</p><p>Moteurs et bibliothèques : Capacitor, sherpa-onnx, Piper, PDF.js, fflate, Lucide, DM Sans et Literata — licences dans <code>THIRD_PARTY.md</code>.</p></div></section>
@@ -784,6 +785,12 @@ async function handle(action: string, el: HTMLElement) {
     case 'update-now': await downloadUpdate(); break;
     case 'install-update': await installUpdate(); break;
     case 'update-permission': if (native) await Update.openInstallSettings(); else toast('Disponible dans l’application Android.'); break;
+    case 'ia-clear': {
+      if (!native) break;
+      settings.ia = await Reader.clearIA(); savePrefs(); render();
+      toast('IA du téléphone désactivée. Le repérage local reprend la main.');
+      break;
+    }
   }
 }
 
@@ -862,6 +869,26 @@ document.addEventListener('submit', e => {
     const button = form.querySelector<HTMLButtonElement>('button')!; button.disabled = true; button.textContent = 'Connexion…';
     void Reader.connect({ server: settings.server, token: settings.token }).then(r => { clones = r.voices; savePrefs(); books.forEach(prepareBook); screen = 'library'; render(); toast('Studio connecté. Préparation automatique des personnages de vos livres.'); }).catch(error => { button.disabled = false; button.textContent = 'Connecter le studio'; toast(error.message ?? String(error)); });
   }
+  if (form.id === 'ia-form') {
+    const data = new FormData(form);
+    const status = document.querySelector<HTMLElement>('#ia-status');
+    if (!native) { if (status) status.textContent = 'La configuration de l’IA se fait dans l’APK Android.'; return; }
+    const button = form.querySelector<HTMLButtonElement>('button')!;
+    button.disabled = true; button.textContent = 'Test en cours…';
+    void Reader.saveIA({ url: String(data.get('url')).trim(), modele: String(data.get('model')).trim(), cle: String(data.get('key')).trim() })
+      .then(config => {
+        settings.ia = config; savePrefs();
+        button.disabled = false; button.textContent = 'Tester et enregistrer';
+        if (status) status.textContent = `IA ${config.modele} prête. Les livres préparés utiliseront ce modèle.`;
+        books.forEach(prepareBook); render();
+      })
+      .catch(error => {
+        button.disabled = false; button.textContent = 'Tester et enregistrer';
+        const message = error instanceof Error ? error.message : String(error);
+        if (status) status.textContent = message;
+        toast(message);
+      });
+  }
 });
 window.addEventListener('hashchange', () => { if (location.hash === '#library') { screen = 'library'; render(); } });
 
@@ -873,6 +900,7 @@ async function init() {
     if (!books.length && !localStorage.getItem('pk-reader-welcomed')) { const book = welcomeBook(); await library.save(book); books = [book]; localStorage.setItem('pk-reader-welcomed','1'); }
     voices = await audio.voices();
     if (native) { models = (await Reader.models()).voices; if (settings.server && settings.token) void Reader.connect({ server: settings.server, token: settings.token }).then(r => { clones = r.voices; if (screen === 'voices') render(); }).catch(() => {}); }
+    if (native) { try { settings.ia = await Reader.iaConfig(); } catch { settings.ia = undefined; } }
     render(); await audio.init();
     if (native) void Update.addListener('progress', ({ progress }) => {
       updateProgress = Math.max(0, Math.min(100, Math.round(progress)));

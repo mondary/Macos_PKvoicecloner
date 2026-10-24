@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.74] - 2026-10-24
+
+### Added
+- **PK Reader Android 2026.10.66 — analyse IA autonome** : le téléphone exécute lui-même l'analyse des personnages avec un fournisseur OpenAI-compatible. Distribution étayée (un rôle doit citer une ligne où il parle), attribution indexée, relecture critique, lots de 40 phrases avec contexte. Plus besoin du Mac ni de la passerelle pour préparer un livre ; la clé reste chiffrée dans Android Keystore.
+
 ## [2026.10.73] - 2026-10-23
 
 ### Added

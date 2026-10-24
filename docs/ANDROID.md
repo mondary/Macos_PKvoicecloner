@@ -4,9 +4,21 @@ PK Reader est l’application de lecture personnelle du projet. Elle importe des
 
 ## Installer
 
-Le workflow **Android Reader** construit un APK de développement pour Android 8+ en ARM64 et x86_64. À chaque build réussi, l’APK est publié sur la release `pk-<version>` : lien direct `https://github.com/mondary/Macos_PKvoicecloner/releases/download/pk-<version>/PK-Reader-<version>-debug.apk` — par exemple `https://github.com/mondary/Macos_PKvoicecloner/releases/download/pk-2026.10.65/PK-Reader-2026.10.65-debug.apk`. Le badge **Latest** est réservé à la dernière livraison Android ; les DMG restent accessibles dans leurs releases `v…`. Les notes de la release reprennent la section correspondante du changelog Android. L’artefact CI du même nom reste disponible. Ce paquet sert aux essais ; il n’est pas publié sur Google Play.
+Le workflow **Android Reader** construit un APK de développement pour Android 8+ en ARM64 et x86_64. À chaque build réussi, l’APK est publié sur la release `pk-<version>` : lien direct `https://github.com/mondary/Macos_PKvoicecloner/releases/download/pk-<version>/PK-Reader-<version>-debug.apk` — par exemple `https://github.com/mondary/Macos_PKvoicecloner/releases/download/pk-2026.10.66/PK-Reader-2026.10.66-debug.apk`. Le badge **Latest** est réservé à la dernière livraison Android ; les DMG restent accessibles dans leurs releases `v…`. Les notes de la release reprennent la section correspondante du changelog Android. L’artefact CI du même nom reste disponible. Ce paquet sert aux essais ; il n’est pas publié sur Google Play.
 
 **Vérifier la version** — le même numéro se lit partout : nom du fichier APK, nom de l’artefact GitHub, écran Android **Paramètres → Applications → PK Reader**, et dans l’app en bas de la bibliothèque et dans **Réglages → À propos**. Le workflow refuse un APK dont le `versionName` ne correspond pas à ce numéro.
+
+## Analyse IA autonome (sans Mac)
+
+Le téléphone peut exécuter lui-même l'analyse des personnages avec un fournisseur **OpenAI-compatible**, sans passerelle ni Mac. C'est le même travail que le studio, directement dans l'APK.
+
+1. **Réglages → Analyse IA du téléphone** : adresse HTTPS du fournisseur, modèle, clé API. Un appel de vérification est effectué avant d'enregistrer ; une configuration qui échoue n'écrase pas la précédente.
+2. **Ouvrir un livre** : la préparation enchaîne, par lots de 40 phrases, une distribution **étayée** (chaque nouveau personnage doit citer une ligne où il parle réellement), une attribution indexée, puis une **relecture critique**. Les passages dont la confiance n'est pas haute restent au narrateur.
+3. **Progression et reprise** : l'écran indique la phase (personnages / attribution / relecture) et l'avancement. Chaque lot validé est sauvegardé ; une coupure reprend sans refaire le travail déjà fait.
+
+La clé est **chiffrée dans Android Keystore** et n'est jamais réaffichée dans l'interface. Le texte des passages analysés est envoyé au fournisseur choisi — c'est le prix de l'analyse IA sans Mac. **Désactiver l'IA** (Réglages → Désactiver l'IA du téléphone) rend la main au repérage local ; les attributions déjà obtenues restent acquises.
+
+Le repérage local reste le repli hors ligne : incises, étiquettes corroborées et alternance des répliques, avec les passages ambigus laissés au narrateur. La génération des voix clonées reste sur le Mac (c'est le moteur de clonage) ; l'analyse, la distribution, la lecture Piper/Android et le karaoké sont autonomes sur le téléphone.
 
 ## Mettre à jour
 
@@ -43,10 +55,13 @@ La passerelle est indépendante du serveur principal et s’arrête avec Ctrl-C.
 
 ## Une voix par personnage
 
-Depuis la version **2026.10.60**, le parcours **Les voix de ce livre** s'ouvre après l'import d'un livre, depuis son menu ou depuis l'icône Personnages du lecteur :
+Le parcours **Les voix de ce livre** s'ouvre après l'import d'un livre, depuis son menu ou depuis l'icône Personnages du lecteur. L'analyse des personnages peut tourner de deux façons, sans Mac dans les deux cas :
 
-1. **Import et repérage sur le téléphone** — paragraphes et phrases sont découpés localement. Les incises (« dit Pierre ») et annonces de parole nomment les locuteurs. Une étiquette « Nom : » demande une confirmation dans le texte ou un échange entre plusieurs prénoms/noms titrés ; une majuscule, un titre de section ou un pronom ne crée pas de personnage. Les indices de genre viennent des titres et prénoms. L’alternance est interpolée entre deux ancres cohérentes, par tour de parole, sans franchir les chapitres ou la narration.
-2. **Personnage → voix** — vérifiez le nom et **Voir un passage attribué**, puis écoutez ou changez la proposition de voix avant **Valider les voix**. Les timbres sont proposés selon la langue et le genre connu. Vos choix manuels sont conservés d’un chapitre à l’autre. Hauteur (0,50×–2×) et vitesse (0,75×–1,50×) restent dans les réglages facultatifs du rôle.
+- **avec l'IA du téléphone** (Réglages → Analyse IA du téléphone) : distribution étayée, attribution puis relecture par le modèle choisi ;
+- **sans configuration** : repérage local par indices de dialogue, plus prudent, qui laisse les passages ambigus au narrateur.
+
+1. **Import et préparation** — paragraphes et phrases sont découpés localement. Avec l'IA, chaque nouveau personnage doit citer une ligne où il parle ; sans IA, seules les incises, annonces et étiquettes corroborées créent un rôle.
+2. **Personnage → voix** — vérifiez le nom et **Voir un passage attribué**, puis écoutez ou changez la proposition de voix avant **Valider les voix**. Les timbres sont proposés selon la langue et le genre connu. Vos choix manuels sont conservés d'un chapitre à l'autre. Hauteur (0,50×–2×) et vitesse (0,75×–1,50×) restent dans les réglages facultatifs du rôle.
 3. **Voix manquantes** — le bilan indique les rôles partageant une voix ou sans timbre adapté et propose les voix Piper disponibles à télécharger. Jessica et Pierre comptent comme deux voix mais un seul téléchargement UPMC. Les voix installées sont automatiquement proposées aux rôles ; une voix partagée reste utilisable si le catalogue ne suffit pas.
 4. **Corrections facultatives** — le détail des phrases est replié. Il permet de corriger une erreur de locuteur, pas de préparer manuellement le livre. Ces corrections survivent aux reprises de l’analyse.
 
@@ -54,9 +69,9 @@ Depuis la version **2026.10.60**, le parcours **Les voix de ce livre** s'ouvre a
 
 Le personnage en cours s’affiche dans le lecteur et dans la barre « EN COURS ». Pendant la lecture, la phrase est rendue **mot à mot** : le mot prononcé est surligné (karaoké) — plage exacte avec le TTS Android, estimation au prorata avec une voix Piper ou clonée. Les réglages voyagent avec le livre : ils survivent à la fermeture de l’app.
 
-**Limites du repérage local** — ce sont des règles textuelles, pas un modèle comprenant tout le roman. Les locuteurs implicites, les alias ou les échanges ambigus peuvent rester non identifiés et sont alors lus par le narrateur. « Dit-elle » se résout seulement parmi les locuteurs nommés de l’échange, jamais à partir d’une femme citée ailleurs dans le livre. Le bilan compte les attributions automatiques aux personnages, sans y inclure la narration ou vos corrections manuelles.
+**Limites du repérage local** — ce sont des règles textuelles, pas un modèle comprenant tout le roman. Les locuteurs implicites, les alias ou les échanges ambigus peuvent rester non identifiés et sont alors lus par le narrateur. « Dit-elle » se résout seulement parmi les locuteurs nommés de l’échange, jamais à partir d’une femme citée ailleurs dans le livre. Le bilan compte les attributions automatiques aux personnages, sans y inclure la narration ou vos corrections manuelles. **L'IA du téléphone lève ces limites** : elle lit le contexte, résout les alias et les pronoms, et marque les passages incertains.
 
-**Affinage facultatif par le studio** — si la passerelle est connectée (pour les voix clonées), le Mac réanalyse le livre en arrière-plan avec son provider IA et affine les dialogues ambigus ; les corrections manuelles et les voix choisies sont conservées, et chaque lot sauvegardé survit à une coupure. Le cast du studio **remplace** le repérage local : les rôles locaux supplantés qui n’ont plus aucune phrase disparaissent au fil des lots, au lieu de s’empiler. Cette étape n’est jamais demandée : sans studio, tout fonctionne déjà sur le téléphone.
+**Passerelle du studio (autre option)** — si vous préférez utiliser l'IA déjà configurée dans le studio plutôt qu'une clé sur le téléphone, connectez la passerelle mobile : le Mac réanalyse le livre en arrière-plan et le téléphone reçoit les attributions. Les corrections manuelles et les voix choisies sont conservées. Le cast du studio **remplace** le repérage local : les rôles locaux supplantés qui n’ont plus aucune phrase disparaissent au fil des lots. Ni la passerelle ni le studio ne sont nécessaires à la lecture.
 
 Deux limites claires : l’attribution locale n’utilise que des voix du téléphone ou Piper (une voix clonée demande le Mac, elle n’est donc pas proposée comme rôle) ; et **préparer un chapitre hors ligne demande une voix Piper pour chaque rôle utilisé** — avec une voix du téléphone, le chapitre se lit en direct mais ne se met pas en cache.
 

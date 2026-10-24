@@ -10,6 +10,10 @@ interface ReaderPlugin {
   removeModel(options: { id: string }): Promise<void>;
   voiceSettings(): Promise<void>;
   connect(options: { server: string; token: string }): Promise<{ voices: Voice[] }>;
+  iaConfig(): Promise<{ url: string; modele: string; revision: string; enabled: boolean; hasKey?: boolean }>;
+  saveIA(options: { url: string; modele: string; cle: string }): Promise<{ url: string; modele: string; revision: string; enabled: boolean; hasKey?: boolean }>;
+  clearIA(): Promise<{ url: string; modele: string; revision: string; enabled: boolean; hasKey?: boolean }>;
+  chatIA(options: { revision: string; message: string; json: boolean }): Promise<{ texte: string }>;
   analyser(options: AnalyseRequest & { server: string; token: string }): Promise<{
     personnages: { id: string; nom: string; genre: string; role: string }[]; locuteurs: string[];
   }>;

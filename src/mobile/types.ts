@@ -45,6 +45,9 @@ export interface Settings {
   focus?: boolean;
   /** Suivi visuel : mots (karaoké), phrase seule, ou aucun surlignage. */
   surlignage?: 'mots' | 'phrase' | 'aucun';
+  /** Fournisseur IA du téléphone : métadonnées publiques seulement. Le secret
+   *  vit dans Android Keystore, jamais dans la WebView ni localStorage. */
+  ia?: { url: string; modele: string; revision: string; enabled: boolean; hasKey?: boolean };
 }
 /** Réponse de la vérification de version : release GitHub `pk-…` la plus récente. */
 export interface UpdateInfo {

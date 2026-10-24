@@ -2,7 +2,7 @@ import { appliquerAnalyse, ensureCasting, preparerDistributionLocale, proposerVo
 import type { Book, Voice } from './types';
 
 export interface AnalyseRequest { titre: string; phrases: string[]; personnages: AnalysePersonnage[] }
-export interface AnalysisProgress { done: number; total: number; chapter: string }
+export interface AnalysisProgress { done: number; total: number; chapter: string; phase?: 'personnages' | 'attribution' | 'verification' }
 
 /** Lots bornés avec contexte chevauchant. La position, les paragraphes et les
  *  signets restent intacts : l'IA ne réécrit jamais le texte du téléphone. */

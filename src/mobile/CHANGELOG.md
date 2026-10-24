@@ -1,5 +1,15 @@
 # PK Reader Android
 
+## [2026.10.66] - 2026-10-24
+
+### Added
+- **Analyse IA autonome sur le téléphone** : Réglages → Analyse IA du téléphone (adresse HTTPS, modèle, clé API). Le modèle identifie les personnages qui parlent — un nouveau rôle doit citer une ligne où il parle —, attribue chaque phrase en JSON indexé, puis relit et corrige les passages incertains. Ni Mac ni passerelle nécessaires.
+- Clé chiffrée dans Android Keystore (jamais réaffichée), test de la configuration avant enregistrement, désactivation immédiate.
+- Progression par phase (personnages / attribution / relecture), sauvegarde par lot, reprise après coupure.
+
+### Changed
+- Découpage par lots de 40 phrases avec contexte pour borner les réponses ; les passages dont la confiance n'est pas haute restent au narrateur.
+
 ## [2026.10.65] - 2026-10-23
 
 ### Added

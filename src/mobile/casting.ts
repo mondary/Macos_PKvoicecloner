@@ -43,8 +43,8 @@ export function suggestCasting(book: Book, start: number, end: number): number {
 
 /* ---------------------------------------------- analyse du studio (via le Mac) */
 
-export interface AnalysePersonnage { id: string; nom: string; genre: string; role: string }
-export interface AnalyseStudio { personnages: AnalysePersonnage[]; locuteurs: string[] }
+export interface AnalysePersonnage { id: string; nom: string; genre: string; role: string; aliases?: string[] }
+export interface AnalyseStudio { personnages: AnalysePersonnage[]; locuteurs: string[]; incertains?: number[] }
 
 /** Voix proposées par sexe : les Piper connues d'abord, sinon la voix du lecteur. */
 export function voixParGenreParDefaut(options: Voice[], defaut: string) {

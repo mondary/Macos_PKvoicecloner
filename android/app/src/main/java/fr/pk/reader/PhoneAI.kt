@@ -46,7 +46,7 @@ object PhoneAI {
         val base = endpoint(url)
         require(model.trim().isNotEmpty() && model.length <= 200) { "Nom du modèle requis." }
         val prefs = context.getSharedPreferences(STORE, Context.MODE_PRIVATE)
-        val ancienneUrl = prefs.getString("url", "")
+        val ancienneUrl = prefs.getString("url", "").orEmpty()
         // Zen et Go partagent la même clé OpenCode : la réutiliser évite de la
         // ressaisir quand on bascule de l'un à l'autre.
         val cleReutilisable = base == ancienneUrl || (estOpenCode(base) && estOpenCode(ancienneUrl))

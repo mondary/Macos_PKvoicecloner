@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.81] - 2026-10-25
+
+### Fixed
+- **PK Reader Android 2026.10.73** : OpenCode Go fonctionne (envoi de `x-opencode-session` et d’un agent identifiable, adresse officielle `opencode.ai/inference/go/openai/v1`, ancienne adresse encore reconnue) ; les modèles gratuits d’OpenCode Zen, réservés à l’application OpenCode, sont masqués.
+
 ## [2026.10.80] - 2026-10-25
 
 ### Fixed

@@ -1,5 +1,12 @@
 # PK Reader Android
 
+## [2026.10.73] - 2026-10-25
+
+### Fixed
+- **OpenCode Go — « missing session id »** : l’app envoie maintenant l’identifiant de session `x-opencode-session` exigé par le service, ainsi qu’un agent identifiable `PK-Reader/<version>`. L’adresse officielle `https://opencode.ai/inference/go/openai/v1` remplace l’ancienne, qui reste reconnue pour les configurations déjà enregistrées.
+- **OpenCode Zen** : les modèles gratuits (`-free`, `big-pickle`, `test`) sont masqués de la liste — ils ne fonctionnent que dans l’application OpenCode et provoquaient une erreur « free usage limit ».
+- Messages dédiés pour « free usage limit » et « missing session id », avec le détail du fournisseur.
+
 ## [2026.10.72] - 2026-10-25
 
 ### Fixed

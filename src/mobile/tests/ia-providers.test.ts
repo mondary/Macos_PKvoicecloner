@@ -14,6 +14,8 @@ describe('fournisseurs IA', () => {
     expect(fournisseurParUrl('https://api.deepseek.com/v1/').id).toBe('deepseek');
     expect(fournisseurParUrl('https://api.openai.com/v1').id).toBe('openai');
     expect(fournisseurParUrl('https://opencode.ai/zen/v1').id).toBe('opencode-zen');
+    expect(fournisseurParUrl('https://opencode.ai/inference/go/openai/v1').id).toBe('opencode-go');
+    // Ancienne adresse Go encore enregistrée sur un téléphone déjà configuré.
     expect(fournisseurParUrl('https://opencode.ai/zen/go/v1').id).toBe('opencode-go');
     expect(fournisseurParUrl('https://exemple.invalid/v1').id).toBe('custom');
     expect(fournisseurParUrl('').id).toBe('custom');
@@ -26,5 +28,16 @@ describe('fournisseurs IA', () => {
     expect(optionsModeles(f, 'mon-modele', ['deepseek-chat', 'nouveau-modele']))
       .toEqual(['deepseek-chat', 'nouveau-modele', 'deepseek-reasoner', 'mon-modele']);
     expect(optionsModeles(fournisseurParId('custom'))).toEqual([]);
+  });
+
+  it('masque les modèles gratuits d’OpenCode Zen, réservés à l’application OpenCode', () => {
+    const zen = fournisseurParId('opencode-zen');
+    expect(optionsModeles(zen, '', ['glm-5.3-flash-free', 'big-pickle', 'glm-5.3', 'test']))
+      .toEqual(['glm-5.3']);
+    // Un modèle gratuit déjà enregistré reste affiché pour ne pas le perdre de vue.
+    expect(optionsModeles(zen, 'glm-5.3-flash-free', ['glm-5.3-flash-free', 'glm-5.3']))
+      .toEqual(['glm-5.3', 'glm-5.3-flash-free']);
+    // Les autres fournisseurs ne sont pas filtrés.
+    expect(optionsModeles(fournisseurParId('custom'), '', ['modele-free'])).toEqual(['modele-free']);
   });
 });

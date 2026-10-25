@@ -49,7 +49,7 @@ object PhoneAI {
         }
         require(!key.contains('\n') && !key.contains('\r')) { "Clé API invalide." }
         val config = Config(base, model.trim(), key, UUID.randomUUID().toString())
-        val result = complete(config, "Réponds uniquement en JSON : {\"pret\": true}", true, 60)
+        val result = complete(context, config, "Réponds uniquement en JSON : {\"pret\": true}", true, 60)
         require(result.isNotBlank()) { "Le fournisseur a renvoyé une réponse vide." }
         val edition = prefs.edit().putString("url", config.url).putString("model", config.model)
             .putString("revision", config.revision)
@@ -71,13 +71,15 @@ object PhoneAI {
 
     /** Liste des modèles du fournisseur (GET /models). La clé n'est utilisée que
      *  pour cet appel : elle n'est pas enregistrée ici. */
-    fun modeles(url: String, cle: String): List<String> {
+    fun modeles(context: Context, url: String, cle: String): List<String> {
         val base = endpoint(url)
         require(cle.isNotBlank()) { "Collez la clé API pour charger les modèles." }
         val connexion = (URL("$base/models").openConnection() as HttpURLConnection).apply {
             connectTimeout = 15000; readTimeout = 20000; requestMethod = "GET"
             setRequestProperty("Authorization", "Bearer $cle")
             setRequestProperty("Accept", "application/json")
+            setRequestProperty("User-Agent", agent(context))
+            if (estOpenCode(base)) setRequestProperty("x-opencode-session", session(context))
         }
         try {
             val code = connexion.responseCode
@@ -103,7 +105,31 @@ object PhoneAI {
             "La configuration IA a changé. Reprenez l’analyse avec le modèle actuel."
         }
         require(message.length in 1..160000) { "Extrait trop volumineux pour l’analyse." }
-        return complete(Config(prefs.getString("url", "")!!, prefs.getString("model", "")!!, decrypt(context), revision), message, json)
+        return complete(context, Config(prefs.getString("url", "")!!, prefs.getString("model", "")!!, decrypt(context), revision), message, json)
+    }
+
+    /** Agent identifiable : OpenCode Go demande un client explicite, pas un
+     *  agent HTTP générique. */
+    private fun agent(context: Context): String {
+        val version = runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        }.getOrNull().orEmpty().ifBlank { "1.0" }
+        return "PK-Reader/$version (Android)"
+    }
+
+    /** Identifiant de session stable : OpenCode Go s'en sert pour le routage et
+     *  le cache de prompt. Il reste local au téléphone. */
+    private fun session(context: Context): String {
+        val prefs = context.getSharedPreferences(STORE, Context.MODE_PRIVATE)
+        prefs.getString("session", null)?.let { return it }
+        val id = UUID.randomUUID().toString()
+        prefs.edit().putString("session", id).apply()
+        return id
+    }
+
+    private fun estOpenCode(url: String): Boolean {
+        val host = runCatching { URI(url).host }.getOrNull() ?: return false
+        return host.equals("opencode.ai", true) || host.endsWith(".opencode.ai", true)
     }
 
     private fun secretKey(): SecretKey {
@@ -139,7 +165,7 @@ object PhoneAI {
         }
     }
 
-    private fun complete(config: Config, message: String, json: Boolean, timeout: Int = 300): String {
+    private fun complete(context: Context, config: Config, message: String, json: Boolean, timeout: Int = 300): String {
         val payload = JSONObject().put("model", config.model).put("temperature", 0.1)
             .put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", message)))
         if (json) payload.put("response_format", JSONObject().put("type", "json_object"))
@@ -148,6 +174,8 @@ object PhoneAI {
                 connectTimeout = 20000; readTimeout = timeout * 1000; requestMethod = "POST"; doOutput = true
                 instanceFollowRedirects = false
                 setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("User-Agent", agent(context))
+                if (estOpenCode(config.url)) setRequestProperty("x-opencode-session", session(context))
                 if (config.key.isNotEmpty()) setRequestProperty("Authorization", "Bearer ${config.key}")
             }
             try {
@@ -166,11 +194,16 @@ object PhoneAI {
                     payload.remove("temperature"); return@repeat
                 }
                 require(code in 200..299) {
-                    val detail = body.replace(config.key, "***").replace(Regex("\\s+"), " ").take(300).ifBlank { "sans détail" }
-                    when (code) {
-                        401, 403 -> "Clé refusée ou modèle non accessible (HTTP $code). Détail : $detail"
-                        429 -> "Quota IA atteint (HTTP 429). Détail : $detail"
-                        in 500..599 -> "Fournisseur IA indisponible (HTTP $code). Détail : $detail"
+                    val masque = if (config.key.length >= 6) body.replace(config.key, "***") else body
+                    val detail = masque.replace(Regex("\\s+"), " ").take(400).ifBlank { "sans détail" }
+                    when {
+                        body.contains("FreeUsageLimitError") || body.contains("Free usage limit", true) ->
+                            "Ce modèle gratuit OpenCode ne fonctionne que dans l’application OpenCode. Choisissez un modèle payant, ou OpenCode Go avec un abonnement. Détail : $detail"
+                        body.contains("MissingSessionID") ->
+                            "OpenCode Go a refusé la requête faute d’identifiant de session. Mettez l’application à jour puis réessayez. Détail : $detail"
+                        code == 401 || code == 403 -> "Clé refusée ou modèle non accessible (HTTP $code). Détail : $detail"
+                        code == 429 -> "Quota IA atteint (HTTP 429). Détail : $detail"
+                        code in 500..599 -> "Fournisseur IA indisponible (HTTP $code). Détail : $detail"
                         else -> "Requête IA refusée (HTTP $code) : $detail"
                     }
                 }

@@ -64,6 +64,7 @@ function iaSection(settings: Settings): string {
     <label for="ia-url">Adresse du fournisseur</label>
     <input id="ia-url" name="url" type="url" placeholder="https://…" value="${esc(settings.ia?.url || fournisseur.url)}" autocapitalize="none" spellcheck="false" required />
     <p class="ia-keys-line"><a id="ia-keys" class="link-button" href="${esc(fournisseur.cles)}" target="_blank" rel="noopener noreferrer" ${fournisseur.cles ? '' : 'hidden'}>Trouver ma clé chez ${esc(fournisseur.nom)} →</a></p>
+    <p class="ia-note" id="ia-note" ${fournisseur.note ? '' : 'hidden'}>${esc(fournisseur.note ?? '')}</p>
     <label for="ia-key">Clé API</label>
     <input id="ia-key" name="key" type="password" placeholder="${cle}" autocomplete="off" />
     <label for="ia-model-select">Modèle</label>

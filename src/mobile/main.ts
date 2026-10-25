@@ -877,12 +877,13 @@ async function handle(action: string, el: HTMLElement) {
         const result = await Reader.iaModels({ url, cle });
         const fournisseur = fournisseurParUrl(url);
         const select = document.querySelector<HTMLSelectElement>('#ia-model-select');
+        const precedent = select && select.value !== '__libre__' ? select.value : '';
+        const liste = optionsModeles(fournisseur, precedent, result.modeles);
         if (select) {
-          const precedent = select.value !== '__libre__' ? select.value : '';
-          const liste = optionsModeles(fournisseur, precedent, result.modeles);
           select.innerHTML = `${liste.map(id => `<option value="${esc(id)}" ${id === precedent ? 'selected' : ''}>${esc(id)}</option>`).join('')}<option value="__libre__">Autre modèle (saisie libre)</option>`;
         }
-        if (status) status.textContent = `${result.modeles.length} modèles proposés par ${fournisseur.nom}. Choisissez-en un puis enregistrez.`;
+        const masques = result.modeles.filter(id => !liste.includes(id)).length;
+        if (status) status.textContent = `${liste.length} modèles utilisables chez ${fournisseur.nom}${masques ? ` · ${masques} réservé${masques > 1 ? 's' : ''} à OpenCode masqué${masques > 1 ? 's' : ''}` : ''}. Choisissez-en un puis enregistrez.`;
       } catch (error) {
         if (status) status.textContent = error instanceof Error ? error.message : String(error);
       } finally {
@@ -1013,6 +1014,11 @@ document.addEventListener('change', event => {
     lien.hidden = !fournisseur.cles;
     lien.href = fournisseur.cles || '#';
     lien.textContent = fournisseur.cles ? `Trouver ma clé chez ${fournisseur.nom} →` : '';
+  }
+  const note = document.querySelector<HTMLElement>('#ia-note');
+  if (note) {
+    note.hidden = !fournisseur.note;
+    note.textContent = fournisseur.note ?? '';
   }
   const select = document.querySelector<HTMLSelectElement>('#ia-model-select');
   if (select) {

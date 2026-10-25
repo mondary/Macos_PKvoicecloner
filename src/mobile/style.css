@@ -334,6 +334,7 @@ textarea { resize: vertical; line-height: 1.6; }
 .settings-pane > .setting-row { margin: 4px 0 28px; }
 /* Réglages IA : fournisseur → clé → modèle dans une liste. */
 .ia-keys-line { margin: 10px 0 0; }
+.ia-note { margin: 6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
 .ia-model-row { display: flex; gap: 8px; align-items: stretch; }
 .ia-model-row select { flex: 1; min-width: 0; }
 .ia-model-row .small-button { white-space: nowrap; }

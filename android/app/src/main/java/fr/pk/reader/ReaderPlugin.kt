@@ -104,7 +104,7 @@ class ReaderPlugin : Plugin() {
     } catch (e: Exception) { call.reject(e.message ?: "Configuration IA impossible", e) } } }
     @PluginMethod fun clearIA(call: PluginCall) { call.resolve(JSObject.fromJSONObject(PhoneAI.clear(context))) }
     @PluginMethod fun iaModels(call: PluginCall) { analysisWorker.execute { try {
-        val modeles = PhoneAI.modeles(call.getString("url").orEmpty(), call.getString("cle").orEmpty())
+        val modeles = PhoneAI.modeles(context, call.getString("url").orEmpty(), call.getString("cle").orEmpty())
         call.resolve(JSObject().put("modeles", JSONArray(modeles)))
     } catch (e: Exception) { call.reject(e.message ?: "Liste des modèles indisponible", e) } } }
     @PluginMethod fun chatIA(call: PluginCall) { analysisWorker.execute { try {

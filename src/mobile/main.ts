@@ -510,27 +510,53 @@ function voicesView() {
 
 function updateSection() {
   const size = updateInfo?.size ? `${Math.round(updateInfo.size / 1048576)} Mo` : '';
-  const busy = updateState === 'checking' || updateState === 'downloading';
-  const label = updateState === 'checking' ? 'Vérification…'
-    : updateState === 'downloading' ? `${updateProgress} %`
-    : updateState === 'ready' ? 'Prête à installer'
-    : updateState === 'error' ? 'Échec'
-    : updateInfo?.available ? `${updateInfo.version} disponible`
-    : updateMessage ? 'À jour' : 'GitHub';
-  const actions = updateState === 'downloading' ? ''
-    : updateState === 'ready' ? `<button class="primary" data-action="install-update">${icon('download')} Installer la mise à jour</button><button class="link-button" data-action="update-permission">Autoriser l’installation</button>`
-    : updateState === 'error' ? `<button class="primary" data-action="update-now">Réessayer</button><button class="link-button" data-action="check-update">Revérifier</button>`
-    : `<button class="primary" data-action="update-now">${icon('download')} Télécharger et installer</button>`;
-  const card = updateInfo?.available ? `<div class="update-card">
-      <p><strong>PK Reader ${esc(updateInfo.version ?? '')}</strong> est disponible${size ? ` · ${size}` : ''}.</p>
-      ${updateState === 'downloading' ? `<div class="update-bar"><span id="update-progress" style="width:${updateProgress}%"></span></div><p class="update-note" id="update-percent">${updateProgress} % · gardez l’application ouverte</p>` : ''}
-      ${updateState === 'error' && updateMessage ? `<p class="update-note error">${esc(updateMessage)}</p>` : ''}
-      ${updateState === 'ready' && updateMessage ? `<p class="update-note">${esc(updateMessage)}</p>` : ''}
-      ${actions}
-      ${updateInfo.notes ? `<details><summary>Nouveautés</summary><p class="update-notes">${esc(updateInfo.notes)}</p></details>` : ''}
-      ${updateInfo.page ? `<a class="link-button" href="${esc(updateInfo.page)}" target="_blank" rel="noopener noreferrer">Voir la release</a>` : ''}
-    </div>` : updateMessage ? `<p class="update-note ${updateState === 'error' ? 'error' : ''}">${esc(updateMessage)}</p>${updateState === 'error' ? `<button class="link-button" data-action="check-update">Revérifier</button>` : ''}` : '';
-  return `<section class="settings-section"><h2>Mises à jour</h2><p class="section-description">PK Reader <strong>${version}</strong> · l’application vérifie les versions publiées sur GitHub, télécharge l’APK et ouvre l’installateur Android.</p><button class="setting-row" data-action="check-update" ${busy ? 'disabled' : ''}><span>${icon('refresh-cw')} Vérifier les mises à jour</span><strong><span id="update-label">${esc(label)}</span> ${busy ? '' : icon('chevron-right')}</strong></button>${card}${!native ? '<p class="web-note">La mise à jour intégrée fonctionne dans l’APK Android.</p>' : ''}</section>`;
+  const disponible = !!updateInfo?.available;
+  const versionDispo = updateInfo?.version ?? '';
+  const erreur = updateState === 'error' ? (updateMessage || 'La vérification a échoué.') : '';
+  const detail = updateState === 'checking' ? 'Recherche de la dernière version publiée sur GitHub…'
+    : updateState === 'downloading' ? 'Téléchargement de la nouvelle version en cours…'
+    : updateState === 'ready' ? 'Le téléchargement est terminé. Installez la mise à jour pour en profiter.'
+    : updateState === 'error' ? 'Une erreur est survenue pendant la mise à jour.'
+    : disponible ? `La version ${versionDispo} est disponible${size ? ` · ${size}` : ''}.`
+    : updateMessage ? 'Aucune nouvelle version : vous êtes à jour.'
+    : 'Vérifiez les nouveautés publiées sur GitHub.';
+  const badge = updateState === 'checking' ? 'VÉRIFICATION'
+    : updateState === 'downloading' ? 'TÉLÉCHARGEMENT'
+    : updateState === 'ready' ? 'PRÊTE À INSTALLER'
+    : updateState === 'error' ? 'ÉCHEC'
+    : disponible ? 'NOUVELLE VERSION'
+    : updateMessage ? 'À JOUR' : 'À VÉRIFIER';
+  const progress = updateState === 'downloading'
+    ? `<div class="update-bar"><span id="update-progress" style="width:${updateProgress}%"></span></div><p class="update-note" id="update-percent">${updateProgress} % · gardez l’application ouverte</p>` : '';
+  const action = updateState === 'checking'
+    ? `<button class="primary update-action" disabled>${icon('refresh-cw')} Vérification…</button>`
+    : updateState === 'downloading'
+    ? `<button class="primary update-action" disabled>${icon('download')} Téléchargement · ${updateProgress} %</button>`
+    : updateState === 'ready'
+    ? `<button class="primary update-action" data-action="install-update">${icon('download')} Installer la mise à jour</button><button class="link-button" data-action="update-permission">Autoriser l’installation</button>`
+    : updateState === 'error'
+    ? (disponible
+        ? `<button class="primary update-action" data-action="update-now">${icon('download')} Réessayer le téléchargement</button>`
+        : `<button class="primary update-action" data-action="check-update">${icon('refresh-cw')} Réessayer la vérification</button>`)
+    : disponible
+    ? `<button class="primary update-action" data-action="update-now">${icon('download')} Télécharger et installer</button>`
+    : `<button class="primary update-action" data-action="check-update">${icon('refresh-cw')} Vérifier les mises à jour</button>`;
+  const notes = disponible && updateInfo?.notes
+    ? `<details class="update-notes-block"><summary>Nouveautés de la ${esc(versionDispo)}</summary><p class="update-notes">${esc(updateInfo.notes)}</p></details>` : '';
+  const release = disponible && updateInfo?.page
+    ? `<a class="link-button update-release-link" href="${esc(updateInfo.page)}" target="_blank" rel="noopener noreferrer">Voir la release sur GitHub ${icon('arrow-up-right')}</a>` : '';
+  return `<section class="update-hero ${disponible ? 'has-update' : ''}" aria-labelledby="update-title">
+    <div class="update-hero-top">
+      <span class="update-icon">${icon(disponible ? 'sparkles' : 'refresh-cw')}</span>
+      <div class="update-hero-copy">
+        <div class="update-kicker"><p class="eyebrow">PK READER</p><span class="update-badge ${disponible ? 'accent' : ''}">${badge}</span></div>
+        <h2 id="update-title">Mises à jour</h2>
+        <p class="update-hero-detail">Version actuelle <strong>${version}</strong>. ${esc(detail)}</p>
+      </div>
+    </div>
+    ${progress}${erreur ? `<p class="update-note error">${esc(erreur)}</p>` : ''}${action}${notes}${release}
+    ${!native ? '<p class="web-note">La mise à jour intégrée fonctionne dans l’APK Android.</p>' : ''}
+  </section>`;
 }
 
 function settingsView() {
@@ -985,10 +1011,21 @@ document.addEventListener('submit', e => {
     button.disabled = true; button.textContent = 'Test en cours…';
     void Reader.saveIA({ url: String(data.get('url')).trim(), modele, cle: String(data.get('key')).trim() })
       .then(config => {
-        settings.ia = config; savePrefs();
+        // La clé est enregistrée même si le test échoue : on garde la configuration
+        // visible (url, modèle, hasKey) et on affiche la raison de l'échec.
+        const { erreur, ...etat } = config;
+        settings.ia = etat; savePrefs();
         button.disabled = false; button.textContent = 'Tester et enregistrer';
-        if (status) status.textContent = `IA ${config.modele} prête. Les livres préparés utiliseront ce modèle.`;
-        books.forEach(prepareBook); render();
+        if (!erreur) books.forEach(prepareBook);
+        const message = erreur
+          ? `Clé enregistrée, mais le test a échoué : ${erreur}`
+          : `IA ${etat.modele} prête. Les livres préparés utiliseront ce modèle.`;
+        render();
+        requestAnimationFrame(() => {
+          const el = document.querySelector<HTMLElement>('#ia-status');
+          if (el) el.textContent = message;
+        });
+        if (erreur) toast('Clé enregistrée. Le test du fournisseur a échoué.');
       })
       .catch(error => {
         button.disabled = false; button.textContent = 'Tester et enregistrer';
@@ -1043,8 +1080,6 @@ async function init() {
       updateProgress = Math.max(0, Math.min(100, Math.round(progress)));
       const bar = document.querySelector<HTMLElement>('#update-progress');
       if (bar) bar.style.width = `${updateProgress}%`;
-      const rowLabel = document.querySelector<HTMLElement>('#update-label');
-      if (rowLabel) rowLabel.textContent = `${updateProgress} %`;
       const label = document.querySelector<HTMLElement>('#update-percent');
       if (label) label.textContent = `${updateProgress} % · gardez l’application ouverte`;
     });

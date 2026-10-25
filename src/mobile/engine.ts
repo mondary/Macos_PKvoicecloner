@@ -11,7 +11,7 @@ interface ReaderPlugin {
   voiceSettings(): Promise<void>;
   connect(options: { server: string; token: string }): Promise<{ voices: Voice[] }>;
   iaConfig(): Promise<{ url: string; modele: string; revision: string; enabled: boolean; hasKey?: boolean }>;
-  saveIA(options: { url: string; modele: string; cle: string }): Promise<{ url: string; modele: string; revision: string; enabled: boolean; hasKey?: boolean }>;
+  saveIA(options: { url: string; modele: string; cle: string }): Promise<{ url: string; modele: string; revision: string; enabled: boolean; hasKey?: boolean; erreur?: string }>;
   clearIA(): Promise<{ url: string; modele: string; revision: string; enabled: boolean; hasKey?: boolean }>;
   iaModels(options: { url: string; cle: string }): Promise<{ modeles: string[] }>;
   chatIA(options: { revision: string; message: string; json: boolean }): Promise<{ texte: string }>;

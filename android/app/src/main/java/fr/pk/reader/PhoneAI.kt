@@ -39,20 +39,27 @@ object PhoneAI {
         return base
     }
 
-    /** Tester la nouvelle configuration avant de remplacer celle qui fonctionne. */
+    /** Enregistre la configuration (clé comprise) avant de la tester : un échec
+     *  réseau ou une option refusée ne fait plus ressaisir la clé. La configuration
+     *  n'est activée (revision) que si le test réussit. */
     fun configure(context: Context, url: String, model: String, suppliedKey: String): JSONObject {
         val base = endpoint(url)
         require(model.trim().isNotEmpty() && model.length <= 200) { "Nom du modèle requis." }
         val prefs = context.getSharedPreferences(STORE, Context.MODE_PRIVATE)
+        val ancienneUrl = prefs.getString("url", "")
+        // Zen et Go partagent la même clé OpenCode : la réutiliser évite de la
+        // ressaisir quand on bascule de l'un à l'autre.
+        val cleReutilisable = base == ancienneUrl || (estOpenCode(base) && estOpenCode(ancienneUrl))
         val key = suppliedKey.trim().ifEmpty {
-            if (base == prefs.getString("url", "")) decrypt(context) else ""
+            if (cleReutilisable) decrypt(context) else ""
         }
         require(!key.contains('\n') && !key.contains('\r')) { "Clé API invalide." }
+        if (key.isEmpty() && !cleReutilisable) {
+            return publicConfig(context).put("erreur", "Collez la clé API du fournisseur choisi.")
+        }
         val config = Config(base, model.trim(), key, UUID.randomUUID().toString())
-        val result = complete(context, config, "Réponds uniquement en JSON : {\"pret\": true}", true, 60)
-        require(result.isNotBlank()) { "Le fournisseur a renvoyé une réponse vide." }
+
         val edition = prefs.edit().putString("url", config.url).putString("model", config.model)
-            .putString("revision", config.revision)
         if (key.isEmpty()) edition.remove("secret").remove("iv")
         else {
             val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, secretKey()) }
@@ -61,6 +68,19 @@ object PhoneAI {
                 .putString("secret", Base64.encodeToString(encrypted, Base64.NO_WRAP))
         }
         check(edition.commit()) { "Enregistrement impossible." }
+
+        val test = runCatching {
+            complete(context, config, "Réponds uniquement en JSON : {\"pret\": true}", true, 60)
+        }
+        val erreur = test.fold(
+            onSuccess = { if (it.isNullOrBlank()) "Le fournisseur a renvoyé une réponse vide." else null },
+            onFailure = { it.message ?: "Le test a échoué." },
+        )
+        if (erreur != null) {
+            prefs.edit().remove("revision").apply()
+            return publicConfig(context).put("erreur", erreur)
+        }
+        check(prefs.edit().putString("revision", config.revision).commit()) { "Enregistrement impossible." }
         return publicConfig(context)
     }
 
@@ -74,7 +94,7 @@ object PhoneAI {
     fun modeles(context: Context, url: String, cle: String): List<String> {
         val base = endpoint(url)
         require(cle.isNotBlank()) { "Collez la clé API pour charger les modèles." }
-        val connexion = (URL("$base/models").openConnection() as HttpURLConnection).apply {
+        val connexion = (URL(modelesUrl(base)).openConnection() as HttpURLConnection).apply {
             connectTimeout = 15000; readTimeout = 20000; requestMethod = "GET"
             setRequestProperty("Authorization", "Bearer $cle")
             setRequestProperty("Accept", "application/json")
@@ -115,6 +135,16 @@ object PhoneAI {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName
         }.getOrNull().orEmpty().ifBlank { "1.0" }
         return "PK-Reader/$version (Android)"
+    }
+
+    /** OpenCode Go expose sa liste sous /inference/go/v1/models, alors que le
+     *  chat passe par /inference/go/openai/v1 : appeler /models sur ce dernier
+     *  renvoie 404. Les autres fournisseurs gardent <base>/models. */
+    private fun modelesUrl(base: String): String {
+        val propre = base.trimEnd('/')
+        val go = "https://opencode.ai/inference/go/openai/v1"
+        return if (propre.equals(go, ignoreCase = true)) "https://opencode.ai/inference/go/v1/models"
+        else "$propre/models"
     }
 
     /** Identifiant de session stable : OpenCode Go s'en sert pour le routage et

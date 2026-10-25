@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.83] - 2026-10-25
+
+### Fixed
+- **PK Reader Android 2026.10.75** : OpenCode Go charge sa liste de modèles (URL dédiée `/inference/go/v1/models`), la clé API est enregistrée même si le test échoue, et le bouton « Vérifier les mises à jour » devient une carte visible en haut de l’onglet À propos.
+
 ## [2026.10.82] - 2026-10-25
 
 ### Changed

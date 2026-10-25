@@ -67,6 +67,7 @@ function iaSection(settings: Settings): string {
     <p class="ia-note" id="ia-note" ${fournisseur.note ? '' : 'hidden'}>${esc(fournisseur.note ?? '')}</p>
     <label for="ia-key">Clé API</label>
     <input id="ia-key" name="key" type="password" placeholder="${cle}" autocomplete="off" />
+    ${settings.ia?.hasKey ? `<p class="ia-saved">${icon('shield-check')} Clé enregistrée sur ce téléphone — laissez le champ vide pour la conserver.</p>` : ''}
     <label for="ia-model-select">Modèle</label>
     <div class="ia-model-row"><select id="ia-model-select" name="model-select">${optionsModele(fournisseur, actuel)}</select><button type="button" class="small-button" data-action="ia-load-models">Charger les modèles</button></div>
     <label for="ia-model-manual">Ou saisir un identifiant de modèle</label>

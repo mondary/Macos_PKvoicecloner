@@ -1,5 +1,15 @@
 # PK Reader Android
 
+## [2026.10.75] - 2026-10-25
+
+### Fixed
+- **OpenCode Go — liste des modèles** : l’app interroge désormais `https://opencode.ai/inference/go/v1/models` ; le chemin `/openai/v1/models` renvoyait 404. Le chat reste sur `/inference/go/openai/v1`.
+- **Clé API conservée même si le test échoue** : la clé, l’adresse et le modèle sont enregistrés **avant** l’appel de vérification. Un 404, un réseau coupé ou un modèle refusé ne fait plus ressaisir la clé ; la configuration reste inactive tant que le test échoue, avec le message exact du fournisseur.
+- Ligne « Clé enregistrée sur ce téléphone » affichée sous le champ, pour ne plus douter de ce qui est conservé.
+
+### Changed
+- **Vérifier les mises à jour** passe en carte dédiée en haut de l’onglet À propos : icône, version actuelle, état et grand bouton d’action. Le bouton ne se confond plus avec une ligne de réglage.
+
 ## [2026.10.74] - 2026-10-25
 
 ### Changed

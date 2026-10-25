@@ -25,7 +25,7 @@ describe.skipIf(!process.env.PK_SETTINGS_SHOT)('capture de la page Réglages', (
       const html = settingsViewHTML({
         settings: { ...defaults, ia: { url: 'https://api.deepseek.com/v1', modele: 'deepseek-chat', revision: 'r1', enabled: true, hasKey: true } },
         tab, version: '2026.10.68', native: true,
-        updateHTML: '<section class="settings-section"><h2>Mises à jour</h2><p class="section-description">PK Reader <strong>2026.10.68</strong></p></section>',
+        updateHTML: `<section class="update-hero" aria-labelledby="update-title"><div class="update-hero-top"><span class="update-icon"><i data-lucide="refresh-cw" aria-hidden="true"></i></span><div class="update-hero-copy"><div class="update-kicker"><p class="eyebrow">PK READER</p><span class="update-badge">À VÉRIFIER</span></div><h2 id="update-title">Mises à jour</h2><p class="update-hero-detail">Version actuelle <strong>2026.10.68</strong>. Vérifiez les nouveautés publiées sur GitHub.</p></div></div><button class="primary update-action"><i data-lucide="refresh-cw" aria-hidden="true"></i> Vérifier les mises à jour</button></section>`,
       });
       const body = `<div class="app-shell"><main class="main-content">${html}</main></div>`;
       const style = readFileSync(resolve(ici, 'src/mobile/style.css'), 'utf8');

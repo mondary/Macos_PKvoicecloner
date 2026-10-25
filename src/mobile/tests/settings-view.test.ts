@@ -41,6 +41,12 @@ describe('page Réglages en onglets', () => {
     expect(html).toContain('<strong>Active</strong> · deepseek-chat');
     expect(html).toContain('Désactiver l’IA du téléphone');
   });
+
+  it('rassure sur la clé déjà enregistrée, même si le test a échoué', () => {
+    const html = settingsViewHTML({ ...base, tab: 'voix', settings: { ...defaults, ia: { url: 'https://opencode.ai/inference/go/openai/v1', modele: 'glm-5.3', revision: '', enabled: false, hasKey: true } } });
+    expect(html).toContain('Clé enregistrée sur ce téléphone');
+    expect(html).toContain('laissez le champ vide pour la conserver');
+  });
 });
 
 describe('corps de lecture partagé', () => {

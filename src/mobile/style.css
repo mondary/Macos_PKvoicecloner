@@ -357,6 +357,8 @@ textarea { resize: vertical; line-height: 1.6; }
 /* Réglages IA : fournisseur → clé → modèle dans une liste. */
 .ia-keys-line { margin: 10px 0 0; }
 .ia-note { margin: 6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.ia-saved { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; color: var(--accent); font-size: 11px; line-height: 1.5; }
+.ia-saved svg { width: 14px; height: 14px; flex: none; }
 .ia-model-row { display: flex; gap: 8px; align-items: stretch; }
 .ia-model-row select { flex: 1; min-width: 0; }
 .ia-model-row .small-button { white-space: nowrap; }
@@ -388,15 +390,42 @@ textarea { resize: vertical; line-height: 1.6; }
 .danger-zone h2 { color: var(--danger); }
 .setup-status { margin: 6px 0 10px; font-size: 12px; line-height: 1.6; color: var(--accent); }
 .setting-row[disabled] { opacity: .55; }
-.update-card { margin-top: 14px; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-2); background: var(--surface); }
-.update-card p { font-size: 13px; line-height: 1.6; }
-.update-card .primary { width: 100%; margin-top: 12px; }
-.update-bar { height: 6px; border-radius: 999px; background: var(--line-soft); overflow: hidden; margin: 14px 0 8px; }
+.update-hero {
+  margin: 2px 0 34px; padding: 24px;
+  border: 1px solid var(--line); border-radius: var(--radius-2);
+  background:
+    radial-gradient(130% 160% at 100% 0%, var(--aura, rgba(61, 91, 217, 0.12)) 0%, transparent 60%),
+    var(--surface);
+  box-shadow: var(--shadow-1);
+}
+.update-hero.has-update { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), var(--shadow-2); }
+.update-hero-top { display: flex; align-items: flex-start; gap: 15px; }
+.update-icon {
+  flex: none; width: 48px; height: 48px; display: grid; place-items: center;
+  color: #fff; background: var(--accent-fill); border-radius: 14px;
+  box-shadow: 0 8px 18px -10px var(--accent-fill);
+}
+.update-icon svg { width: 22px; height: 22px; }
+.update-hero-copy { flex: 1; min-width: 0; }
+.update-kicker { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.update-kicker .eyebrow { font-size: 8.5px; letter-spacing: 1.9px; }
+.update-hero-copy h2 { font-family: 'Literata', serif; font-size: 24px; font-weight: 500; letter-spacing: -0.5px; line-height: 1.25; margin: 6px 0 0; }
+.update-hero-detail { margin-top: 7px; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.update-hero-detail strong { color: var(--ink-soft); font-weight: 600; }
+.update-badge { padding: 5px 8px; border-radius: 999px; background: var(--line-soft); color: var(--muted); font-size: 7.5px; font-weight: 700; letter-spacing: 1px; }
+.update-badge.accent { background: var(--accent-soft); color: var(--accent); }
+.update-action { width: 100%; margin-top: 18px; min-height: 50px; font-size: 14px; }
+.update-action svg { width: 19px; height: 19px; }
+.update-bar { height: 6px; border-radius: 999px; background: var(--line-soft); overflow: hidden; margin: 16px 0 8px; }
 .update-bar span { display: block; height: 100%; border-radius: inherit; background: var(--accent-fill); transition: width .2s ease; }
 .update-note { color: var(--muted); font-size: 12px; margin-top: 8px; line-height: 1.6; }
 .update-note.error { color: var(--danger); }
+.update-notes-block { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+.update-notes-block summary { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+.update-notes-block .update-notes { margin-top: 8px; }
 .update-notes { white-space: pre-wrap; font-size: 12px; line-height: 1.6; color: var(--muted); }
-.update-card details { margin-top: 12px; }
+.update-release-link { margin-top: 10px; font-size: 12px; }
+.update-release-link svg { width: 14px; height: 14px; }
 .link-button { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--accent); padding: 8px 0; text-decoration: none; }
 .link-button:hover { text-decoration: underline; }
 .pill { font-size: 8px; font-weight: 700; letter-spacing: 1px; background: var(--accent-soft); color: var(--accent); padding: 6px 9px; border-radius: 7px; }

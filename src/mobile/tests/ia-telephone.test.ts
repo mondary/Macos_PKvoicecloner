@@ -9,10 +9,11 @@ describe('utilitaires du client IA', () => {
     expect(slug('???')).toBe('voix');
   });
 
-  it('exige un JSON objet, en tolérant les clôtures markdown', () => {
+  it('extrait le JSON objet, même entouré de texte ou de clôtures', () => {
     expect(extraireJson('{"a": 1}')).toEqual({ a: 1 });
     expect(extraireJson('```json\n{"a": 1}\n```')).toEqual({ a: 1 });
-    expect(() => extraireJson('voici {"a": 1}')).toThrow(/format JSON/);
+    expect(extraireJson('Voici le résultat : {"a": {"b": 2}} — terminé.')).toEqual({ a: { b: 2 } });
+    expect(() => extraireJson('voici une réponse sans objet')).toThrow(/format JSON/);
     expect(() => extraireJson('[1, 2]')).toThrow(/format JSON/);
   });
 

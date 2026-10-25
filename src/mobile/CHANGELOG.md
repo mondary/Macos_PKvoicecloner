@@ -1,5 +1,11 @@
 # PK Reader Android
 
+## [2026.10.72] - 2026-10-25
+
+### Fixed
+- **Erreurs HTTP 400 lisibles** : l’app affiche maintenant le message exact renvoyé par le fournisseur (clé masquée) au lieu d’un simple « requête refusée ». Elle réessaie d’abord sans le mode JSON, puis sans `temperature` si le modèle les refuse — les deux causes les plus fréquentes.
+- **Réponses JSON tolérantes** : le JSON est extrait même entouré de texte (fallback quand le fournisseur ne prend pas en charge `response_format`), comme le fait déjà le studio.
+
 ## [2026.10.71] - 2026-10-25
 
 ### Added

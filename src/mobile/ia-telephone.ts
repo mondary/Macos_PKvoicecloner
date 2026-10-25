@@ -21,9 +21,14 @@ export function slug(texte: string): string {
 class ReponseInvalide extends Error {}
 const verifier = (condition: unknown, message: string): void => { if (!condition) throw new ReponseInvalide(message); };
 export function extraireJson(texte: string): Record<string, unknown> {
-  const clean = texte.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  const sansCloture = texte.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  // Tolère un préambule ou une conclusion du modèle : on garde du premier « { »
+  // au dernier « } » (comme le serveur), au lieu d'exiger un JSON nu.
+  const debut = sansCloture.indexOf('{');
+  const fin = sansCloture.lastIndexOf('}');
+  if (debut < 0 || fin <= debut) throw new ReponseInvalide('La réponse IA ne respecte pas le format JSON demandé.');
   try {
-    const data = JSON.parse(clean);
+    const data = JSON.parse(sansCloture.slice(debut, fin + 1));
     verifier(data && typeof data === 'object' && !Array.isArray(data), 'Objet JSON attendu.');
     return data;
   } catch { throw new ReponseInvalide('La réponse IA ne respecte pas le format JSON demandé.'); }

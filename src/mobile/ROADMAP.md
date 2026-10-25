@@ -1,6 +1,6 @@
 # PK Reader — feuille de route lecteur
 
-Retours des 21 au 25/10. État des sources au 2026.10.71.
+Retours des 21 au 25/10. État des sources au 2026.10.72.
 
 ## Fait
 

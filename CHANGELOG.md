@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.80] - 2026-10-25
+
+### Fixed
+- **PK Reader Android 2026.10.72** : les erreurs HTTP 400 des fournisseurs IA sont affichées avec leur message exact, et les appels réessaient sans mode JSON puis sans `temperature` ; l’extraction du JSON tolère un texte autour.
+
 ## [2026.10.79] - 2026-10-25
 
 ### Added

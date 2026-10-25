@@ -157,19 +157,23 @@ object PhoneAI {
                 val bytes = lire(stream)
                 require(bytes.size <= 1_048_576) { "Réponse IA trop volumineuse." }
                 val body = String(bytes, Charsets.UTF_8)
-                // Un seul essai supplémentaire par option non prise en charge.
-                if (code == 400 && payload.has("response_format") && body.contains("response_format", true)) {
+                // Le mode JSON est l'option la plus souvent refusée (Zen, certains
+                // modèles) : un seul réessai sans, puis sans temperature si refusée.
+                if (code == 400 && payload.has("response_format")) {
                     payload.remove("response_format"); return@repeat
                 }
                 if (code == 400 && payload.has("temperature") && body.contains("temperature", true)) {
                     payload.remove("temperature"); return@repeat
                 }
-                require(code in 200..299) { when (code) {
-                    401, 403 -> "Clé refusée ou modèle non accessible : vérifiez les réglages IA."
-                    429 -> "Quota IA atteint. Attendez son renouvellement puis reprenez l’analyse."
-                    in 500..599 -> "Fournisseur IA indisponible (HTTP $code). Reprenez plus tard."
-                    else -> "Requête IA refusée (HTTP $code). Vérifiez l’adresse et le modèle."
-                } }
+                require(code in 200..299) {
+                    val detail = body.replace(config.key, "***").replace(Regex("\\s+"), " ").take(300).ifBlank { "sans détail" }
+                    when (code) {
+                        401, 403 -> "Clé refusée ou modèle non accessible (HTTP $code). Détail : $detail"
+                        429 -> "Quota IA atteint (HTTP 429). Détail : $detail"
+                        in 500..599 -> "Fournisseur IA indisponible (HTTP $code). Détail : $detail"
+                        else -> "Requête IA refusée (HTTP $code) : $detail"
+                    }
+                }
                 val choice = JSONObject(body).getJSONArray("choices").getJSONObject(0)
                 require(choice.optString("finish_reason") != "length") { "Réponse IA tronquée. Réessayez avec un autre modèle." }
                 val content = choice.getJSONObject("message").opt("content")

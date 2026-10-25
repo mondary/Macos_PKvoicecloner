@@ -990,6 +990,16 @@ async function handle(action: string, el: HTMLElement) {
       }
       const role = review.choices.find(c => c.role.id === id)?.role;
       const timbre = [...allVoices(), ...clones].find(v => v.id === voice)?.name ?? voice;
+      const modele = [...allVoices(), ...clones].find(v => v.id === voice);
+      if (modele?.kind === 'neural' && !modele.installed) {
+        toast(`Téléchargement de ${timbre} avant l’aperçu…`);
+        await installVoice(voice, timbre);
+        while (![...allVoices(), ...clones].find(v => v.id === voice)?.installed) {
+          const result = await Reader.models(); models = result.voices;
+          if (result.downloads[voice]?.error) { toast(result.downloads[voice].error!); return; }
+          await new Promise(resolve => setTimeout(resolve, 800));
+        }
+      }
       const demo = welcomeBook();
       demo.id = 'voice-preview'; demo.title = 'Aperçu de la voix';
       demo.segments = [text || `Bonjour, je m’appelle ${role?.name ?? 'ce personnage'}. Voici la voix que je proposerai pour ce livre.`];
@@ -1268,6 +1278,19 @@ document.addEventListener('submit', e => {
   }
 });
 window.addEventListener('hashchange', () => { if (location.hash === '#library') { screen = 'library'; render(); } });
+
+/* -------------------------------------------------- voix choisies et installées */
+
+/** Choisir une voix la télécharge tout de suite : l'aperçu et la lecture ne
+ *  peuvent plus tomber sur une voix absente du téléphone. */
+document.addEventListener('change', event => {
+  const select = (event.target as HTMLElement).closest<HTMLSelectElement>('select[data-download-voice]');
+  if (!select) return;
+  const voice = [...allVoices(), ...clones].find(v => v.id === select.value);
+  if (voice?.kind === 'neural' && !voice.installed) {
+    void installVoice(voice.id, voice.name).catch(error => toast(`${voice.name} : ${error instanceof Error ? error.message : error}`));
+  }
+});
 
 /* ------------------------------------------------------------ fournisseur IA */
 

@@ -30,7 +30,7 @@ function resume(item: CastingActivity, maintenant = Date.now()): ResumeActivity 
   // Estimation honnête à partir du rythme observé (au moins 3 lots traités).
   const restant = p && p.done >= 3 ? ` · ≈ ${formaterDuree(ecoule / p.done * (p.total - p.done))} restantes` : '';
   return {
-    texte: p?.phase ? `${phases[p.phase]} · ${compte}` : `Analyse · ${compte}`,
+    texte: p?.phase ? `${phases[p.phase]} · ${compte} blocs` : `Analyse · ${compte} blocs`,
     detail: `${item.title} · ${item.source} · ${formaterDuree(ecoule)} écoulées${restant}`,
     pct: p?.total ? Math.round(p.done / p.total * 100) : 0,
   };}
@@ -67,21 +67,32 @@ export function analysisChip(items: CastingActivity[], bookId: string): string {
     <span class="bubble-dot" aria-hidden="true"></span>${esc(court)}</button>`;
 }
 
-/** Même famille de pastilles, mais aucun délai de disparition : l'utilisateur
- *  ferme lui-même le résultat, les tâches en cours ne sont pas masquables. */
+/** Une seule pastille pendant les téléchargements, puis un bilan bref par voix.
+ *  Empiler une bulle par voix rendait le bas de l'écran illisible. */
 export function downloadActivityView(items: VoiceDownload[]): string {
-  return items.map(item => {
-    const terminal = item.state !== 'running';
-    const label = item.state === 'done' ? `${item.name} · 100 % · Installée`
-      : item.state === 'error' ? `${item.name} · Échec du téléchargement`
-      : item.progress >= 100 ? `${item.name} · Installation…` : `${item.name} · ${Math.round(item.progress)} %`;
+  const enCours = items.filter(item => item.state === 'running');
+  const finis = items.filter(item => item.state !== 'running');
+  const individuelle = (item: VoiceDownload) => {
+    const label = item.state === 'done' ? `${item.name} · installée`
+      : item.state === 'error' ? `${item.name} · échec`
+      : item.progress >= 100 ? `${item.name} · installation…` : `${item.name} · ${Math.round(item.progress)} %`;
     return `<div class="analysis-bubble download-bubble ${item.state}">
       <button type="button" class="bubble-main" data-action="nav" data-id="voices"
         aria-label="${esc(label)}${item.error ? ` : ${esc(item.error)}` : ''}. Ouvrir les voix.">
         <span class="bubble-dot" aria-hidden="true"></span><span class="bubble-text">${esc(label)}</span>
-        ${!terminal ? `<span class="bubble-bar" style="width:${item.progress}%"></span>` : ''}
+        ${item.state === 'running' ? `<span class="bubble-bar" style="width:${item.progress}%"></span>` : ''}
       </button>
-      ${terminal ? `<button type="button" class="bubble-close" data-action="download-dismiss" data-id="${esc(item.id)}" aria-label="Fermer le suivi de ${esc(item.name)}">${icon('x')}</button>` : ''}
+      ${item.state !== 'running' ? `<button type="button" class="bubble-close" data-action="download-dismiss" data-id="${esc(item.id)}" aria-label="Fermer le suivi de ${esc(item.name)}">${icon('x')}</button>` : ''}
     </div>${item.error ? `<p class="download-error">${esc(item.error)}</p>` : ''}`;
-  }).join('');
+  };
+  const groupe = enCours.length >= 2 ? (() => {
+    const pct = Math.round(enCours.reduce((n, item) => n + item.progress, 0) / enCours.length);
+    return `<div class="analysis-bubble download-bubble running">
+      <button type="button" class="bubble-main" data-action="nav" data-id="voices"
+        aria-label="${enCours.length} téléchargements en cours, ${pct} % en moyenne. Ouvrir les voix.">
+        <span class="bubble-dot" aria-hidden="true"></span><span class="bubble-text">${enCours.length} téléchargements · ${pct} %</span>
+        <span class="bubble-bar" style="width:${pct}%"></span>
+      </button></div>`;
+  })() : enCours.map(individuelle).join('');
+  return groupe + finis.map(individuelle).join('');
 }

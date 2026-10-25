@@ -66,11 +66,22 @@ export async function monitorVoiceDownloads() {
     polling = false;
     if (store.list().some(d => d.state === 'running')) {
       timer = setTimeout(() => { timer = undefined; void monitorVoiceDownloads(); }, 1000);
+    } else {
+      // Une voix installée s'annonce puis s'efface ; une erreur reste lisible.
+      for (const entry of store.list()) {
+        if (entry.state !== 'done' || fermetures.has(entry.id)) continue;
+        fermetures.set(entry.id, setTimeout(() => {
+          fermetures.delete(entry.id);
+          store.dismiss(entry.id); notify();
+        }, 6000));
+      }
     }
   }
 }
+const fermetures = new Map<string, ReturnType<typeof setTimeout>>();
 
 export async function installVoice(id: string, name = id) {
+  const attente = fermetures.get(id); if (attente) { clearTimeout(attente); fermetures.delete(id); }
   store.begin(id, name); notify();
   try {
     await Reader.installModel({ id });

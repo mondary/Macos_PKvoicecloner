@@ -1,6 +1,6 @@
 # PK Reader — feuille de route lecteur
 
-Retours des 21 au 25/10. État des sources au 2026.10.82.
+Retours des 21 au 25/10. État des sources au 2026.10.83.
 
 ## Fait
 
@@ -36,6 +36,7 @@ Retours des 21 au 25/10. État des sources au 2026.10.82.
 - Validation rapide des voix par chapitre, choix mémorisés et arrêt Android avant les nouveaux personnages — 2026.10.80.
 - Écoute d’essai par voix, mini-lecteur par défaut et repagination selon la hauteur réelle — 2026.10.81.
 - Siwis · Kokoro (132 Mo) en onzième voix française, aperçu fidèle à la voix choisie, navigation du mini-lecteur sur une ligne — 2026.10.82.
+- Téléchargement automatique à la sélection, bulles regroupées, libellés blocs/personnages, auto-attribution légère — 2026.10.83.
 
 ## Reste
 

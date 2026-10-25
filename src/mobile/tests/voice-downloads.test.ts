@@ -22,7 +22,7 @@ describe('notifications fixes des téléchargements', () => {
     expect(store.list()[0].state).toBe('running');
     store.sync(snapshot(100, true));
     expect(store.list()[0].state).toBe('done');
-    expect(downloadActivityView(store.list())).toContain('Miro · 100 % · Installée');
+    expect(downloadActivityView(store.list())).toContain('Miro · installée');
     store.dismiss(miro.id);
     store.sync(snapshot(100, true));
     expect(store.list()).toEqual([]);
@@ -41,7 +41,8 @@ describe('notifications fixes des téléchargements', () => {
     expect(html).toContain('Réseau &lt;coupé&gt;');
     expect(document.querySelectorAll('.download-bubble')).toHaveLength(2);
     expect(document.querySelectorAll('[data-action="download-dismiss"]')).toHaveLength(1);
-    expect(document.querySelector('[data-action="nav"]')?.getAttribute('aria-label')).toContain('Miro <test>');
+    const labels = [...document.querySelectorAll('[data-action="nav"]')].map(el => el.getAttribute('aria-label') ?? '');
+    expect(labels.some(label => label.includes('Miro <test>'))).toBe(true);
   });
 
   it('suit les progressions par une seule boucle, même en cas de demandes simultanées', async () => {
@@ -62,9 +63,9 @@ describe('notifications fixes des téléchargements', () => {
       expect(listener).toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(10_000);
       expect(mocks.models).toHaveBeenCalledTimes(2);
-      expect(voiceDownloads()).toHaveLength(1);
-      dismissVoiceDownload(miro.id);
+      // Une installation terminée s'efface seule après quelques secondes.
       expect(voiceDownloads()).toEqual([]);
+      expect(listener).toHaveBeenCalled();
     } finally { unwatch(); vi.useRealTimers(); }
   });
 });

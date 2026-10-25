@@ -49,7 +49,7 @@ describe('progression du livre en quatre étapes', () => {
     const book = distribution(livre(), 'partial', ['0:3']);
     const [, analyse, , ecoute] = etapesLivre(book, voix, { ia: true });
     expect(analyse.pct).toBe(50);
-    expect(analyse.detail).toBe('1/2 chapitres · 1/2 lots');
+    expect(analyse.detail).toBe('1/2 chapitres · 1/2 blocs');
     // On écoute le chapitre 1 : il est prêt, le second non.
     expect(ecoute).toMatchObject({ pct: 100, etat: 'done' });
     expect(ecoute.detail).toBe('Prêt à écouter');
@@ -64,7 +64,7 @@ describe('progression du livre en quatre étapes', () => {
     expect(erreur.detail).toContain('Quota atteint');
     const enCours = etapesLivre(book, voix, { ia: true, busy: true, progress: { done: 1, total: 2, chapter: 'Un', phase: 'attribution' } })[1];
     expect(enCours).toMatchObject({ etat: 'running', pct: 50 });
-    expect(enCours.detail).toBe('Attribution · 1/2 lots');
+    expect(enCours.detail).toBe('Attribution · 1/2 blocs');
     // Une voix absente du catalogue reste à compléter.
     const sansVoix = distribution(livre(), 'ready', ['0:3', '3:6']);
     const voixEtape = etapesLivre(sansVoix, [], { ia: true })[2];

@@ -1,5 +1,16 @@
 # PK Reader Android
 
+## [2026.10.83] - 2026-10-25
+
+### Fixed
+- **Voix choisie = voix téléchargée** : sélectionner une voix non installée dans la fiche des personnages ou le bilan de chapitre déclenche maintenant son téléchargement immédiat. L’aperçu attend la fin de l’installation avant de jouer — plus de « même voix » parce que le modèle manquait.
+- **Notifications de téléchargement regroupées** : plusieurs voix simultanées n’empilent plus une bulle par voix. Une seule pastille « 3 téléchargements · 45 % » pendant les transferts, puis un bilan bref par voix qui s’efface après 6 s ; les erreurs restent.
+- **Moins de toasts** : les étapes de préparation vivent dans la page du livre et la pastille, plus en notifications empilées.
+
+### Changed
+- **Libellés sans ambiguïté** : l’analyse parle de **blocs** (`Attribution · 28/141 blocs`) et les voix de **personnages** (`28 personnages · 2 voix à compléter`) — 141 n’est pas un nombre de voix.
+- **Auto-attribution plus légère** : les voix déjà installées passent devant, puis les modèles les plus légers (Siwis légère, 13 Mo, en premier téléchargement proposé).
+
 ## [2026.10.82] - 2026-10-25
 
 ### Added

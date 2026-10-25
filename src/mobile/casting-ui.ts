@@ -99,7 +99,7 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
       <div class="casting-roles">${roles.map(({ role, i }) => `<fieldset data-character="${i}" class="casting-role"><legend>${esc(role.name)}</legend>
         <p class="casting-role-meta">${genderLabel(role.gender)} · ${counts.get(role.id) || 0} phrases${role.automaticVoice ? missing.includes(role) ? ' · voix provisoire' : ' · proposée' : ''}</p>
         ${role.id !== 'narrator' && exemples.has(role.id) ? `<details class="casting-evidence"><summary>Voir un passage attribué à ${esc(role.name)}</summary><p>${esc(exemples.get(role.id)!.slice(0, 400))}${exemples.get(role.id)!.length > 400 ? '…' : ''}</p></details>` : ''}
-        <label class="sr-only" for="cast-voice-${i}">Voix de ${esc(role.name)}</label><select id="cast-voice-${i}" name="voice"><option value="">Voix du lecteur</option>${role.voice && !options.some(v => v.id === role.voice) ? `<option value="${esc(role.voice)}" selected>Voix indisponible — à remplacer</option>` : ''}${options.map(v => `<option value="${esc(v.id)}" ${v.id === role.voice ? 'selected' : ''}>${esc(v.name)}${genreVoix(v) === 'indetermine' ? '' : ` · ${genderLabel(genreVoix(v))}`}${v.network ? ' · réseau' : ''}</option>`).join('')}</select>
+        <label class="sr-only" for="cast-voice-${i}">Voix de ${esc(role.name)}</label><select id="cast-voice-${i}" name="voice" data-download-voice><option value="">Voix du lecteur</option>${role.voice && !options.some(v => v.id === role.voice) ? `<option value="${esc(role.voice)}" selected>Voix indisponible — à remplacer</option>` : ''}${options.map(v => `<option value="${esc(v.id)}" ${v.id === role.voice ? 'selected' : ''}>${esc(v.name)}${genreVoix(v) === 'indetermine' ? '' : ` · ${genderLabel(genreVoix(v))}`}${v.network ? ' · réseau' : ''}</option>`).join('')}</select>
         <div class="casting-role-tools"><button type="button" class="casting-preview" data-cast="preview" data-id="${i}" aria-label="Écouter la voix de ${esc(role.name)}">Écouter un exemple</button>
         <details><summary aria-label="Réglages de ${esc(role.name)}">Réglages du rôle</summary><label for="cast-name-${i}">Nom</label><input id="cast-name-${i}" name="name" value="${esc(role.name)}" maxlength="80" required ${role.id === 'narrator' ? 'readonly' : ''}>
           <label for="cast-pitch-${i}">Hauteur · grave ↔ aigu <output>${factor(role.pitch)}</output></label><input id="cast-pitch-${i}" name="pitch" type="range" min="0.5" max="2" step="0.01" value="${role.pitch}">
@@ -143,10 +143,24 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
         const choisie = sheet.querySelector<HTMLSelectElement>(`#cast-voice-${button.dataset.id}`)?.value.trim()
           || role.voice || settings.voice;
         const timbre = catalog.find(v => v.id === choisie)?.name ?? choisie;
+        // Une voix non installée ne peut pas être écoutée : on la télécharge
+        // d'abord, au lieu de rejouer silencieusement la voix du lecteur.
+        const modele = catalog.find(v => v.id === choisie);
+        if (modele?.kind === 'neural' && !modele.installed) {
+          message(`Téléchargement de ${timbre} avant l’aperçu…`);
+          await installVoice(choisie, timbre);
+          while (!catalog.find(v => v.id === choisie)?.installed) {
+            const result = await Reader.models();
+            catalog = [...catalog.filter(v => v.kind !== 'neural'), ...result.voices];
+            modelsChanged(result.voices);
+            if (result.downloads[choisie]?.error) { message(result.downloads[choisie].error!, true); return; }
+            await new Promise(resolve => setTimeout(resolve, 800));
+          }
+        }
         const demo: Book = { ...book, id: 'casting-preview', position: 0, segments: [`Bonjour, voici la voix de ${role.name} dans cette histoire.`], casting: { enabled: true, characters: [{ ...role, voice: choisie }], assignments: { '0': role.id } } };
         preview = true;
         await audio.load(demo, { ...settings, voice: choisie.startsWith('clone:') ? 'system:default' : choisie });
-        await audio.play(); message(`Exemple avec ${timbre} en cours.`); break;
+        await audio.play(); message(`Exemple avec ${timbre}.`); break;
       }
       case 'download': {
         if (!native) { message('Le téléchargement des voix est disponible dans l’APK Android.', true); return; }

@@ -85,7 +85,7 @@ Chaque livre a un bouton **Gérer** visible sur sa fiche dans la bibliothèque, 
 
 ### Bilan automatique du chapitre avant l’écoute
 
-L’import démarre l’analyse. Au clic sur **Écouter**, le bilan du chapitre montre ses personnages, les voix proposées, celles déjà installées et celles à télécharger. Chaque ligne propose **« Écouter »** : un extrait du personnage dans ce chapitre, lu avec la voix sélectionnée dans la liste. Modifiez, écoutez, puis **Validez et écoutez ce chapitre** ; seules les voix sélectionnées non installées sont alors téléchargées.
+L’import démarre l’analyse. Au clic sur **Écouter**, le bilan du chapitre montre ses personnages, les voix proposées, celles déjà installées et celles à télécharger. Chaque ligne propose **« Écouter »** : un extrait du personnage dans ce chapitre, lu avec la voix sélectionnée dans la liste. Choisir une voix non installée déclenche son téléchargement immédiat ; l’aperçu attend la fin de l’installation. Modifiez, écoutez, puis **Validez et écoutez ce chapitre** ; seules les voix sélectionnées non installées sont alors téléchargées.
 
 Une validation fixe l’association personnage → voix dans le livre. Au chapitre suivant, les personnages connus la conservent ; si le chapitre est analysé et toutes ses voix validées/installées, il continue sans confirmation. En cas de nouveau personnage ou d’analyse incomplète, le lecteur s’arrête avant de prononcer le chapitre et affiche le bilan. Le service Android respecte aussi cet arrêt écran verrouillé ; revenez dans l’app pour valider si nécessaire. Les choix restent mémorisés après fermeture de l’app. Le guide de découverte n’exige pas de validation.
 

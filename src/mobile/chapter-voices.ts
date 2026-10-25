@@ -64,7 +64,7 @@ export function chapterReviewView(book: Book, choices: ChapterVoiceChoice[], ava
     <p class="chapter-review-status" role="status">${ready ? `Déjà validées : ${known} · Nouvelles : ${choices.length - known}. Vos choix sont conservés pour tout le livre.` : esc(book.casting?.analysis?.error ?? 'Le bilan des voix apparaît dès que ce chapitre est analysé. Vous pouvez fermer et revenir plus tard.')}</p>
     <fieldset class="chapter-voice-choices" ${working || !ready ? 'disabled' : ''}><legend class="sr-only">Voix du chapitre</legend>
     ${choices.map((choice, i) => `<div class="chapter-voice-choice"><div class="chapter-voice-head"><strong>${esc(choice.role.name)}</strong><small>${choice.confirmed ? 'Mémorisée' : 'Nouvelle proposition'}</small></div>
-      <div class="chapter-voice-row"><select id="chapter-voice-${i}" data-role-id="${esc(choice.role.id)}" aria-label="Voix de ${esc(choice.role.name)}">
+      <div class="chapter-voice-row"><select id="chapter-voice-${i}" data-download-voice data-role-id="${esc(choice.role.id)}" aria-label="Voix de ${esc(choice.role.name)}">
       ${!pool.some(v => v.id === choice.voice) ? `<option value="${esc(choice.voice)}">${esc(choice.voice)} · indisponible</option>` : ''}
       ${pool.map(v => `<option value="${esc(v.id)}" ${v.id === choice.voice ? 'selected' : ''}>${esc(v.name)} · ${v.installed ? 'installée' : `à télécharger${v.size ? ` (${v.size} Mo)` : ''}`}</option>`).join('')}</select>
       <button type="button" class="small-button" data-action="chapter-voice-preview" data-id="${esc(choice.role.id)}" aria-label="Écouter un extrait avec la voix choisie pour ${esc(choice.role.name)}">${icon('play')} Écouter</button></div></div>`).join('')}

@@ -60,18 +60,18 @@ export function etapesLivre(book: Book, available: Voice[], contexte: ContexteEt
   let analyseDetail: string;
   if (contexte.busy) {
     analyseEtat = 'running';
-    analyseDetail = `${phase ? phases[phase] : 'Analyse'} · ${contexte.progress?.done ?? faits}/${contexte.progress?.total ?? total} lots`;
+    analyseDetail = `${phase ? phases[phase] : 'Analyse'} · ${contexte.progress?.done ?? faits}/${contexte.progress?.total ?? total} blocs`;
   } else if (analysis?.state === 'error') {
     analyseEtat = 'error';
     analyseDetail = `Interrompue · ${analysis.error ?? 'à reprendre'}`;
   } else if (analysis?.state === 'ready') {
     analyseEtat = 'done';
-    analyseDetail = `${book.chapters.length}/${book.chapters.length} chapitres · ${total} lots`;
+    analyseDetail = `${book.chapters.length}/${book.chapters.length} chapitres · ${total} blocs`;
   } else if (!contexte.ia && book.casting) {
     analyseEtat = 'done';
     analyseDetail = `Repérage local · ${Object.keys(book.casting.assignments).length} phrases attribuées`;
   } else if (faits > 0) {
-    analyseDetail = `${chapitresFaits}/${book.chapters.length} chapitres · ${faits}/${total} lots`;
+    analyseDetail = `${chapitresFaits}/${book.chapters.length} chapitres · ${faits}/${total} blocs`;
   } else {
     analyseDetail = 'Pas encore analysé';
   }
@@ -93,9 +93,9 @@ export function etapesLivre(book: Book, available: Voice[], contexte: ContexteEt
     const ok = Math.max(0, roles.length - missing.length);
     voixPct = roles.length ? pourcent(ok, roles.length) : 100;
     voixEtat = missing.length ? 'todo' : 'done';
-    voixDetail = !roles.length ? 'Aucun rôle à doubler'
-      : missing.length ? `${ok}/${roles.length} rôles · ${missing.length} voix à compléter`
-      : `${roles.length} rôles avec une voix`;
+    voixDetail = !roles.length ? 'Aucun personnage à doubler'
+      : missing.length ? `${ok}/${roles.length} personnages · ${missing.length} voix à compléter`
+      : `${roles.length} personnages avec une voix`;
   }
   const etapeVoix: EtapeLivre = {
     id: 'voix', titre: 'Voix des personnages', detail: voixDetail,
@@ -109,7 +109,7 @@ export function etapesLivre(book: Book, available: Voice[], contexte: ContexteEt
     id: 'ecoute', titre: `Écoute · ${chapitre.title}`,
     detail: contexte.setup ? contexte.setup
       : chapitrePret === 100 ? 'Prêt à écouter'
-      : `${faitsChapitre}/${lotsChapitre.length} lots du chapitre`,
+      : `${faitsChapitre}/${lotsChapitre.length} blocs du chapitre`,
     pct: contexte.setup ? pourcent(faitsChapitre, lotsChapitre.length) : chapitrePret,
     etat: contexte.setup ? 'running' : chapitrePret === 100 ? 'done' : 'todo',
     action: 'prepare-book', libelle: 'Préparer',

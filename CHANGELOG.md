@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.91] - 2026-10-25
+
+### Fixed
+- **PK Reader Android 2026.10.83** : téléchargement automatique de la voix choisie (aperçu fiable), bulles de téléchargement regroupées et auto-effacées, libellés « blocs » / « personnages » clarifiés, auto-attribution qui préfère les voix installées et légères.
+
 ## [2026.10.90] - 2026-10-25
 
 ### Added

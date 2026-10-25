@@ -146,7 +146,10 @@ export function proposerVoix(casting: Casting, available: Voice[], fallback: str
       Number(used.has(a.id)) - Number(used.has(b.id)) ||
       Number(genreVoix(b) === role.gender) - Number(genreVoix(a) === role.gender) ||
       Number(b.id === (role.voice || fallback)) - Number(a.id === (role.voice || fallback)) ||
-      Number(b.kind === 'neural') - Number(a.kind === 'neural'));
+      // Rien à télécharger de préférence, puis les timbres les plus légers.
+      Number(b.installed) - Number(a.installed) ||
+      Number(b.kind === 'neural') - Number(a.kind === 'neural') ||
+      Number(a.size ?? 999) - Number(b.size ?? 999));
     role.voice = candidates[0]?.id ?? installed.find(v => v.id === fallback)?.id ?? 'system:default';
     role.automaticVoice = true;
     used.add(role.voice);
@@ -173,7 +176,8 @@ export function besoinsVoix(casting: Casting, available: Voice[], language: stri
   const downloads: { voice: Voice; roles: Character[]; voices: Voice[] }[] = [];
   const proposed = new Set<string>();
   for (const role of missing) {
-    const v = voices.find(v => v.kind === 'neural' && !v.installed && !proposed.has(v.id) && memeLangue(v, language) && compatible(role, v));
+    const v = voices.filter(v => v.kind === 'neural' && !v.installed && !proposed.has(v.id) && memeLangue(v, language) && compatible(role, v))
+      .sort((a, b) => (a.size ?? 999) - (b.size ?? 999))[0];
     if (!v) continue;
     proposed.add(v.id);
     const existing = downloads.find(d => modeleVoix(d.voice) === modeleVoix(v));

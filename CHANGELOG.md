@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.79] - 2026-10-25
+
+### Added
+- **PK Reader Android 2026.10.71** : OpenCode Zen et OpenCode Go ajoutés aux fournisseurs IA guidés (adresse et page de clés pré-remplies, modèles chargés depuis le fournisseur).
+
 ## [2026.10.78] - 2026-10-25
 
 ### Added

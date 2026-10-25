@@ -20,6 +20,10 @@ export const FOURNISSEURS: FournisseurIA[] = [
     modeles: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'] },
   { id: 'openrouter', nom: 'OpenRouter', url: 'https://openrouter.ai/api/v1', cles: 'https://openrouter.ai/keys',
     modeles: [], note: 'Chargez la liste des modèles après avoir collé votre clé.' },
+  { id: 'opencode-zen', nom: 'OpenCode Zen', url: 'https://opencode.ai/zen/v1', cles: 'https://opencode.ai/auth',
+    modeles: [], note: 'Chargez la liste des modèles après avoir collé votre clé.' },
+  { id: 'opencode-go', nom: 'OpenCode Go (abonnement)', url: 'https://opencode.ai/zen/go/v1', cles: 'https://opencode.ai/auth',
+    modeles: [], note: 'Chargez la liste des modèles après avoir collé votre clé.' },
   { id: 'custom', nom: 'Autre adresse (OpenAI-compatible)', url: '', cles: '', modeles: [] },
 ];
 

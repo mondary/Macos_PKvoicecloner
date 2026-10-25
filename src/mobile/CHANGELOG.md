@@ -1,5 +1,10 @@
 # PK Reader Android
 
+## [2026.10.71] - 2026-10-25
+
+### Added
+- **OpenCode Zen et OpenCode Go** ajoutés aux fournisseurs IA : sélection dans la liste, adresse `https://opencode.ai/zen/v1` (ou `/zen/go/v1`) remplie automatiquement, lien vers `opencode.ai/auth`, puis chargement des modèles par le bouton habituel.
+
 ## [2026.10.70] - 2026-10-25
 
 ### Added

@@ -13,6 +13,8 @@ describe('fournisseurs IA', () => {
   it('retrouve le fournisseur depuis l’adresse enregistrée, même avec une barre finale', () => {
     expect(fournisseurParUrl('https://api.deepseek.com/v1/').id).toBe('deepseek');
     expect(fournisseurParUrl('https://api.openai.com/v1').id).toBe('openai');
+    expect(fournisseurParUrl('https://opencode.ai/zen/v1').id).toBe('opencode-zen');
+    expect(fournisseurParUrl('https://opencode.ai/zen/go/v1').id).toBe('opencode-go');
     expect(fournisseurParUrl('https://exemple.invalid/v1').id).toBe('custom');
     expect(fournisseurParUrl('').id).toBe('custom');
     expect(fournisseurParId('zai').url).toBe('https://api.z.ai/api/paas/v4');

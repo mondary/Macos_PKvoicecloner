@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.77] - 2026-10-25
+
+### Changed
+- **PK Reader Android 2026.10.69 — une page « Gérer le livre »** à la place du menu ⋯ : bouton visible dans la bibliothèque et le lecteur, actions listées avec leur explication, état de préparation affiché sur place.
+
 ## [2026.10.76] - 2026-10-25
 
 ### Changed

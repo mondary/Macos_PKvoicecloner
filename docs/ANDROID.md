@@ -4,7 +4,7 @@ PK Reader est l’application de lecture personnelle du projet. Elle importe des
 
 ## Installer
 
-Le workflow **Android Reader** construit un APK de développement pour Android 8+ en ARM64 et x86_64. À chaque build réussi, l’APK est publié sur la release `pk-<version>` : lien direct `https://github.com/mondary/Macos_PKvoicecloner/releases/download/pk-<version>/PK-Reader-<version>-debug.apk` — par exemple `https://github.com/mondary/Macos_PKvoicecloner/releases/download/pk-2026.10.68/PK-Reader-2026.10.68-debug.apk`. Le badge **Latest** est réservé à la dernière livraison Android ; les DMG restent accessibles dans leurs releases `v…`. Les notes de la release reprennent la section correspondante du changelog Android. L’artefact CI du même nom reste disponible. Ce paquet sert aux essais ; il n’est pas publié sur Google Play.
+Le workflow **Android Reader** construit un APK de développement pour Android 8+ en ARM64 et x86_64. À chaque build réussi, l’APK est publié sur la release `pk-<version>` : lien direct `https://github.com/mondary/Macos_PKvoicecloner/releases/download/pk-<version>/PK-Reader-<version>-debug.apk` — par exemple `https://github.com/mondary/Macos_PKvoicecloner/releases/download/pk-2026.10.69/PK-Reader-2026.10.69-debug.apk`. Le badge **Latest** est réservé à la dernière livraison Android ; les DMG restent accessibles dans leurs releases `v…`. Les notes de la release reprennent la section correspondante du changelog Android. L’artefact CI du même nom reste disponible. Ce paquet sert aux essais ; il n’est pas publié sur Google Play.
 
 **Vérifier la version** — le même numéro se lit partout : nom du fichier APK, nom de l’artefact GitHub, écran Android **Paramètres → Applications → PK Reader**, et dans l’app en bas de la bibliothèque et dans **Réglages → À propos**. Le workflow refuse un APK dont le `versionName` ne correspond pas à ce numéro.
 
@@ -53,14 +53,14 @@ Le clonage d’une nouvelle voix n’est pas exécuté sur le téléphone dans c
 
 La passerelle est indépendante du serveur principal et s’arrête avec Ctrl-C. Elle expose seulement l’état, les voix, l’attribution des personnages, la génération, le suivi des tâches et les audios générés. Le code est conservé dans `~/.config/pkvoicecloner/mobile-token` avec des droits limités au propriétaire. Les appels utilisent un en-tête Bearer ; la passerelle locale fonctionne en HTTP et doit rester sur votre réseau de confiance. Aucun port n’est à ouvrir sur votre routeur.
 
-## Préparer, relancer, supprimer — le menu du livre
+## Gérer un livre — une page, pas un menu
 
-Le bouton **⋯** du livre ouvre son menu, **depuis la bibliothèque comme depuis le lecteur** (bouton ⋯ de l’en-tête) :
+Chaque livre a un bouton **Gérer** visible sur sa fiche dans la bibliothèque, et l’en-tête du lecteur propose le même bouton. Il ouvre une **page dédiée** où chaque action est affichée avec une phrase qui l’explique :
 
 - **Préparer le livre audio** — la séquence complète en un bouton : analyse des personnages (IA du téléphone ou repérage local), téléchargement des voix manquantes, puis mise en cache du livre, chapitre par chapitre. Gardez l’app ouverte ; chaque étape est annoncée, les passages déjà générés sont sautés à la reprise, et les chapitres dont un rôle utilise la voix du téléphone sont lus en direct au lieu d’être mis en cache — le bilan final le précise.
-- **Les voix de ce livre** — la fiche personnages et voix.
+- **Personnages et voix** — la fiche personnages et voix, avec l’état de l’analyse.
 - **Relancer l’analyse des personnages** — recalcule les attributions automatiques avec la méthode active ; corrections manuelles, voix et réglages conservés.
-- **Reconstituer les paragraphes**, **Effacer les audios préparés**, **Supprimer ce livre de la bibliothèque** (le fichier d’origine reste intact).
+- **Reconstituer les paragraphes**, **Effacer les audios préparés**, et **Supprimer ce livre de la bibliothèque** (le fichier d’origine reste intact) — chacun avec son explication.
 
 ## Une voix par personnage
 

@@ -1,5 +1,11 @@
 # PK Reader Android
 
+## [2026.10.69] - 2026-10-25
+
+### Changed
+- **Fini le menu ⋯ du livre** : un bouton **Gérer** visible (bibliothèque et lecteur) ouvre une page dédiée où chaque action est affichée avec une phrase d’explication — préparer le livre audio, personnages et voix, relancer l’analyse, reconstituer les paragraphes, effacer les audios, supprimer. Plus d’actions cachées dans un menu.
+- L’état de la préparation complète s’affiche directement sur la page du livre.
+
 ## [2026.10.68] - 2026-10-25
 
 ### Changed

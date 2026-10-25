@@ -1,6 +1,6 @@
 # PK Reader — feuille de route lecteur
 
-Retours des 21 au 25/10. État des sources au 2026.10.73.
+Retours des 21 au 25/10. État des sources au 2026.10.74.
 
 ## Fait
 
@@ -26,6 +26,7 @@ Retours des 21 au 25/10. État des sources au 2026.10.73.
 - Page « Gérer le livre » à la place du menu ⋯ : bouton visible dans la bibliothèque et le lecteur, actions expliquées une par une, état de préparation sur place — 2026.10.69.
 - Configuration IA guidée : fournisseur (GLM/Z.ai, DeepSeek, OpenAI, Mistral, Groq, OpenRouter), adresse et page de clés pré-remplies, liste des modèles chargée depuis le fournisseur — 2026.10.70.
 - OpenCode Zen et OpenCode Go ajoutés aux fournisseurs IA guidés — 2026.10.71 ; session OpenCode Go et modèles gratuits masqués — 2026.10.73.
+- Bibliothèque repensée et couvertures importées au contour réel, sans cadre — 2026.10.74.
 
 ## Reste
 

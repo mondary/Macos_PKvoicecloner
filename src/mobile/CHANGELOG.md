@@ -1,5 +1,12 @@
 # PK Reader Android
 
+## [2026.10.74] - 2026-10-25
+
+### Changed
+- **Bibliothèque repensée** : couvertures plus grandes, titres en Literata sur deux lignes, métadonnées plus lisibles, barre de progression fine, badge « Terminé » repensé et bouton « Gérer » discret.
+- **Couvertures importées** : plus de cadre, de tranche factice ni de fond blanc ; l’image garde son contour et sa proportion réels, avec une ombre qui suit l’image. Les couvertures générées conservent leur reliure.
+- État vide illustré, tuile d’importation plus douce, compteur « X livres · Y en cours ».
+
 ## [2026.10.73] - 2026-10-25
 
 ### Fixed

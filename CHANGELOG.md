@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.82] - 2026-10-25
+
+### Changed
+- **PK Reader Android 2026.10.74** : bibliothèque repensée (couvertures et titres plus grands, métadonnées affinées, progression fine) et couvertures importées sans cadre, au contour réel de l’image.
+
 ## [2026.10.81] - 2026-10-25
 
 ### Fixed

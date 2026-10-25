@@ -29,6 +29,18 @@ Le harnais rend `<dialog open>` en non-modal : la règle
 positionnement modal réel (feuille ancrée en bas). Le premier
 « Voir un passage attribué » est ouvert pour montrer la preuve de parole.
 
+## Capture « Réglages » (onglets)
+
+Les trois onglets de la page Réglages (Lecture / Voix & analyse / À propos)
+peuvent être rendus hors app : le module `settings-view.ts` est pur.
+
+```sh
+PK_SETTINGS_SHOT=1 pnpm exec vitest run src/mobile/tests/capture-settings.test.ts
+```
+
+→ écrit `store/media-kit/settings-{lecture,voix,apropos}.html`, prêts pour Iris
+(`iris --size 390x844 --scale 1 file://…/settings-lecture.html`).
+
 ## Polices
 
 `fonts/` contient les woff2 latins de DM Sans (400/500/600/700) et Literata

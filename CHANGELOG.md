@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.76] - 2026-10-25
+
+### Changed
+- **PK Reader Android 2026.10.68 — Réglages en onglets** : Lecture, Voix & analyse, À propos. Les réglages de lecture sont regroupés et partagés avec la feuille rapide du lecteur.
+
 ## [2026.10.75] - 2026-10-25
 
 ### Added

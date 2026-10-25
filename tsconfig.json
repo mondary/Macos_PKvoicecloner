@@ -6,5 +6,5 @@
     "types": ["vite/client"]
   },
   "include": ["src/mobile/**/*.ts", "capacitor.config.ts"],
-  "exclude": ["src/mobile/tests/capture-casting.test.ts"]
+  "exclude": ["src/mobile/tests/capture-casting.test.ts", "src/mobile/tests/capture-settings.test.ts"]
 }

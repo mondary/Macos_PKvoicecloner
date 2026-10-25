@@ -1,5 +1,10 @@
 # PK Reader Android
 
+## [2026.10.68] - 2026-10-25
+
+### Changed
+- **Réglages réorganisés en onglets** : Lecture, Voix & analyse, À propos — plus de page unique interminable. Les réglages de lecture (thème, taille, interligne, marges, mise en page, vitesse, surlignage, suivi) sont regroupés au même endroit, et le bouton « Apparence » du lecteur ouvre exactement le même contenu en feuille rapide.
+
 ## [2026.10.67] - 2026-10-25
 
 ### Added

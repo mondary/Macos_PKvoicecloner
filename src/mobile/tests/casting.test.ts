@@ -178,6 +178,46 @@ describe('préparation automatique du livre', () => {
     expect(book.casting!.analysis!.state).toBe('error');
   });
 
+  it('analyse le chapitre à écouter en priorité et prévient dès qu’il est prêt', async () => {
+    const book = fixture();
+    book.segments = Array.from({ length: 9 }, (_, i) => `Phrase ${i}.`);
+    book.chapters = [{ title: 'Un', start: 0, end: 3 }, { title: 'Deux', start: 3, end: 6 }, { title: 'Trois', start: 6, end: 9 }];
+    const ordre: string[] = [];
+    const prets: number[] = [];
+    const progressions: number[] = [];
+    const request = async (input: Parameters<Parameters<typeof analyserLivre>[3]>[0]) => {
+      ordre.push(input.phrases[0]);
+      return { personnages: [], locuteurs: input.phrases.map(() => 'narrateur') };
+    };
+    await analyserLivre(book, catalog, defaults.voice, request,
+      async p => { progressions.push(p.total); }, () => false,
+      { priorite: 3, chapitrePret: start => prets.push(start) });
+    // Le chapitre prioritaire passe devant, puis l'ordre du livre reprend.
+    expect(ordre).toEqual(['Phrase 3.', 'Phrase 0.', 'Phrase 6.']);
+    expect(prets[0]).toBe(3);
+    expect(prets.sort((a, b) => a - b)).toEqual([0, 3, 6]);
+    expect(book.casting!.analysis!.state).toBe('ready');
+    expect(progressions.every(total => total === 3)).toBe(true);
+    expect(book.casting!.analysis!.completed).toHaveLength(3);
+  });
+
+  it('annonce un chapitre prioritaire déjà analysé sans refaire son lot', async () => {
+    const book = fixture();
+    book.segments = Array.from({ length: 6 }, (_, i) => `Phrase ${i}.`);
+    book.chapters = [{ title: 'Un', start: 0, end: 3 }, { title: 'Deux', start: 3, end: 6 }];
+    const cast = ensureCasting(book);
+    cast.analysis = { completed: ['0:3'], state: 'partial' };
+    const prets: number[] = [];
+    let demandes = 0;
+    await analyserLivre(book, catalog, defaults.voice, async input => {
+      demandes++; expect(input.phrases[0]).toBe('Phrase 3.');
+      return { personnages: [], locuteurs: input.phrases.map(() => 'narrateur') };
+    }, async () => {}, () => false, { priorite: 0, chapitrePret: start => prets.push(start) });
+    expect(demandes).toBe(1);
+    expect(prets[0]).toBe(0);
+    expect(book.casting!.analysis!.state).toBe('ready');
+  });
+
   it('propose des timbres distincts et respecte langue, genre et voix manuelles', () => {
     const cast = ensureCasting(fixture());
     cast.characters.push({ id: 'pierre', name: 'Pierre', gender: 'homme', voice: '', pitch: 1, rate: 1, autoRole: false },

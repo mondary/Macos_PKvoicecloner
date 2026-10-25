@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.85] - 2026-10-25
+
+### Changed
+- **PK Reader Android 2026.10.77** : « Préparer et écouter » analyse le chapitre courant en priorité et démarre la lecture pendant que le reste du livre s'analyse en arrière-plan ; la file audio se rafraîchit aux changements de chapitre.
+
 ## [2026.10.84] - 2026-10-25
 
 ### Added

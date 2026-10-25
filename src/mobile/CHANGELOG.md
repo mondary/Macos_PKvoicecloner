@@ -1,5 +1,12 @@
 # PK Reader Android
 
+## [2026.10.77] - 2026-10-25
+
+### Changed
+- **Préparation chapitre par chapitre** : « Préparer et écouter » analyse le chapitre à écouter en priorité, télécharge ses voix manquantes, puis démarre la lecture pendant que le reste du livre continue de s'analyser en arrière-plan. Les voix découvertes en route sont téléchargées pendant l'écoute.
+- **File audio rafraîchie sans coupure** : quand l'analyse s'affine pendant l'écoute, la file est reconstruite au prochain changement de chapitre, jamais en plein passage.
+- À l'ouverture d'un livre, le chapitre en cours passe devant les autres dans l'analyse. La mise en cache hors ligne reste disponible depuis le lecteur (« Emporter ce chapitre »).
+
 ## [2026.10.76] - 2026-10-25
 
 ### Added

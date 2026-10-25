@@ -27,8 +27,10 @@ export function watchCasting(listener: (id: string) => void) {
 const notify = (book: Book) => listeners.forEach(fn => fn(book.id));
 
 /** Les imports multiples sont préparés en série ; fermer la feuille ne perd pas
- *  le travail. Chaque lot est sauvegardé, une relance reprend les lots manquants. */
-export function prepareCasting(book: Book, available: Voice[], settings: Settings): Promise<void> {
+ *  le travail. Chaque lot est sauvegardé, une relance reprend les lots manquants.
+ *  `options.priorite` fait passer le chapitre à écouter devant les autres. */
+export function prepareCasting(book: Book, available: Voice[], settings: Settings,
+  options: { priorite?: number; chapitrePret?: (chapterStart: number) => void } = {}): Promise<void> {
   const existing = jobs.get(book.id);
   if (existing) return existing;
   const ia = native ? configIA(settings) : null;
@@ -50,7 +52,8 @@ export function prepareCasting(book: Book, available: Voice[], settings: Setting
         if (courant) { courant.phase = value; activity.progress = { ...courant }; notify(book); }
       };
       await analyserLivre(book, available, settings.voice, requeteIA(Reader, ia, phase),
-        async value => { progress.set(book.id, value); activity.progress = { ...value }; await library.save(book); notify(book); });
+        async value => { progress.set(book.id, value); activity.progress = { ...value }; await library.save(book); notify(book); },
+        () => false, options);
       return;
     }
     if (!connected) return;
@@ -60,7 +63,7 @@ export function prepareCasting(book: Book, available: Voice[], settings: Setting
         progress.set(book.id, value);
         activity.progress = { ...value };
         await library.save(book); notify(book);
-      });
+      }, () => false, options);
   };
   const job = queue.then(run).then(() => {
     activity.state = 'done';

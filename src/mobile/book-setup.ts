@@ -1,5 +1,6 @@
 import { besoinsVoix, proposerVoix, speechProfile } from './casting';
 import { prepareCasting } from './casting-jobs';
+import { chapterAt } from './books';
 import { audio, native, Reader } from './engine';
 import { library } from './storage';
 import type { Book, Chapter, Settings, Voice } from './types';
@@ -26,63 +27,73 @@ const installer = async (voice: Voice, statut: (texte: string) => void) => {
   }
 };
 
-/** Attend la fin de la préparation audio d'un chapitre ; la lecture démarrée
- *  par l'utilisateur annule la séquence (le service garde la main). */
-const attendrePreparation = async (book: Book) => {
-  while (true) {
-    const state = await Reader.getState();
-    if (state.error) throw new Error(state.error);
-    if (state.playing || state.loading) throw new Error('Lecture démarrée : la préparation s’arrête, reprenez-la plus tard.');
-    if (!state.preparing) return;
-    await new Promise(resolve => setTimeout(resolve, 600));
+/** Télécharge les voix manquantes proposées puis réassocie les timbres. Les
+ *  téléchargements sont indépendants du service audio : ils peuvent continuer
+ *  pendant l'écoute. Retourne le nombre de timbres installés. */
+async function telechargerVoixManquantes(book: Book, available: Voice[], settings: Settings,
+  statut: (texte: string) => void): Promise<number> {
+  const plan = besoinsVoix(book.casting!, available, book.language);
+  if (!plan.downloads.length) return 0;
+  for (const item of plan.downloads) {
+    statut(`Téléchargement de ${item.voices.map(v => v.name).join(' + ')}…`);
+    await installer(item.voice, statut);
   }
-};
+  const catalogue = await Reader.models();
+  proposerVoix(book.casting!, catalogue.voices, settings.voice, book.language);
+  await library.save(book);
+  return plan.downloads.length;
+}
 
-/** La séquence complète, comme « Tout automatiser » du studio : analyse des
- *  personnages (IA du téléphone ou repérage local), téléchargement des voix
- *  manquantes, puis mise en cache audio du livre, chapitre par chapitre.
- *  Chaque étape est signalée ; une erreur arrête proprement avec son message. */
+/** La séquence complète, chapitre par chapitre : le chapitre à écouter est
+ *  analysé en priorité, ses voix sont téléchargées, puis la lecture démarre
+ *  pendant que le reste du livre continue d'être analysé en arrière-plan.
+ *  Les lots déjà validés sont conservés ; une erreur arrête proprement avec
+ *  son message. La mise en cache hors ligne reste disponible depuis le lecteur. */
 export async function preparerLivreAudio(book: Book, available: Voice[], settings: Settings,
-  statut: (texte: string) => void): Promise<void> {
+  statut: (texte: string) => void, demarrerLecture?: () => Promise<void>): Promise<void> {
   if (!native) throw new Error('La préparation complète se lance depuis l’APK Android.');
-  // 1. Analyse des personnages, si elle n'est pas déjà terminée.
+  const chapitre = chapterAt(book);
+  // 1. Analyse du chapitre courant en priorité — on n'attend pas le livre entier.
   const analyse = () => book.casting?.analysis;
+  let liberer!: () => void;
+  const chapitrePret = new Promise<void>(resolve => { liberer = resolve; });
+  statut(`Analyse du chapitre « ${chapitre.title} » en priorité…`);
+  const arrierePlan = prepareCasting(book, available, settings, {
+    priorite: chapitre.start,
+    chapitrePret: start => { if (start === chapitre.start) liberer(); },
+  });
+  arrierePlan.catch(() => {}); // le rejet est traité par la course ou la suite
   if (analyse()?.state !== 'ready') {
-    statut('Analyse des personnages…');
-    await prepareCasting(book, available, settings);
-    const resultat = analyse();
-    if (resultat?.state !== 'ready') {
-      throw new Error(resultat?.error ?? 'L’analyse ne s’est pas terminée. Reprenez la préparation.');
-    }
+    // Seule une erreur survenant avant la fin du chapitre bloque la lecture.
+    await Promise.race([chapitrePret, arrierePlan]);
   }
   // 2. Télécharger les voix manquantes proposées, puis réassocier les timbres.
-  const plan = besoinsVoix(book.casting!, available, book.language);
-  if (plan.downloads.length) {
-    for (const item of plan.downloads) {
-      statut(`Téléchargement de ${item.voices.map(v => v.name).join(' + ')}…`);
-      await installer(item.voice, statut);
-    }
-    const catalogue = await Reader.models();
-    proposerVoix(book.casting!, catalogue.voices, settings.voice, book.language);
-    await library.save(book);
+  if (await telechargerVoixManquantes(book, available, settings, statut)) {
+    statut('Voix du chapitre installées.');
   }
-  // 3. Recharger la file de lecture avec la distribution à jour.
-  statut('Rechargement du livre…');
-  await audio.pause();
-  await audio.load(book, settings);
-  // 4. Mise en cache audio, chapitre par chapitre (reprise possible : les
-  //    passages déjà générés sont sautés par leur empreinte).
-  const chapitres = chapitresPreparables(book, settings);
-  const preparables = chapitres.filter(c => c.preparable);
-  let faits = 0;
-  for (const { chapitre } of preparables) {
-    statut(`Préparation audio · chapitre ${faits + 1} / ${preparables.length}…`);
-    await Reader.command({ action: 'prepare', index: chapitre.start, end: chapitre.end });
-    await attendrePreparation(book);
-    faits++;
+  // 3. Lecture immédiate : le reste de l'analyse continue en arrière-plan et
+  //    la file est rechargée au prochain changement de chapitre.
+  if (demarrerLecture) {
+    statut(`Lecture de « ${chapitre.title} » — le reste du livre s’analyse en arrière-plan.`);
+    await demarrerLecture();
+  } else {
+    statut('Rechargement du livre…');
+    await audio.pause();
+    await audio.load(book, settings);
   }
-  const exclus = chapitres.length - preparables.length;
-  statut(exclus
-    ? `Livre prêt : ${faits} chapitre${faits > 1 ? 's' : ''} mis en cache · ${exclus} en voix du téléphone (lecture en direct).`
-    : `Livre prêt : ${faits} chapitre${faits > 1 ? 's' : ''} mis en cache.`);
+  // 4. Arrière-plan : fin de l'analyse, voix découvertes en route, statut final.
+  void suiteArrierePlan(arrierePlan, book, available, settings, statut);
+}
+
+async function suiteArrierePlan(arrierePlan: Promise<void>, book: Book, available: Voice[], settings: Settings,
+  statut: (texte: string) => void) {
+  try {
+    await arrierePlan;
+    const resultat = book.casting?.analysis;
+    if (resultat?.state !== 'ready') throw new Error(resultat?.error ?? 'L’analyse ne s’est pas terminée. Reprenez-la plus tard.');
+    await telechargerVoixManquantes(book, available, settings, () => {});
+    statut('Analyse terminée : la distribution s’affine au fil des chapitres. Pour l’écoute hors ligne, « Emporter ce chapitre » reste disponible dans le lecteur.');
+  } catch (error) {
+    statut(`Analyse interrompue : ${error instanceof Error ? error.message : error} Les lots déjà validés sont conservés.`);
+  }
 }

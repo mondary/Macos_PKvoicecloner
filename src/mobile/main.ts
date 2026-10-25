@@ -48,6 +48,10 @@ let toastTimer: ReturnType<typeof setTimeout>;
 let downloading = false;
 let systemTheme = '';
 let wasPreparing = false;
+/** Chapitre audio en cours (détection du changement de chapitre) et livre dont
+ *  la distribution a été affinée pendant l'écoute (rechargement différé). */
+let chapitreCharge = -1;
+let rafraichissementAttente = '';
 /** Séquence « Tout préparer » : livre en cours de préparation complète. */
 let bookSetup: string | null = null;
 let setupStatus = '';
@@ -589,12 +593,21 @@ function castingSheet(book: Book) {
 }
 function prepareBook(book: Book) {
   if (!book.sample && (analyseLocalePerimee(book) || book.casting?.analysis?.state !== 'ready')) {
-    void prepareCasting(book, allVoices(), settings).catch(error => toast(`${book.title} : ${error instanceof Error ? error.message : error}`));
+    // Le chapitre à l'écoute passe devant : la lecture profite de l'analyse
+    // affinée sans attendre que tout le livre soit traité.
+    void prepareCasting(book, allVoices(), settings, { priorite: chapterAt(book).start })
+      .catch(error => toast(`${book.title} : ${error instanceof Error ? error.message : error}`));
   }
 }
 watchCasting(id => {
   const book = books.find(b => b.id === id);
-  if (book && !castingBusy(book) && screen === 'library') { render(); return; }
+  if (!book) return;
+  if (!castingBusy(book)) {
+    // Distribution affinée pendant l'écoute : la file audio est rechargée au
+    // prochain changement de chapitre pour ne pas couper le passage en cours.
+    if (audio.state.bookId === id) rafraichissementAttente = id;
+    if (screen === 'library') { render(); return; }
+  }
   refreshActivities();
 });
 function refreshActivities() {
@@ -666,6 +679,21 @@ function updatePlayback() {
   const changed = savedPosition !== `${book.id}:${audio.state.index}`;
   book.position = audio.state.index; book.completed = book.position >= book.segments.length;
   if (changed) { savedPosition = `${book.id}:${book.position}`; void library.save(book).catch(e => toast(String(e))); }
+
+  // L'analyse s'est affinée pendant l'écoute : au changement de chapitre, la
+  // file est reconstruite avec la distribution à jour — jamais en plein passage.
+  const chapitreCourant = chapterAt(book);
+  if (rafraichissementAttente === book.id && audio.state.bookId === book.id
+      && chapitreCourant.start !== chapitreCharge && !audio.state.preparing) {
+    rafraichissementAttente = '';
+    const reprise = audio.state.playing; const index = audio.state.index;
+    void (async () => {
+      await audio.load(book, settings);
+      await audio.seek(index);
+      if (reprise) await audio.play();
+    })().catch(e => toast(e instanceof Error ? e.message : String(e)));
+  }
+  chapitreCharge = chapitreCourant.start;
 
   if (screen === 'reader' && currentId === book.id) {
     const chapter = chapterAt(book);
@@ -846,18 +874,27 @@ async function handle(action: string, el: HTMLElement) {
       const b = books.find(b => b.id === id); if (!b) break;
       if (castingBusy(b) || bookSetup) { toast('Une préparation est déjà en cours pour ce livre.'); break; }
       const ia = settings.ia?.enabled && settings.ia.modele ? `l’IA ${esc(settings.ia.modele)}` : 'le repérage local';
-      modal('Préparer le livre audio ?', `<p class="sheet-description">Toute la séquence enchaînée : analyse des personnages (${ia}), téléchargement des voix manquantes, puis mise en cache du livre pour l’écoute hors ligne. Vos corrections et vos voix sont conservées. Gardez l’app ouverte ; vous pouvez suivre la progression et reprendre en cas d’interruption.</p><button class="primary" data-action="prepare-book-run" data-id="${id}">${icon('wand-sparkles')} Tout préparer</button>`);
+      modal('Préparer le livre audio ?', `<p class="sheet-description">Le chapitre à écouter est analysé en priorité (${ia}) : la lecture démarre dès qu'il est prêt, pendant que le reste du livre continue de s'analyser en arrière-plan. Les voix manquantes sont téléchargées au passage. Vos corrections et vos voix sont conservés ; gardez l'app ouverte. La mise en cache hors ligne reste disponible dans le lecteur (« Emporter ce chapitre »).</p><button class="primary" data-action="prepare-book-run" data-id="${id}">${icon('wand-sparkles')} Préparer et écouter</button>`);
       break;
     }
     case 'prepare-book-run': {
       const b = books.find(b => b.id === id); if (!b) break;
       bookSetup = id; setupStatus = 'Démarrage de la préparation…';
       sheet.close(); render();
+      const statut = (texte: string) => {
+        setupStatus = texte;
+        if (texte.startsWith('Téléchargement')) void pollModels();
+        if (screen === 'book' && currentId === b.id) render();
+        toast(texte);
+      };
       try {
-        await preparerLivreAudio(b, allVoices(), settings, texte => {
-          setupStatus = texte;
-          if (screen === 'book' && currentId === b.id) render();
-          toast(texte);
+        await preparerLivreAudio(b, allVoices(), settings, statut, async () => {
+          currentId = id; b.opened = Date.now();
+          await library.save(b);
+          screen = 'reader'; follow = true; page = 0; pagesKey = ''; chapitreCharge = chapterAt(b).start;
+          await audio.load(b, settings);
+          render();
+          await audio.play();
         });
       } catch (e) {
         toast(e instanceof Error ? e.message : String(e));

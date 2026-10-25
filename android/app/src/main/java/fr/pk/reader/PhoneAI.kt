@@ -33,8 +33,9 @@ object PhoneAI {
     fun endpoint(value: String): String {
         val base = value.trim().trimEnd('/').replace(Regex("/chat/completions$", RegexOption.IGNORE_CASE), "")
         val uri = URI(base)
-        require(uri.scheme == "https" && !uri.host.isNullOrBlank() && uri.userInfo == null && uri.query == null && uri.fragment == null) {
-            "Saisissez l’adresse HTTPS du fournisseur (sans clé dans l’URL)."
+        require((uri.scheme == "https" || (uri.scheme == "http" && estLocal(base))) &&
+            !uri.host.isNullOrBlank() && uri.userInfo == null && uri.query == null && uri.fragment == null) {
+            "Saisissez l’adresse du fournisseur — HTTPS, ou HTTP réservé au réseau local."
         }
         return base
     }
@@ -54,7 +55,7 @@ object PhoneAI {
             if (cleReutilisable) decrypt(context) else ""
         }
         require(!key.contains('\n') && !key.contains('\r')) { "Clé API invalide." }
-        if (key.isEmpty() && !cleReutilisable) {
+        if (key.isEmpty() && !cleReutilisable && !estLocal(base)) {
             return publicConfig(context).put("erreur", "Collez la clé API du fournisseur choisi.")
         }
         val config = Config(base, model.trim(), key, UUID.randomUUID().toString())
@@ -93,10 +94,10 @@ object PhoneAI {
      *  pour cet appel : elle n'est pas enregistrée ici. */
     fun modeles(context: Context, url: String, cle: String): List<String> {
         val base = endpoint(url)
-        require(cle.isNotBlank()) { "Collez la clé API pour charger les modèles." }
+        require(cle.isNotBlank() || estLocal(base)) { "Collez la clé API pour charger les modèles." }
         val connexion = (URL(modelesUrl(base)).openConnection() as HttpURLConnection).apply {
             connectTimeout = 15000; readTimeout = 20000; requestMethod = "GET"
-            setRequestProperty("Authorization", "Bearer $cle")
+            if (cle.isNotBlank()) setRequestProperty("Authorization", "Bearer $cle")
             setRequestProperty("Accept", "application/json")
             setRequestProperty("User-Agent", agent(context))
             if (estOpenCode(base)) setRequestProperty("x-opencode-session", session(context))
@@ -160,6 +161,15 @@ object PhoneAI {
     private fun estOpenCode(url: String): Boolean {
         val host = runCatching { URI(url).host }.getOrNull() ?: return false
         return host.equals("opencode.ai", true) || host.endsWith(".opencode.ai", true)
+    }
+
+    /** Adresses locales et réseau privé (llama.cpp, Ollama, LM Studio sur le
+     *  Mac ou le téléphone) : HTTP accepté, clé facultative, rien vers le cloud. */
+    private fun estLocal(url: String): Boolean {
+        val host = runCatching { URI(url).host }.getOrNull() ?: return false
+        return host == "localhost" || host == "127.0.0.1" || host == "[::1]" || host == "::1" ||
+            host.startsWith("192.168.") || host.startsWith("10.") ||
+            Regex("^172\\.(1[6-9]|2\\d|3[01])\\.").containsMatchIn(host)
     }
 
     private fun secretKey(): SecretKey {

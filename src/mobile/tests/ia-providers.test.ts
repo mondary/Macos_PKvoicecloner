@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { FOURNISSEURS, fournisseurParId, fournisseurParUrl, optionsModeles } from '../ia-providers';
+import { FOURNISSEURS, adresseLocale, fournisseurParId, fournisseurParUrl, optionsModeles } from '../ia-providers';
 
 describe('fournisseurs IA', () => {
   it('remplit l’adresse et la page des clés pour chaque fournisseur connu', () => {
     for (const f of FOURNISSEURS.filter(f => f.id !== 'custom')) {
-      expect(f.url).toMatch(/^https:\/\//);
-      expect(f.cles).toMatch(/^https:\/\//);
+      expect(f.url).toMatch(/^https?:\/\//);
+      // Seule l'IA locale se passe de clé cloud.
+      if (f.id !== 'local') expect(f.cles).toMatch(/^https:\/\//);
       expect(f.nom.length).toBeGreaterThan(2);
     }
   });
@@ -39,5 +40,14 @@ describe('fournisseurs IA', () => {
       .toEqual(['glm-5.3', 'glm-5.3-flash-free']);
     // Les autres fournisseurs ne sont pas filtrés.
     expect(optionsModeles(fournisseurParId('custom'), '', ['modele-free'])).toEqual(['modele-free']);
+  });
+
+  it('reconnaît une IA locale (HTTP privé) sans exiger de clé cloud', () => {
+    expect(adresseLocale('http://192.168.1.20:11434/v1')).toBe(true);
+    expect(adresseLocale('http://127.0.0.1:8080/v1')).toBe(true);
+    expect(adresseLocale('http://localhost:1234/v1')).toBe(true);
+    expect(adresseLocale('http://51.6.7.8:11434/v1')).toBe(false);
+    expect(adresseLocale('https://api.openai.com/v1')).toBe(false);
+    expect(fournisseurParUrl('http://127.0.0.1:11434/v1').id).toBe('local');
   });
 });

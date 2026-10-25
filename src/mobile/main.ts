@@ -16,10 +16,10 @@ import type { Book, UpdateInfo, Voice } from './types';
 import { openCasting } from './casting-ui';
 import { analyseLocalePerimee, besoinsVoix, characterAt, relancerAnalyse, speechProfile } from './casting';
 import { castingBusy, castingActivities, dismissCastingActivity, prepareCasting, watchCasting } from './casting-jobs';
-import { activityView } from './activity-view';
+import { activityView, analysisChip } from './activity-view';
 import { preparerLivreAudio } from './book-setup';
 import { lectureBody, settingsViewHTML, type SettingsTab } from './settings-view';
-import { fournisseurParId, fournisseurParUrl, optionsModeles } from './ia-providers';
+import { adresseLocale, fournisseurParId, fournisseurParUrl, optionsModeles } from './ia-providers';
 import { decouperMots, motPourPlage, motPourProgression, rendreMots } from './karaoke';
 
 /* ------------------------------------------------------------------ état */
@@ -291,7 +291,7 @@ function playerHTML() {
   const speaker = characterAt(book, book.position)?.name || '';
   const focus = Boolean(settings.focus);
   const status = audio.state.error || (audio.state.preparing?`Préparation ${audio.state.prepared ?? 0} / ${audio.state.total ?? 0} passages`:audio.state.loading?`${speaker?`${speaker} · `:''}La voix prépare le prochain passage…`:isPlaying?`${speaker?`${esc(speaker)} · `:''}${esc(chapter.title)} — laissez l’histoire vous emporter.`:'Touchez une phrase pour choisir le départ.');
-  return `<section class="player ${focus ? 'reduit' : ''}" aria-label="Lecteur audio"><div class="player-top"><button class="voice-chip" data-action="choose-voice">${icon('audio-lines')}<span>${esc(characterAt(book, book.position)?.name || voiceName())}</span>${icon('chevron-down')}</button><button class="speed-chip" data-action="speed" aria-label="Vitesse de ${esc(voiceName())}">${settings.rate.toLocaleString('fr')}<span>×</span></button><button class="sleep-chip ${audio.state.sleepAt?'on':''}" data-action="sleep">${icon('moon')}${audio.state.sleepAt?`${Math.max(1,Math.ceil((audio.state.sleepAt-Date.now())/60000))} min`:'Minuteur'}</button><button class="icon-button focus-button" data-action="focus" aria-label="${focus?'Afficher les commandes':'Réduire le lecteur'}">${icon(focus?'chevrons-up':'chevrons-down')}</button></div><label class="sr-only" for="progress">Position dans le livre</label><input class="progress-slider" id="progress" type="range" min="0" max="${book.segments.length-1}" value="${Math.min(book.position,book.segments.length-1)}" style="--progress:${progress(book)}" /><div class="time-row"><span>${percent(book)} % du livre</span><span>${book.completed?'Lecture terminée':`${minutes(book)} restantes`}</span></div><div class="reader-jumps" role="group" aria-label="Navigation page et paragraphe"><button class="jump" data-action="paragraph-prev" aria-label="Paragraphe précédent">${icon('pilcrow')}<span>Préc.</span></button><button class="jump" data-action="page-prev" aria-label="Page précédente">${icon('chevron-left')}<span>Page</span></button><button class="jump" data-action="page-next" aria-label="Page suivante"><span>Page</span>${icon('chevron-right')}</button><button class="jump" data-action="paragraph-next" aria-label="Paragraphe suivant"><span>Suiv.</span>${icon('pilcrow')}</button></div><div class="transport">${iconButton('skip-back','Phrase précédente','previous')}<button class="play-button ${audio.state.loading?'loading':''}" data-action="toggle" aria-label="${isPlaying?'Mettre en pause':'Lire à voix haute'}">${icon(audio.state.loading?'loader-circle':isPlaying?'pause':'play')}</button>${iconButton('skip-forward','Phrase suivante','next')}${iconButton('download','Préparer ce chapitre hors ligne','prepare')}</div><p class="player-status" aria-live="polite">${esc(status)}</p></section>`;
+  return `<section class="player ${focus ? 'reduit' : ''}" aria-label="Lecteur audio"><div class="player-top"><button class="voice-chip" data-action="choose-voice">${icon('audio-lines')}<span>${esc(characterAt(book, book.position)?.name || voiceName())}</span>${icon('chevron-down')}</button><button class="speed-chip" data-action="speed" aria-label="Vitesse de ${esc(voiceName())}">${settings.rate.toLocaleString('fr')}<span>×</span></button><button class="sleep-chip ${audio.state.sleepAt?'on':''}" data-action="sleep">${icon('moon')}${audio.state.sleepAt?`${Math.max(1,Math.ceil((audio.state.sleepAt-Date.now())/60000))} min`:'Minuteur'}</button>${analysisChip(castingActivities(), book.id)}<button class="icon-button focus-button" data-action="focus" aria-label="${focus?'Afficher les commandes':'Réduire le lecteur'}">${icon(focus?'chevrons-up':'chevrons-down')}</button></div><label class="sr-only" for="progress">Position dans le livre</label><input class="progress-slider" id="progress" type="range" min="0" max="${book.segments.length-1}" value="${Math.min(book.position,book.segments.length-1)}" style="--progress:${progress(book)}" /><div class="time-row"><span>${percent(book)} % du livre</span><span>${book.completed?'Lecture terminée':`${minutes(book)} restantes`}</span></div><div class="reader-jumps" role="group" aria-label="Navigation page et paragraphe"><button class="jump" data-action="paragraph-prev" aria-label="Paragraphe précédent">${icon('pilcrow')}<span>Préc.</span></button><button class="jump" data-action="page-prev" aria-label="Page précédente">${icon('chevron-left')}<span>Page</span></button><button class="jump" data-action="page-next" aria-label="Page suivante"><span>Page</span>${icon('chevron-right')}</button><button class="jump" data-action="paragraph-next" aria-label="Paragraphe suivant"><span>Suiv.</span>${icon('pilcrow')}</button></div><div class="transport">${iconButton('skip-back','Phrase précédente','previous')}<button class="play-button ${audio.state.loading?'loading':''}" data-action="toggle" aria-label="${isPlaying?'Mettre en pause':'Lire à voix haute'}">${icon(audio.state.loading?'loader-circle':isPlaying?'pause':'play')}</button>${iconButton('skip-forward','Phrase suivante','next')}${iconButton('download','Préparer ce chapitre hors ligne','prepare')}</div><p class="player-status" aria-live="polite">${esc(status)}</p></section>`;
 }
 function nowBar() {
   return `<aside class="now-bar" id="now-bar" hidden data-action="follow" role="button" tabindex="0" aria-label="Revenir à la phrase en cours"><span class="now-wave" aria-hidden="true"><b></b><b></b><b></b></span><div class="now-copy"><small>EN COURS · <span id="now-chapter"></span></small><p id="now-text"></p></div><span class="now-return">${icon('locate-fixed')}<i>Revenir</i></span></aside>`;
@@ -321,7 +321,7 @@ function bookView() {
   return `<header class="book-page-head">${iconButton('arrow-left','Retour à la bibliothèque','back')}<div><p class="eyebrow">VOTRE LIVRE</p><h1>${esc(book.title.replace(/\n/g,' '))}</h1><p>${esc(book.author)} · ${book.format}${book.completed ? ' · lu en entier' : book.position > 0 ? ` · ${percent(book)} %` : ''}</p></div></header>
   <section class="book-hero"><div class="book-detail-cover">${cover(book)}</div><div class="book-hero-copy"><p class="section-description">${book.position > 0 ? `${percent(book)} % lu${book.completed ? '' : ` · ${minutes(book)} restantes`}` : 'Pas encore commencé'}</p><button class="primary" data-action="listen" data-id="${book.id}">${icon('play')} ${book.completed ? 'Réécouter' : book.position > 0 ? 'Reprendre l’écoute' : 'Écouter'}</button></div></section>
   <section class="settings-section"><h2>Écouter et préparer</h2>
-    ${actionRow('prepare-book', book.id, 'wand-sparkles', 'Préparer le livre audio', 'Enchaîne l’analyse des personnages, le téléchargement des voix manquantes et la mise en cache du livre pour l’écoute hors ligne.')}
+    ${actionRow('prepare-book', book.id, 'wand-sparkles', 'Préparer et écouter', 'Analyse le chapitre à écouter en priorité puis démarre la lecture ; le reste du livre continue de s’analyser en arrière-plan, chapitre par chapitre.')}
     ${prepare}
     ${actionRow('casting', book.id, 'users', 'Personnages et voix', `${analyse} · vérifier les rôles et choisir une voix pour chacun.`)}
   </section>
@@ -573,7 +573,8 @@ function settingsView() {
 function render() {
   savePrefs();
   app.className = `app-shell ${screen==='reader'?'reader-mode':''} layout-${settings.layout} ${active()?'has-player':''}`;
-  app.innerHTML = `${navigation()}<main id="main" class="main-content ${screen==='reader'?'reader-content':''}"><section id="analysis-activities" aria-label="Suivi des analyses" aria-live="polite" aria-relevant="additions text">${activityView(castingActivities())}</section>${screen==='library'?libraryView():screen==='reader'?readerView():screen==='voices'?voicesView():screen==='book'?bookView():settingsView()}</main>${miniPlayer()}`;
+  app.innerHTML = `${navigation()}<main id="main" class="main-content ${screen==='reader'?'reader-content':''}"><div id="analysis-activities" role="region" aria-label="Suivi des analyses" aria-live="polite" aria-relevant="additions text">${screen==='reader' ? '' : activityView(castingActivities())}</div>${screen==='library'?libraryView():screen==='reader'?readerView():screen==='voices'?voicesView():screen==='book'?bookView():settingsView()}</main>${miniPlayer()}`;
+  orchestrerFermeture();
   decorate();
   if (screen === 'reader') {
     observePlayer();
@@ -611,17 +612,31 @@ watchCasting(id => {
   refreshActivities();
 });
 function refreshActivities() {
+  // Pastille flottante hors lecteur ; puce du lecteur sinon. La bulle ne
+  // décale plus la mise en page : aucun repagination nécessaire.
+  if (screen === 'reader') { replacePlayer(); orchestrerFermeture(); return; }
   const region = document.querySelector('#analysis-activities');
   if (!region) return;
-  const height = region.getBoundingClientRect().height;
-  // Ne pas reconstruire les formulaires, ni perdre le focus à chaque phase IA.
+  // Ne pas perdre le focus clavier à chaque phase IA.
   const focused = region.contains(document.activeElement) ? document.activeElement as HTMLElement : null;
   const action = focused?.dataset.action, id = focused?.dataset.id;
   region.innerHTML = activityView(castingActivities());
+  decorate();
   if (action) [...region.querySelectorAll<HTMLElement>('[data-action]')]
     .find(el => el.dataset.action === action && el.dataset.id === id)?.focus({ preventScroll: true });
-  if (screen === 'reader' && settings.layout === 'pages' && height !== region.getBoundingClientRect().height) {
-    pagesKey = ''; mountPages();
+  orchestrerFermeture();
+}
+/** Un bilan « Analyse terminée » se ferme seul après quelques secondes ; une
+ *  erreur reste jusqu'à ce qu'on la lise et la ferme. */
+const fermeturesProgrammees = new Map<string, ReturnType<typeof setTimeout>>();
+function orchestrerFermeture() {
+  for (const item of castingActivities()) {
+    if (item.state !== 'done' || fermeturesProgrammees.has(item.id)) continue;
+    fermeturesProgrammees.set(item.id, setTimeout(() => {
+      fermeturesProgrammees.delete(item.id);
+      dismissCastingActivity(item.id);
+      refreshActivities();
+    }, 6000));
   }
 }
 async function openBook(id: string, listen = false) {
@@ -874,7 +889,7 @@ async function handle(action: string, el: HTMLElement) {
       const b = books.find(b => b.id === id); if (!b) break;
       if (castingBusy(b) || bookSetup) { toast('Une préparation est déjà en cours pour ce livre.'); break; }
       const ia = settings.ia?.enabled && settings.ia.modele ? `l’IA ${esc(settings.ia.modele)}` : 'le repérage local';
-      modal('Préparer le livre audio ?', `<p class="sheet-description">Le chapitre à écouter est analysé en priorité (${ia}) : la lecture démarre dès qu'il est prêt, pendant que le reste du livre continue de s'analyser en arrière-plan. Les voix manquantes sont téléchargées au passage. Vos corrections et vos voix sont conservés ; gardez l'app ouverte. La mise en cache hors ligne reste disponible dans le lecteur (« Emporter ce chapitre »).</p><button class="primary" data-action="prepare-book-run" data-id="${id}">${icon('wand-sparkles')} Préparer et écouter</button>`);
+      modal('Préparer le livre audio ?', `<p class="sheet-description">Le chapitre à écouter est analysé en priorité (${ia}) : la lecture démarre dès qu'il est prêt, pendant que le reste du livre continue de s'analyser en arrière-plan, chapitre par chapitre. Les voix manquantes sont téléchargées au passage ; celles que vous choisissez servent tout le livre, sans rien redemander aux chapitres suivants. Selon le modèle, l'analyse fine peut aller de quelques minutes à plusieurs heures — lancez-la le soir si besoin, elle reprend où elle s'était arrêtée. La mise en cache hors ligne reste disponible dans le lecteur (« Emporter ce chapitre »).</p><button class="primary" data-action="prepare-book-run" data-id="${id}">${icon('wand-sparkles')} Préparer et écouter</button>`);
       break;
     }
     case 'prepare-book-run': {
@@ -953,7 +968,7 @@ async function handle(action: string, el: HTMLElement) {
       const bouton = document.querySelector<HTMLButtonElement>('[data-action="ia-load-models"]');
       if (!native) { if (status) status.textContent = 'Le chargement des modèles se fait dans l’APK Android.'; break; }
       if (!url) { if (status) status.textContent = 'Choisissez un fournisseur ou saisissez son adresse.'; break; }
-      if (!cle) { if (status) status.textContent = 'Collez d’abord la clé API pour interroger le fournisseur.'; break; }
+      if (!cle && !adresseLocale(url)) { if (status) status.textContent = 'Collez d’abord la clé API pour interroger le fournisseur.'; break; }
       if (bouton) { bouton.disabled = true; bouton.textContent = 'Chargement…'; }
       try {
         const result = await Reader.iaModels({ url, cle });

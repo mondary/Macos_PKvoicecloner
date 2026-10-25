@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.86] - 2026-10-25
+
+### Changed
+- **PK Reader Android 2026.10.78** : suivi d’analyse en pastille discrète, pipeline plus rapide (relecture conditionnelle, sous-lots de 60, casting plafonné) et fournisseur « IA locale » (Ollama, LM Studio, llama.cpp) avec clé facultative et disclaimer de durée.
+
 ## [2026.10.85] - 2026-10-25
 
 ### Changed

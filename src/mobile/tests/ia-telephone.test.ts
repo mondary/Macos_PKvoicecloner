@@ -24,6 +24,10 @@ describe('utilitaires du client IA', () => {
     expect(configIA({ ia: { ...ia, enabled: false } })).toBeNull();
     expect(configIA({ ia: { ...ia, revision: '' } })).toBeNull();
     expect(configIA({ ia: { ...ia, url: 'http://api.deepseek.com' } })).toBeNull();
+    // Une IA locale (Ollama, LM Studio, llama.cpp) parle HTTP sur le réseau privé.
+    const locale = { ...ia, url: 'http://192.168.1.20:11434/v1', modele: 'qwen3:4b' };
+    expect(configIA({ ia: locale })).toEqual(locale);
+    expect(configIA({ ia: { ...locale, url: 'http://51.6.7.8:11434/v1' } })).toBeNull();
   });
 });
 
@@ -76,7 +80,7 @@ describe('attribuerTelephone — trois passes, preuves à l’appui', () => {
     expect(chat.messages[1]).toContain('Bonjour, dit Le Modèle.');
   });
 
-  it('découpe en lots de 40 avec contexte et répète les trois passes', async () => {
+  it('découpe en sous-lots de 60 avec contexte et ne relit que les lots incertains', async () => {
     const livres = [
       ...Array.from({ length: 85 }, (_, i) => `Phrase ${i + 1}.`),
     ];
@@ -85,17 +89,32 @@ describe('attribuerTelephone — trois passes, preuves à l’appui', () => {
         return JSON.stringify({ cast: [{ id: 'narrateur', nom: 'Narrateur', genre: 'indetermine', role: 'narrateur', aliases: [], lignes: [] }] });
       }
       const nombre = (message.match(/^\d+\. /gm) ?? []).length;
-      return JSON.stringify({ attributions: Array.from({ length: nombre }, (_, i) => narration(i + 1)) });
+      // Une seule phrase en confiance moyenne : la relecture critique joue.
+      return JSON.stringify({ attributions: Array.from({ length: nombre }, (_, i) => narration(i + 1, i === 0 ? 'moyenne' : 'haute')) });
     });
     const resultat = await attribuerTelephone(chat, 'Livre', livres, []);
     expect(resultat.locuteurs).toHaveLength(85);
-    expect(chat.messages.filter(m => m.includes('TÂCHE: CAST'))).toHaveLength(3);
-    expect(chat.messages.filter(m => m.includes('TÂCHE: ATTRIBUTION'))).toHaveLength(3);
-    expect(chat.messages.filter(m => m.includes('TÂCHE: VERIFICATION'))).toHaveLength(3);
-    // Le contexte du 2e lot reprend les 6 dernières phrases déjà attribuées.
+    expect(chat.messages.filter(m => m.includes('TÂCHE: CAST'))).toHaveLength(2);
+    expect(chat.messages.filter(m => m.includes('TÂCHE: ATTRIBUTION'))).toHaveLength(2);
+    expect(chat.messages.filter(m => m.includes('TÂCHE: VERIFICATION'))).toHaveLength(2);
+    // Le contexte du 2e sous-lot reprend les 6 dernières phrases attribuées.
     const deuxieme = chat.messages.filter(m => m.includes('TÂCHE: CAST'))[1];
-    expect(deuxieme).toContain('narrateur : Phrase 35.');
-    expect(deuxieme).toContain('narrateur : Phrase 40.');
+    expect(deuxieme).toContain('narrateur : Phrase 55.');
+    expect(deuxieme).toContain('narrateur : Phrase 60.');
+  });
+
+  it('confiance haute partout : pas de relecture, deux appels par sous-lot', async () => {
+    const chat = chatScripte(message => {
+      if (message.includes('TÂCHE: CAST')) {
+        return JSON.stringify({ cast: [{ id: 'narrateur', nom: 'Narrateur', genre: 'indetermine', role: 'narrateur', aliases: [], lignes: [] }] });
+      }
+      const nombre = (message.match(/^\d+\. /gm) ?? []).length;
+      return JSON.stringify({ attributions: Array.from({ length: nombre }, (_, i) => narration(i + 1)) });
+    });
+    await attribuerTelephone(chat, 'Livre', Array.from({ length: 30 }, (_, i) => `Phrase ${i + 1}.`), []);
+    expect(chat.messages.filter(m => m.includes('TÂCHE: CAST'))).toHaveLength(1);
+    expect(chat.messages.filter(m => m.includes('TÂCHE: ATTRIBUTION'))).toHaveLength(1);
+    expect(chat.messages.filter(m => m.includes('TÂCHE: VERIFICATION'))).toHaveLength(0);
   });
 
   it('ne laisse pas un personnage nouvellement nommé sans ligne où il parle', async () => {

@@ -24,6 +24,9 @@ export const FOURNISSEURS: FournisseurIA[] = [
     modeles: [], note: 'Les modèles gratuits (-free) ne fonctionnent que dans l’application OpenCode : choisissez un modèle payant, ou OpenCode Go avec un abonnement.' },
   { id: 'opencode-go', nom: 'OpenCode Go (abonnement)', url: 'https://opencode.ai/inference/go/openai/v1', cles: 'https://opencode.ai/auth',
     modeles: [], note: 'Abonnement OpenCode Go requis. Chargez la liste, puis choisissez un modèle compatible OpenAI (GLM, DeepSeek, Kimi…).' },
+  { id: 'local', nom: 'IA locale (Ollama, LM Studio, llama.cpp)', url: 'http://127.0.0.1:11434/v1', cles: '',
+    modeles: [],
+    note: 'Serveur OpenAI-compatible sur votre Mac ou votre réseau — depuis le téléphone, indiquez son adresse (ex. http://192.168.1.20:11434/v1). Clé facultative. IA locale : comptez parfois plusieurs heures par livre, avec un modèle moins précis qu’une clé cloud.' },
   { id: 'custom', nom: 'Autre adresse (OpenAI-compatible)', url: '', cles: '', modeles: [] },
 ];
 
@@ -33,6 +36,10 @@ const ANCIENNES_URLS: { id: string; url: string }[] = [
 ];
 
 const sansFin = (url: string) => url.trim().replace(/\/+$/, '');
+/** Serveur OpenAI-compatible local (llama.cpp, Ollama, LM Studio) : HTTP n'est
+ *  accepté que sur la boucle locale ou le réseau privé. */
+export const adresseLocale = (url: string) =>
+  /^http:\/\/(localhost|127\.0\.0\.1|\[::1\]|192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/i.test(url);
 export const fournisseurParUrl = (url: string): FournisseurIA => {
   const propre = sansFin(url);
   const direct = FOURNISSEURS.find(f => f.url && sansFin(f.url) === propre);

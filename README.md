@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.85** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
+version **2026.10.86** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
 
 📱 **Android** — [télécharger l’APK](https://github.com/mondary/Macos_PKvoicecloner/releases/latest/download/PK-Reader-latest.apk) (lien stable qui suit la dernière version) · 🍎 **macOS** — [DMG 2026.10.66](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/v2026.10.66)
 
@@ -16,13 +16,13 @@ version **2026.10.85** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANG
 
 L’application Android **PK Reader** lit vos EPUB, PDF texte et TXT avec les voix du téléphone, des voix Piper téléchargées — **dix voix françaises**, dont une à 13 Mo — ou vos clones PK Voice Studio. Bibliothèque locale, chapitres, signets, thèmes clair/papier/nuit et service audio pour l'écoute en arrière-plan. Lecture **page à page ou en défilement**, barre « en cours » qui garde la phrase lue en vue, changement de voix sans quitter le lecteur et — comme dans le studio — **une voix par personnage** : chaque rôle reçoit sa voix, son pitch et sa vitesse, chaque phrase son personnage, avec le **karaoké mot à mot** pendant l'écoute. Le bouton **« Préparer et écouter »** analyse le chapitre à écouter en priorité puis **démarre la lecture** pendant que le reste du livre continue de s'analyser en arrière-plan ; la file audio se rafraîchit aux changements de chapitre, et la mise en cache hors ligne reste disponible chapitre par chapitre. Les voix clonées nécessitent le Mac pour générer les passages ; les chapitres préparés s’écoutent ensuite hors ligne.
 
-**Personnages et voix, sans Mac** — deux modes autonomes sur le téléphone. **Avec l'IA du téléphone** (Réglages → Analyse IA du téléphone : adresse, modèle, clé API), le modèle identifie les personnages qui parlent, attribue chaque phrase puis relit les passages incertains — la même qualité que le studio, sans passerelle. **Sans configuration**, le repérage local s'appuie sur les incises et les étiquettes corroborées et laisse au narrateur tout ce qui est ambigu. Dans les deux cas, vérifiez le nom et **Voir un passage attribué**, puis validez les voix. La clé IA reste chiffrée sur le téléphone (Android Keystore) ; le texte analysé est envoyé au fournisseur choisi. Les voix clonées restent générées par le Mac — c'est le moteur de clonage — mais l'analyse, la distribution et la lecture Piper/Android sont autonomes.
+**Personnages et voix, sans Mac** — deux modes autonomes sur le téléphone. **Avec l'IA du téléphone** (Réglages → Analyse IA du téléphone : adresse, modèle, clé API — ou **IA locale** Ollama/LM Studio/llama.cpp, sans clé), le modèle identifie les personnages qui parlent, attribue chaque phrase puis relit les passages incertains — la même qualité que le studio, sans passerelle. **Sans configuration**, le repérage local s'appuie sur les incises et les étiquettes corroborées et laisse au narrateur tout ce qui est ambigu. Dans les deux cas, vérifiez le nom et **Voir un passage attribué**, puis validez les voix. La clé IA reste chiffrée sur le téléphone (Android Keystore) ; le texte analysé est envoyé au fournisseur choisi. Les voix clonées restent générées par le Mac — c'est le moteur de clonage — mais l'analyse, la distribution et la lecture Piper/Android sont autonomes.
 
 **Mise à jour depuis l'app (Android 2026.10.61)** — Réglages → **Mises à jour** : PK Reader vérifie les releases GitHub, télécharge l'APK, contrôle son empreinte et sa signature, puis ouvre l'installateur Android. Plus besoin de passer par le navigateur ni par le dossier Téléchargements. La clé de signature est désormais **permanente** : après une dernière réinstallation pour les versions ≤ 2026.10.60, les mises à jour s'installent par-dessus l'app et conservent la bibliothèque.
 
-**Suivi des analyses** — un panneau présent sur tous les écrans indique le livre, le modèle utilisé, l’étape, le chapitre et les lots enregistrés. Le bilan ou l’erreur reste affiché jusqu’à fermeture ; « Voir les voix » ouvre la distribution.
+**Suivi des analyses** — une pastille discrète en bas de l’écran (une puce dans le lecteur) affiche l’étape et les lots, avec le temps écoulé et une estimation restante. Le détail et les voix s’ouvrent d’un toucher ; un bilan s’efface seul, une erreur reste jusqu’à fermeture.
 
-[Installation et guide Android](docs/ANDROID.md) · [APK de la version courante](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.77) (release `pk-<version>`, lien direct) · [Changelog Android](src/mobile/CHANGELOG.md)
+[Installation et guide Android](docs/ANDROID.md) · [APK de la version courante](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.78) (release `pk-<version>`, lien direct) · [Changelog Android](src/mobile/CHANGELOG.md)
 
 > Les APK vivent dans les releases `pk-<version>` (la plus récente en tête de la page des releases). Le badge **Latest** suit la dernière livraison publiée, Android ou macOS : il peut pointer sur le DMG sans que l'APK disparaisse — le lien direct ci-dessus reste valable.
 
@@ -30,7 +30,7 @@ L’application Android **PK Reader** lit vos EPUB, PDF texte et TXT avec les vo
 
 <img src="store/screenshots/android-reader/casting.png" width="300" alt="Aperçu web de la fiche personnages : rôles proposés, passage attribué et voix, données de démonstration" />
 
-<img src="store/screenshots/android-reader/analysis-progress.png" width="230" alt="Suivi d’analyse dans les réglages : relecture et lots enregistrés, état de démonstration" />
+<img src="store/screenshots/android-reader/analysis-progress.png" width="230" alt="Pastille de suivi d’analyse : étape, lots et temps écoulé, état de démonstration" />
 
 ### macOS · PK Voice Studio
 

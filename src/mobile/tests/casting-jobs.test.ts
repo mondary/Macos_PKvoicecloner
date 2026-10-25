@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({ save: vi.fn(async () => {}), analyser: vi.fn()
 vi.mock('../storage', () => ({ library: { save: mocks.save } }));
 vi.mock('../engine', () => ({ native: true, Reader: { analyser: mocks.analyser } }));
 import { castingActivities, castingBusy, dismissCastingActivity, prepareCasting, watchCasting } from '../casting-jobs';
-import { activityView } from '../activity-view';
+import { activityView, analysisChip, formaterDuree } from '../activity-view';
 
 const book = (id: string): Book => ({ id, title: `Livre ${id}`, author: '', format: 'TXT', language: 'fr', color: 0,
   segments: ['Le soir tombe.'], chapters: [{ title: 'Le départ', start: 0, end: 1 }],
@@ -55,5 +55,15 @@ describe('suivi des analyses', () => {
     await prepareCasting(book('local'), [], defaults);
     expect(mocks.analyser).not.toHaveBeenCalled();
     expect(activityView(castingActivities())).toContain('Repérage local · sans IA');
+    // Dans le lecteur, la puce ne montre que le verdict, pas une carte.
+    expect(analysisChip(castingActivities(), 'local')).toContain('Terminée');
+    expect(analysisChip(castingActivities(), 'autre')).toBe('');
+  });
+
+  it('formate les durées de la pastille sans faux espoir', () => {
+    expect(formaterDuree(30_000)).toBe('1 min');
+    expect(formaterDuree(5 * 60000)).toBe('5 min');
+    expect(formaterDuree(125 * 60000)).toBe('2 h 05');
+    expect(formaterDuree(60 * 60000)).toBe('1 h 00');
   });
 });

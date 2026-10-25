@@ -9,7 +9,7 @@ const jobs = new Map<string, Promise<void>>();
 const progress = new Map<string, AnalysisProgress>();
 export interface CastingActivity {
   id: string; title: string; state: 'queued' | 'running' | 'done' | 'error';
-  source: string; progress?: AnalysisProgress; error?: string; characters?: number;
+  source: string; debut: number; progress?: AnalysisProgress; error?: string; characters?: number;
 }
 const activities = new Map<string, CastingActivity>();
 export const castingActivities = () => [...activities.values()].sort((a, b) =>
@@ -35,7 +35,7 @@ export function prepareCasting(book: Book, available: Voice[], settings: Setting
   if (existing) return existing;
   const ia = native ? configIA(settings) : null;
   const connected = native && settings.server && settings.token;
-  const activity: CastingActivity = { id: book.id, title: book.title, state: 'queued',
+  const activity: CastingActivity = { id: book.id, title: book.title, state: 'queued', debut: Date.now(),
     source: ia ? `IA · ${ia.modele}` : connected ? 'IA · studio Mac' : 'Repérage local · sans IA' };
   activities.set(book.id, activity);
   const run = async () => {

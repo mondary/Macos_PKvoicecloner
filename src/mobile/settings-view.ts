@@ -57,7 +57,8 @@ function iaSection(settings: Settings): string {
   const fournisseur = settings.ia?.url ? fournisseurParUrl(settings.ia.url) : FOURNISSEURS[0];
   const actuel = settings.ia?.modele ?? '';
   const cle = settings.ia?.hasKey ? 'Clé enregistrée — laisser vide pour la conserver' : 'Collez votre clé API';
-  return `<section class="settings-section"><div class="section-heading"><h2>Analyse IA du téléphone</h2><span class="pill">FACULTATIF</span></div><p class="section-description">La même analyse des personnages que le studio, appelée directement depuis le téléphone : aucun Mac requis.</p>${settings.ia?.enabled ? `<p class="section-description"><strong>Active</strong> · ${esc(settings.ia.modele)}</p>` : ''}
+  return `<section class="settings-section"><div class="section-heading"><h2>Analyse IA du téléphone</h2><span class="pill">FACULTATIF</span></div><p class="section-description">La même analyse des personnages que le studio, appelée directement depuis le téléphone.</p>
+  <p class="ia-choice"><strong>Deux chemins.</strong> <strong>Sans clé</strong> : le repérage local lit les indices de dialogue — immédiat, plus approximatif. <strong>Avec une clé</strong> (ou une <strong>IA locale</strong>) : le modèle identifie vraiment chaque locuteur — de quelques minutes à plusieurs heures par livre selon le modèle, une nuit entière pour un gros roman. Dans tous les cas, le premier chapitre démarre dès qu'il est prêt et les voix choisies servent tout le livre.</p>${settings.ia?.enabled ? `<p class="section-description"><strong>Active</strong> · ${esc(settings.ia.modele)}</p>` : ''}
   <form id="ia-form">
     <label for="ia-provider">Fournisseur</label>
     <select id="ia-provider" name="provider">${optionsFournisseur(fournisseur)}</select>

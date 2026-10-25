@@ -1,5 +1,6 @@
 import type { AnalyseRequest } from './casting-analysis';
 import type { AnalysePersonnage, AnalyseStudio } from './casting';
+import { adresseLocale } from './ia-providers';
 
 /** Métadonnées publiques uniquement ; le secret reste dans Android Keystore. */
 export interface ConfigIA { url: string; modele: string; revision: string; enabled: boolean; hasKey?: boolean }
@@ -8,7 +9,10 @@ export interface IABridge {
 }
 export function configIA(settings: { ia?: ConfigIA }): ConfigIA | null {
   const config = settings.ia;
-  return config?.enabled && config.revision && config.modele && config.url.startsWith('https://') ? config : null;
+  // Une IA locale (llama.cpp, Ollama, LM Studio) parle HTTP sur le réseau
+  // privé : pas de cloud, mais aucune prétention chiffrée non plus.
+  return config?.enabled && config.revision && config.modele &&
+    (config.url.startsWith('https://') || adresseLocale(config.url)) ? config : null;
 }
 export type Chat = (message: string, json?: boolean) => Promise<string>;
 export type PhaseIA = 'personnages' | 'attribution' | 'verification';
@@ -97,8 +101,9 @@ function attributions(data: Record<string, unknown>, cast: AnalysePersonnage[], 
   return result.sort((a, b) => a.ligne - b.ligne);
 }
 
-/** Trois passes par lot de 40 phrases (distribution étayée, attribution indexée,
- *  relecture critique). Un lot validé est sauvegardé par analyserLivre. */
+/** Sous-lots de 60 phrases : distribution étayée, attribution indexée, puis
+ *  relecture critique — uniquement quand l'attribution n'est pas sûre partout.
+ *  Un lot validé est sauvegardé par analyserLivre. */
 export async function attribuerTelephone(chat: Chat, titre: string, phrases: string[], personnages: AnalysePersonnage[],
   contexte = '', phase: (value: PhaseIA) => void = () => {}, cancelled: () => boolean = () => false): Promise<AnalyseStudio> {
   if (!phrases.length) return { personnages, locuteurs: [] };
@@ -106,8 +111,8 @@ export async function attribuerTelephone(chat: Chat, titre: string, phrases: str
   const connus = new Map(personnages.map(p => [p.id, { ...p }]));
   if (!connus.has('narrateur')) connus.set('narrateur', { ...NARRATEUR });
   const locuteurs: string[] = [];
-  for (let debut = 0; debut < phrases.length; debut += 40) {
-    const lot = phrases.slice(debut, debut + 40);
+  for (let debut = 0; debut < phrases.length; debut += 60) {
+    const lot = phrases.slice(debut, debut + 60);
     const avant = Array.from({ length: debut - Math.max(0, debut - 6) }, (_, k) => {
       const i = Math.max(0, debut - 6) + k;
       return `${locuteurs[i]} : ${phrases[i]}`;
@@ -127,13 +132,19 @@ Format : {"attributions":[{"ligne":1,"locuteur":"narrateur","confiance":"haute"}
 Confiance : haute si l'identité est étayée par le passage et son contexte, moyenne/faible sinon. Ne déduis pas un changement de personnage du seul changement de phrase.`;
     check(); phase('attribution');
     const premiere = await demander(chat, `${demande}\nTÂCHE: ATTRIBUTION`, data => attributions(data, cast, lot.length, alias));
-    check(); phase('verification');
-    const controle = await demander(chat, `${demande}\nTÂCHE: VERIFICATION
+    // La relecture critique ne relit que les lots incertains : une confiance
+    // haute partout signifie déjà des locuteurs étayés par le passage. C'est un
+    // tiers d'appels en moins sur les dialogues clairs, sans perte de qualité.
+    let finale = premiere;
+    if (premiere.some(a => a.confiance !== 'haute')) {
+      check(); phase('verification');
+      finale = await demander(chat, `${demande}\nTÂCHE: VERIFICATION
 Relis de façon critique cette proposition : ${JSON.stringify(premiere)}
 Vérifie les pronoms, les alias, les répliques sans incise et les phrases de narration. Corrige tout locuteur non étayé ; si le contexte ne permet pas de conclure, utilise narrateur avec confiance faible.
 Retourne le tableau complet corrigé, avec tous les numéros de ligne.`, data => attributions(data, cast, lot.length, alias));
+    }
     check();
-    locuteurs.push(...controle.map(a => a.confiance === 'haute' ? a.locuteur : 'narrateur'));
+    locuteurs.push(...finale.map(a => a.confiance === 'haute' ? a.locuteur : 'narrateur'));
   }
   const utilises = new Set(locuteurs);
   return {

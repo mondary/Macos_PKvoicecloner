@@ -1,5 +1,13 @@
 # PK Reader Android
 
+## [2026.10.78] - 2026-10-25
+
+### Changed
+- **Pastille discrète** à la place de la carte d’analyse : une bulle flottante compacte (`Attribution · 18/141`) remplace la bannière pleine largeur, avec temps écoulé et estimation restante dès trois lots. Dans le lecteur, une puce compacte s’intègre au lecteur. Le bilan se ferme seul après 6 s ; une erreur reste jusqu’à fermeture.
+- **Analyse plus rapide** : sous-lots de 60 phrases (au lieu de 40), relecture critique seulement quand une attribution n’est pas sûre (un tiers d’appels en moins) et casting envoyé plafonné à 80 rôles. Sur un gros roman, un lot passe d’environ 9 appels à 4.
+- **IA locale** : nouveau fournisseur « IA locale (Ollama, LM Studio, llama.cpp) » — HTTP accepté uniquement sur le réseau privé, clé facultative, disclaimer sur la lenteur (parfois plusieurs heures) et la précision.
+- Réglages → Analyse IA : « deux chemins » explicités (sans clé = repérage local immédiat ; avec clé ou IA locale = analyse réelle, plus lente). Le premier chapitre démarre dès qu’il est prêt ; les voix choisies servent tout le livre.
+
 ## [2026.10.77] - 2026-10-25
 
 ### Changed

@@ -40,7 +40,18 @@ export async function analyserLivre(book: Book, available: Voice[], fallback: st
   // ne doivent ni consommer la limite de 200 ni revenir comme des personnages.
   const visibles = () => {
     const utilises = new Set(Object.values(cast.assignments));
-    return cast.characters.filter(c => c.id === 'narrator' || utilises.has(c.id) || !roleAuto(c));
+    const candidats = cast.characters.filter(c => c.id === 'narrator' || utilises.has(c.id) || !roleAuto(c));
+    if (candidats.length <= 80) return candidats;
+    // Gros casting : le prompt explose s'il embarque 200 personnages à chaque
+    // appel. On garde le narrateur, les rôles corrigés à la main et les plus
+    // bavards ; la passe CAST peut réintroduire un locuteur rare du lot.
+    const compte = new Map<string, number>();
+    for (const id of Object.values(cast.assignments)) compte.set(id, (compte.get(id) ?? 0) + 1);
+    const manuels = new Set(Object.entries(cast.manualAssignments ?? {})
+      .filter(([, manuel]) => manuel).map(([index]) => cast.assignments[Number(index)]));
+    const poids = (c: typeof candidats[number]) =>
+      c.id === 'narrator' || manuels.has(c.id) ? Number.MAX_SAFE_INTEGER : compte.get(c.id) ?? 0;
+    return [...candidats].sort((a, b) => poids(b) - poids(a)).slice(0, 80);
   };
   const chapitreComplet = (chapterStart: number) =>
     tous.filter(lot => lot.chapterStart === chapterStart).every(lot => analysis.completed.includes(lot.key));

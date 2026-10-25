@@ -14,7 +14,14 @@ Le téléphone peut exécuter lui-même l'analyse des personnages avec un fourni
 
 1. **Réglages → Analyse IA du téléphone** : deux chemins. **Sans clé**, le repérage local (immédiat, plus approximatif) suffit. **Avec une clé** — ou une **IA locale** (Ollama, LM Studio, llama.cpp sur votre Mac ou votre réseau privé, clé facultative) — choisissez le fournisseur (GLM/Z.ai, BigModel, DeepSeek, OpenAI, Mistral, Groq, OpenRouter, OpenCode Zen/Go) ; l’adresse et le lien vers la page des clés se remplissent seuls. Collez la clé, appuyez sur **Charger les modèles**, choisissez le modèle dans la liste (ou saisissez son identifiant), puis **Tester et enregistrer**. Un appel de vérification est effectué avant d’enregistrer ; une configuration qui échoue n’écrase pas la précédente.
 2. **Ouvrir un livre** : la préparation enchaîne, par sous-lots de 60 phrases, une distribution **étayée** (chaque nouveau personnage doit citer une ligne où il parle réellement), une attribution indexée, puis une **relecture critique** — cette dernière uniquement quand une attribution n’est pas sûre, ce qui économise environ un tiers des appels. Les passages dont la confiance n’est pas haute restent au narrateur. Le casting envoyé est plafonné à 80 rôles (narrateur et rôles corrigés toujours inclus) pour ne pas gonfler les prompts des grands romans. Comptez de quelques minutes à plusieurs heures par livre selon le modèle ; une IA locale peut demander une nuit entière.
-3. **Progression et reprise** : une **pastille discrète** flotte en bas de l’écran (dans le lecteur, une puce compacte s’intègre au lecteur) et indique la phase et les lots (`Attribution · 18/141`), avec le temps écoulé et une estimation restante dès trois lots traités. Le détail — livre, modèle, chapitre — est dans son libellé accessible et dans la fiche des voix ; un toucher l’ouvre. Un bilan se ferme seul après quelques secondes ; une erreur reste jusqu’à fermeture. Chaque lot validé est sauvegardé ; une coupure reprend sans refaire le travail déjà fait. Gardez l’application ouverte pendant l’analyse.
+3. **Progression et reprise** : une **pastille discrète** flotte en bas de l’écran ; dans le lecteur, le compteur (`28/141`) est placé près de **Gérer**, en haut. Un toucher ouvre les voix et le détail de l’analyse. Un bilan se ferme seul après quelques secondes ; une erreur reste jusqu’à fermeture. Chaque lot validé est sauvegardé ; une coupure reprend sans refaire le travail déjà fait. Gardez l’application ouverte pendant l’analyse.
+
+### Téléchargements et commandes du lecteur
+
+- Les téléchargements de voix (manuels, depuis les personnages ou pendant la préparation) ont un **suivi fixe sur tous les écrans**. Faire défiler ou changer d’onglet ne le masque pas. « Miro · 100 % · Installée » et les erreurs restent jusqu’à fermeture explicite ; 100 % de transfert seul ne vaut pas installation terminée.
+- La navigation est regroupée en bas près de Lecture/Pause : **Chapitre** (précédent/suivant avec barre), **Page** (chevrons simples et compteur), **Phrase −1 / +1** (flèches circulaires). Plus de chevrons de page dans le corps du texte ni de flèches de chapitre en haut.
+- Le titre du chapitre ouvre **Chapitres et signets**, où l’on peut ajouter un signet. Le sélecteur de voix reste dans le lecteur ; les réglages de lecture et la préparation hors ligne sont dans **Gérer**. Les titres « Inconnu » deviennent « Chapitre 1 », « Chapitre 2 », y compris pour les livres déjà importés, sans invalider l’analyse.
+- **Réglages → À propos → Soutenir sur Ko-fi** ouvre `https://ko-fi.com/pouark` ; le bouton remplace le cœur sans texte.
 
 **Si le fournisseur renvoie une erreur HTTP 400** : l’app réessaie automatiquement sans le mode JSON, puis sans `temperature` (les deux options les plus souvent refusées), et affiche le **message exact du fournisseur** dans Réglages → Analyse IA. Causes fréquentes : modèle réservé à un autre client, option non prise en charge par le modèle, ou identifiant de modèle obsolète — rechargez la liste et choisissez un modèle utilisable.
 
@@ -74,7 +81,13 @@ Chaque livre a un bouton **Gérer** visible sur sa fiche dans la bibliothèque, 
 
 ## Une voix par personnage
 
-Le parcours **Les voix de ce livre** s'ouvre après l'import d'un livre, depuis son menu ou depuis l'icône Personnages du lecteur. L'analyse des personnages peut tourner de deux façons, sans Mac dans les deux cas :
+### Bilan automatique du chapitre avant l’écoute
+
+L’import démarre l’analyse. Au clic sur **Écouter**, le bilan du chapitre montre ses personnages, les voix proposées, celles déjà installées et celles à télécharger. Vous pouvez modifier les listes puis **Valider et écouter ce chapitre** ; seules les voix sélectionnées non installées sont alors téléchargées.
+
+Une validation fixe l’association personnage → voix dans le livre. Au chapitre suivant, les personnages connus la conservent ; si le chapitre est analysé et toutes ses voix validées/installées, il continue sans confirmation. En cas de nouveau personnage ou d’analyse incomplète, le lecteur s’arrête avant de prononcer le chapitre et affiche le bilan. Le service Android respecte aussi cet arrêt écran verrouillé ; revenez dans l’app pour valider si nécessaire. Les choix restent mémorisés après fermeture de l’app. Le guide de découverte n’exige pas de validation.
+
+Le parcours **Les voix de ce livre** s’ouvre après l’import, depuis **Gérer → Voix des personnages** ou depuis le compteur d’analyse près de **Gérer**. L’analyse des personnages peut tourner de deux façons, sans Mac dans les deux cas :
 
 - **avec l'IA du téléphone** (Réglages → Analyse IA du téléphone) : distribution étayée, attribution puis relecture par le modèle choisi ;
 - **sans configuration** : repérage local par indices de dialogue, plus prudent, qui laisse les passages ambigus au narrateur.

@@ -1,5 +1,14 @@
 # PK Reader Android
 
+## [2026.10.80] - 2026-10-25
+
+### Changed
+- **Bilan rapide avant l’écoute** : propositions automatiques limitées aux personnages du chapitre, compteur des voix installées/à télécharger et validation ou modification en une feuille. Les choix sont mémorisés dans le livre ; un chapitre suivant déjà analysé avec les mêmes personnages continue sans nouvelle confirmation. Un nouveau personnage, une voix absente ou une analyse incomplète provoque un arrêt avant lecture, également dans le service Android.
+- **Téléchargements de voix** : notifications fixes visibles sur tous les écrans, y compris pendant la lecture, pour les installations manuelles et automatiques. Progression, fin d’installation et erreur restent accessibles ; les résultats se ferment explicitement et ne réapparaissent pas au prochain rafraîchissement.
+- **Lecteur simplifié** : « Gérer » et compteur d’analyse regroupés en haut. Navigation regroupée près du bouton lecture : précédent/suivant pour le chapitre, chevrons pour la page, flèches circulaires nommées « Phrase −1 / +1 ». Plus de navigation de page dupliquée dans le texte. Le titre du chapitre ouvre chapitres et signets ; les réglages de lecture et la préparation hors ligne restent dans « Gérer », les voix dans le sélecteur du lecteur.
+- Les titres « Inconnu » et autres métadonnées de chapitre vides deviennent « Chapitre 1 », « Chapitre 2 », sans toucher au texte ni aux lots analysés.
+- **À propos** : bouton visible « Soutenir sur Ko-fi » au lieu du cœur seul.
+
 ## [2026.10.79] - 2026-10-25
 
 ### Changed

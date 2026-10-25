@@ -9,6 +9,17 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class CastingTest {
+    @Test fun unconfirmedChapterCannotBeReadEvenAfterSeekingInsideIt() {
+        val queue = JSONObject().put("chapterStarts", JSONArray().put(0).put(12).put(30))
+            .put("chapterStops", JSONArray().put(12))
+        assertFalse(ChapterGate.requiresReview(queue, 0))
+        assertTrue(ChapterGate.requiresReview(queue, 12))
+        assertTrue(ChapterGate.requiresReview(queue, 18))
+        assertFalse(ChapterGate.requiresReview(queue, 30))
+        queue.put("chapterStops", JSONArray())
+        assertFalse(ChapterGate.requiresReview(queue, 18))
+        assertFalse(ChapterGate.requiresReview(JSONObject(), 0))
+    }
     @Test fun eachSentenceUsesItsRoleWithIndependentPitchAndCombinedRate() {
         val cast = JSONObject().put("enabled",true).put("characters",JSONArray()
             .put(JSONObject().put("id","narrator").put("name","Narrateur").put("voice","neural:siwis").put("pitch",1.2).put("rate",1))

@@ -1,5 +1,6 @@
 import { besoinsVoix, ensureCasting, genreVoix, preparerDistributionLocale, proposerVoix, roleAuto, voixLocales } from './casting';
 import { castingBusy, castingProgress, prepareCasting, watchCasting } from './casting-jobs';
+import { installVoice } from './voice-downloads';
 import { audio, native, Reader } from './engine';
 import { library } from './storage';
 import type { Book, Casting, Settings, Voice } from './types';
@@ -149,7 +150,7 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
         try {
           for (const item of downloads) {
             if (closed) break;
-            await Reader.installModel({ id: item.voice.id });
+            await installVoice(item.voice.id, item.voice.name);
             let installed = false;
             while (!installed && !closed) {
               const result = await Reader.models();

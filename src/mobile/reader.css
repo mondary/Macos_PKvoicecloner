@@ -7,8 +7,25 @@
 /* ------------------------------------------------------------ en-tête */
 
 .reader-header { display: flex; align-items: center; gap: 14px; position: sticky; top: 0; background: var(--bg); padding: calc(18px + var(--safe-top)) 0 16px; z-index: 10; border-bottom: 1px solid var(--line); }
-.reader-header > div { flex: 1; min-width: 0; text-align: center; }
-.reader-header > div > span { display: block; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.reader-header > .reader-title { flex: 1; min-width: 0; text-align: left; }
+.reader-header .reader-title > span { display: block; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.reader-header > .reader-actions { flex: none; display: flex; align-items: center; gap: 6px; }
+.reader-actions .header-action { min-height: 44px; }
+.reader-actions #reader-analysis:empty { display: none; }
+.reader-actions .player-analysis { min-height: 44px; }
+.reader-mode.has-player #analysis-activities { bottom: calc(var(--player-h, 320px) + 12px); }
+.reader-navigation { margin-top: 8px; }
+.reader-nav-row { display: grid; grid-template-columns: 88px minmax(0, 1fr) 88px; align-items: center; gap: 4px; }
+.reader-nav-button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 44px; border-radius: 9px; font-size: 10px; color: var(--ink-soft); }
+.reader-nav-button svg { width: 16px; height: 16px; }
+.reader-nav-button:hover:not(:disabled) { background: var(--accent-soft); }
+.reader-nav-location { min-height: 44px; font-size: 11px; font-weight: 600; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reader-nav-row .page-count { min-width: 0; font-size: 11px; }
+.sentence-jump { display: grid; justify-items: center; align-content: center; gap: 4px; min-height: 48px; min-width: 76px; border-radius: 10px; color: var(--ink-soft); }
+.sentence-jump svg { width: 22px; height: 22px; }
+.sentence-jump span { font-size: 10px; }
+.sentence-jump:hover { background: var(--accent-soft); }
+.player.reduit .reader-navigation, .player.reduit .sentence-jump { display: none; }
 .reader-header small { display: block; font-size: 10px; color: var(--muted); margin-top: 5px; }
 .reader-subhead { display: flex; align-items: center; gap: 6px; padding: 10px 0; color: var(--muted); border-bottom: 1px solid var(--line-soft); }
 .chapter-step { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); flex: none; }
@@ -50,7 +67,7 @@
 
 .reader-mode.layout-pages .main-content { height: calc(100dvh - var(--player-h, 320px)); display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
 .reader-mode.layout-pages .reader-header { position: static; }
-.reader-mode.layout-pages .reading-page { flex: 1; min-height: 0; display: flex; flex-direction: column; width: 100%; margin: 18px auto 0; padding-bottom: 62px; }
+.reader-mode.layout-pages .reading-page { flex: 1; min-height: 0; display: flex; flex-direction: column; width: 100%; margin: 18px auto 0; padding-bottom: 14px; }
 .reader-mode.layout-pages #page-text { flex: 1; min-height: 0; overflow: hidden; }
 .page-footer { flex: none; display: flex; align-items: center; justify-content: center; gap: 16px; padding: 8px 0 14px; }
 .page-turn { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: var(--ink-soft); }
@@ -156,13 +173,16 @@ input.progress-slider { appearance: none; -webkit-appearance: none; padding: 0; 
   .reader-subhead { padding: 6px 0; }
   .chapter-current { font-size: 10px; gap: 7px; }
   .reading-page { margin-top: 22px; }
-  .reader-mode.layout-pages .reading-page { margin-top: 14px; padding-bottom: 56px; }
+  .reader-mode.layout-pages .reading-page { margin-top: 14px; padding-bottom: 14px; }
   .page-title h1 { font-size: 29px; margin: 12px 0 24px; letter-spacing: -1px; }
   .page-title .eyebrow { font-size: 8px; letter-spacing: 1.8px; }
   .reader-text { line-height: 1.9; }
   .sentence { padding: 9px 10px; margin-left: -10px; margin-right: -10px; }
   .player { padding: 14px 24px calc(12px + var(--safe-bottom)); border-radius: 24px 24px 0 0; }
-  .player-top { margin-bottom: 12px; }
+  .player-top { margin-bottom: 8px; gap: 8px; }
+  .player-top .voice-chip { flex: 1; min-width: 0; }
+  .reader-header { flex-wrap: wrap; }
+  .reader-header > .reader-actions { margin-left: auto; }
   .transport { gap: 19px; margin-top: 12px; }
   .play-button { width: 61px; height: 61px; }
   .transport > .icon-button { width: 38px; height: 42px; }

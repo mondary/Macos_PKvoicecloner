@@ -1,5 +1,26 @@
 # Media-kit — captures de PK Reader
 
+## Lecteur, téléchargements et bilan de chapitre (2026.10.80)
+
+Capture/QA reproductible de la vraie app web, en profil Chrome headless isolé :
+
+```sh
+pnpm dev --port 5201
+PK_QA_URL=http://127.0.0.1:5201/ PK_QA_OUT=/chemin/captures node store/media-kit/capture-reader-controls.mjs
+```
+
+Le script crée un livre fictif, vérifie chapitre/page/phrase et les titres de
+repli, puis valide un chapitre avec voix système, passe au suivant sans
+redemander et vérifie l’arrêt sur un nouveau personnage. La synthèse est
+neutralisée dans le profil de test. Les états Miro 64 % et 100 % et le compteur
+28/141 sont simulés via les composants de production, pas par un téléchargement
+réel. Le suivi est vérifié après scroll ; le bouton Ko-fi est vérifié sans ouvrir
+de page de paiement. Captures 390/320 px et bureau 1280 px, @2x.
+
+Exports : `reader.png`, `chapter-voices.png`, `about-support.png` dans
+`store/screenshots/android-reader/`. Le test natif `CastingTest` vérifie que les
+limites de chapitre empêchent aussi un saut au milieu d’un chapitre non validé.
+
 ## Suivi des analyses (2026.10.78)
 
 `store/screenshots/android-reader/analysis-progress.png` : capture web à 390×844 @2x,

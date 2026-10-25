@@ -37,6 +37,7 @@ class ReadingService : Service() {
     private var index=0
     private var playing=false
     private var loading=false
+    private var awaitingChapter=false
     private var preparing=false
     private var prepared=0
     private var prepareTotal=0
@@ -89,7 +90,7 @@ class ReadingService : Service() {
         val opts=try{JSONObject(intent?.getStringExtra("options") ?: "{}")}catch(_:Exception){JSONObject()}
         try {
             when(action){
-                "load"->{pause();restoreQueue(true);publish()}
+                "load"->{awaitingChapter=false;pause();restoreQueue(true);publish()}
                 "play"->play()
                 "pause"->pause()
                 "toggle"->if(playing||preparing)pause() else play()
@@ -111,6 +112,7 @@ class ReadingService : Service() {
         index=if(!fresh&&saved.optString("bookId")==queue.optString("bookId"))saved.optInt("index",queue.optInt("index")) else queue.optInt("index")
         rate=queue.optDouble("rate",1.0).toFloat().coerceIn(.75f,3f)
         error=""
+        awaitingChapter=false
     }
     private fun count()=queue.optJSONArray("segments")?.length() ?: 0
     private fun text(at:Int)=queue.getJSONArray("segments").getString(at)
@@ -143,6 +145,11 @@ class ReadingService : Service() {
     private fun speak(){
         if(!playing)return
         if(index>=count()){pause();return}
+        // Arrêt avant de prononcer un chapitre qui attend encore la validation
+        // des voix. Les limites restent valables écran verrouillé.
+        if(ChapterGate.requiresReview(queue,index)){
+            awaitingChapter=true;pause();return
+        }
         if(sleepAt>0&&System.currentTimeMillis()>=sleepAt){sleepAt=0;pause();return}
         val ticket=generation
         loading=true;publish()
@@ -252,7 +259,7 @@ class ReadingService : Service() {
             }catch(e:Exception){main.post{if(ticket==generation)fail(e.message ?: "Préparation interrompue")}}
         }
     }
-    private fun state()=JSONObject().put("bookId",queue.optString("bookId")).put("index",index).put("playing",playing).put("loading",loading).put("error",error).put("sleepAt",sleepAt).put("preparing",preparing).put("prepared",prepared).put("total",prepareTotal).put("speaker",profile().role).put("voice",profile().voice)
+    private fun state()=JSONObject().put("bookId",queue.optString("bookId")).put("index",index).put("playing",playing).put("loading",loading).put("awaitingChapter",awaitingChapter).put("error",error).put("sleepAt",sleepAt).put("preparing",preparing).put("prepared",prepared).put("total",prepareTotal).put("speaker",profile().role).put("voice",profile().voice)
         .put("position",if(player?.isPlaying==true)player?.currentPosition ?: 0 else 0).put("duree",dureeMs)
         .put("mot",if(motDebut>=0)JSONObject().put("debut",motDebut).put("fin",motFin) else JSONObject.NULL)
     /** Diffusion seule (sans notification ni écriture disque) : ~5 fois par seconde
@@ -284,7 +291,7 @@ class ReadingService : Service() {
     private fun notification():Notification{
         val open=PendingIntent.getActivity(this,0,Intent(this,MainActivity::class.java),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         return Notification.Builder(this,CHANNEL).setSmallIcon(R.drawable.ic_audio).setContentTitle(queue.optString("title","PK Reader"))
-            .setContentText(if(error.isNotBlank())error else if(preparing)"Préparation $prepared / $prepareTotal" else if(loading)"Préparation de la voix…" else "Passage ${index+1} / ${count()}")
+            .setContentText(if(error.isNotBlank())error else if(awaitingChapter)"Ouvrez PK Reader pour valider les voix du chapitre" else if(preparing)"Préparation $prepared / $prepareTotal" else if(loading)"Préparation de la voix…" else "Passage ${index+1} / ${count()}")
             .setContentIntent(open).setOnlyAlertOnce(true).setOngoing(playing||preparing)
             .addAction(Notification.Action.Builder(android.R.drawable.ic_media_previous,"Précédent",pending("previous")).build())
             .addAction(Notification.Action.Builder(if(playing||preparing)android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,if(playing||preparing)"Pause" else "Lire",pending("toggle")).build())

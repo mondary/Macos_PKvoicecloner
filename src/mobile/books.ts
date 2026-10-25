@@ -259,6 +259,17 @@ export async function importBook(file: File): Promise<Book> {
   if (!book.segments.length) throw new Error('Aucun texte lisible dans ce fichier. Les PDF scannés nécessitent une reconnaissance de texte préalable.');
   return book;
 }
+/** Répare les métadonnées vides/génériques des EPUB sans modifier leur texte,
+ *  ni les bornes des chapitres, donc sans invalider les lots déjà analysés. */
+export function normaliserTitresChapitres(book: Book): boolean {
+  let changed = false;
+  book.chapters.forEach((chapter, index) => {
+    if (!chapter.title?.trim() || /^(?:(?:inconnu(?:e)?|unknown|untitled|sans titre|n\/a)[\s·,;:/—-]*)+$/i.test(chapter.title.trim())) {
+      chapter.title = `Chapitre ${index + 1}`; changed = true;
+    }
+  });
+  return changed;
+}
 export function chapterAt(book: Book, position = book.position): Chapter { return book.chapters.find(c => position >= c.start && position < c.end) ?? book.chapters[book.chapters.length - 1]; }
 export function minutesLeft(book: Book, rate: number): number { return Math.max(1, Math.ceil(book.segments.slice(book.position).join(' ').split(/\s+/).length / (165 * rate))); }
 export function welcomeBook(): Book {

@@ -2,6 +2,7 @@ import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor
 import type { Book, Settings, Voice, Playback } from './types';
 import { speechProfile } from './casting';
 import type { AnalyseRequest } from './casting-analysis';
+import { chapterStops } from './chapter-voices';
 
 interface ReaderPlugin {
   voices(): Promise<{ voices: Voice[] }>;
@@ -77,7 +78,7 @@ class AudioEngine {
   async load(book: Book, settings: Settings) {
     this.book = book; this.settings = { ...settings };
     if (native) {
-      await Reader.load({ bookId:book.id, title:book.title.replace(/\n/g,' '), segments:book.segments, casting:book.casting, index:book.position, language:book.language, ...settings });
+      await Reader.load({ bookId:book.id, title:book.title.replace(/\n/g,' '), segments:book.segments, casting:book.casting, index:book.position, language:book.language, ...settings, chapterStops: chapterStops(book, settings), chapterStarts: book.chapters.map(c => c.start) });
       return;
     }
     this.stopWeb();
@@ -93,6 +94,10 @@ class AudioEngine {
   }
   private speak() {
     if (!this.book || !this.settings || !this.state.playing) return;
+    const chapter = this.book.chapters.find(c => this.state.index >= c.start && this.state.index < c.end);
+    if (chapter && chapterStops(this.book, this.settings).includes(chapter.start)) {
+      this.update({ ...this.state, playing: false, loading: false, awaitingChapter: true }); return;
+    }
     const epoch = ++this.epoch;
     const text = this.book.segments[this.state.index];
     if (!text) { this.update({ ...this.state, playing:false }); return; }

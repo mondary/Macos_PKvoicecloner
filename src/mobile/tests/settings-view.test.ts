@@ -33,6 +33,11 @@ describe('page Réglages en onglets', () => {
     expect(html).toContain('id="maj"');
     expect(html).toContain('Crédits & inspirations');
     expect(html).toContain('https://ko-fi.com/pouark');
+    document.body.innerHTML = html;
+    const support = document.querySelector<HTMLAnchorElement>('a.support-kofi');
+    expect(support?.textContent).toContain('Soutenir sur Ko-fi');
+    expect(support?.href).toBe('https://ko-fi.com/pouark');
+    expect(support?.rel).toContain('noopener');
     expect(html).not.toContain('id="ia-form"');
   });
 

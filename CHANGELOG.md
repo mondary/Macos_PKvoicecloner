@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.88] - 2026-10-25
+
+### Changed
+- **PK Reader Android 2026.10.80** : bilan des voix avant l’écoute de chaque nouveau chapitre, associations mémorisées et arrêt natif avant un chapitre non validé ; téléchargements fixes, soutien Ko-fi explicite et navigation chapitre/page/phrase regroupée. Compteur d’analyse près de « Gérer », titres de chapitres inconnus remplacés par leur numéro.
+
 ## [2026.10.87] - 2026-10-25
 
 ### Changed

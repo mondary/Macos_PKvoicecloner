@@ -137,6 +137,33 @@ h1, h2, h3, p { margin: 0; }
 
 /* ------------------------------------------------------------ en-têtes */
 
+#analysis-activities { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(24px + var(--safe-bottom)); z-index: 45; display: grid; gap: 8px; justify-items: center; pointer-events: none; }
+#analysis-activities:empty { display: none; }
+#analysis-activities:not(:empty) { max-width: 92vw; max-height: min(40dvh, 280px); overflow-y: auto; padding: 4px; pointer-events: auto; }
+.has-player #analysis-activities { bottom: calc(96px + var(--safe-bottom)); }
+.analysis-bubble { display: flex; align-items: stretch; max-width: min(88vw, 400px); background: var(--glass-strong); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--shadow-2); overflow: hidden; pointer-events: auto; -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4); }
+.bubble-main { position: relative; display: flex; align-items: center; gap: 8px; padding: 9px 14px; min-height: 44px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.2px; overflow: hidden; }
+.bubble-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-fill); flex: none; animation: bullePulse 1.6s ease-in-out infinite; }
+@keyframes bullePulse { 50% { opacity: 0.3; transform: scale(0.75); } }
+.bubble-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bubble-bar { position: absolute; left: 12px; bottom: 5px; height: 2px; max-width: calc(100% - 24px); background: var(--accent-fill); border-radius: 999px; transition: width 0.5s cubic-bezier(0.22, 0.61, 0.36, 1); }
+.analysis-bubble.queued .bubble-dot { animation: none; opacity: 0.45; }
+.analysis-bubble.done .bubble-dot { animation: none; }
+.analysis-bubble.error { border-color: var(--danger); }
+.analysis-bubble.error .bubble-dot { background: var(--danger); animation: none; }
+.bubble-close { display: grid; place-items: center; min-width: 44px; padding: 0 11px; color: var(--muted); border-left: 1px solid var(--line); }
+.download-error { color: var(--danger); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; max-width: min(88vw, 400px); font-size: 12px; overflow-wrap: anywhere; }
+.reader-mode #analysis-activities { bottom: calc(var(--player-h, 320px) + 12px); }
+.bubble-close:hover { color: var(--ink); }
+.bubble-close svg { width: 13px; height: 13px; }
+.player-analysis { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 9px; font-size: 10px; font-weight: 700; color: var(--accent); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.player-analysis .bubble-dot { width: 6px; height: 6px; }
+.player-analysis.done { color: var(--ink-soft); }
+.player-analysis.done .bubble-dot { animation: none; }
+.player-analysis.error { color: var(--danger); border-color: var(--danger); }
+.player-analysis.error .bubble-dot { background: var(--danger); animation: none; }
+.player-analysis.queued .bubble-dot { animation: none; opacity: 0.45; }
+
 .page-heading { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 38px; gap: 16px; }
 .eyebrow { font-size: 10px; font-weight: 600; letter-spacing: 2.2px; line-height: 1.5; color: var(--muted); }
 .page-heading h1 { font-family: 'Literata', serif; font-size: 46px; font-weight: 400; letter-spacing: -2px; line-height: 1.35; margin-top: 6px; text-wrap: balance; }
@@ -360,6 +387,8 @@ textarea { resize: vertical; line-height: 1.6; }
 /* Réglages IA : fournisseur → clé → modèle dans une liste. */
 .ia-keys-line { margin: 10px 0 0; }
 .ia-note { margin: 6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.ia-choice { margin: -10px 0 20px; color: var(--muted); font-size: 11.5px; line-height: 1.65; }
+.ia-choice strong { color: var(--ink-soft); font-weight: 600; }
 .ia-saved { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; color: var(--accent); font-size: 11px; line-height: 1.5; }
 .ia-saved svg { width: 14px; height: 14px; flex: none; }
 .ia-model-row { display: flex; gap: 8px; align-items: stretch; }
@@ -367,6 +396,26 @@ textarea { resize: vertical; line-height: 1.6; }
 .ia-model-row .small-button { white-space: nowrap; }
 #ia-provider, #ia-model-select { width: 100%; min-height: 44px; padding: 10px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; font: inherit; }
 /* Page « Gérer le livre » : actions visibles, chacune expliquée. */
+.book-steps { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 10px; }
+.book-step { display: flex; align-items: flex-start; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.step-icon { flex: none; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: var(--line-soft); color: var(--muted); }
+.step-icon svg { width: 17px; height: 17px; }
+.book-step.done .step-icon, .book-step.running .step-icon { background: var(--accent-soft); color: var(--accent); }
+.book-step.error .step-icon { background: transparent; color: var(--danger); }
+.book-step.running .step-icon svg { animation: turn 1.4s linear infinite; }
+.step-copy { flex: 1; min-width: 0; }
+.step-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.step-copy strong { font-size: 13px; font-weight: 600; }
+.step-pct { flex: none; color: var(--muted); font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.book-step.done .step-pct { color: var(--accent); }
+.book-step.error .step-pct { color: var(--danger); }
+.step-copy small { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.55; overflow-wrap: anywhere; }
+.step-track { display: block; height: 3px; margin-top: 9px; border-radius: 999px; background: var(--line-soft); overflow: hidden; }
+.step-track i { display: block; height: 100%; border-radius: inherit; background: var(--accent-fill); transition: width 0.4s cubic-bezier(0.22, 0.61, 0.36, 1); }
+.book-step.error .step-track i { background: var(--danger); }
+.book-step > .small-button { flex: none; align-self: center; min-width: 84px; }
+@media (max-width: 720px) { .book-step { flex-wrap: wrap; } .book-step > .small-button { width: 100%; } }
+
 .book-manage { border: 1px solid var(--line); border-radius: 999px; padding: 9px 14px; font-size: 11px; font-weight: 600; color: var(--ink-soft); background: var(--surface); min-height: 40px; }
 .book-manage:hover { border-color: var(--accent); color: var(--accent); }
 .header-action { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 8px 11px; font-size: 11px; font-weight: 600; color: var(--ink-soft); background: var(--surface); flex: none; }
@@ -447,7 +496,18 @@ details code { display: block; overflow-wrap: anywhere; background: var(--line-s
 .about h2 { font-size: 14px; }
 .about h2 span { font-size: 10px; color: var(--muted); font-weight: 400; margin-left: 8px; }
 .about p { font-size: 11px; color: var(--muted); margin-top: 6px; }
-.about > a { margin-left: auto; color: var(--muted); padding: 12px; }
+.about { flex-wrap: wrap; }
+.about > .support-kofi { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 46px; padding: 12px 16px; margin-left: auto; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--line); border-radius: 12px; font-size: 13px; font-weight: 600; text-decoration: none; }
+.support-kofi svg { width: 18px; height: 18px; }
+.support-kofi:hover { border-color: var(--accent); }
+.chapter-voice-choices { border: 0; padding: 0; margin: 12px 0; min-width: 0; }
+.chapter-voice-choice { display: grid; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.chapter-voice-choice > span { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.chapter-voice-choice small { color: var(--muted); font-size: 11px; }
+.chapter-voice-choice select { width: 100%; min-height: 44px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; font: inherit; padding: 10px; }
+.chapter-review > .primary { width: 100%; }
+.chapter-review-status { font-size: 12px; line-height: 1.6; color: var(--ink-soft); }
+@media (max-width: 720px) { .about > .support-kofi { width: 100%; margin: 4px 0 0; } }
 .fatal { padding: 40px; line-height: 1.8; }
 .fatal h1 { font-size: 24px; }
 
@@ -607,6 +667,8 @@ dialog header .icon-button { width: 38px; height: 38px; }
   .mini-book small { font-size: 9px; }
   .has-player .main-content { padding-bottom: calc(185px + var(--safe-bottom)); }
   #toast { bottom: calc(172px + var(--safe-bottom)); font-size: 12px; }
+  #analysis-activities { bottom: calc(94px + var(--safe-bottom)); }
+  .has-player #analysis-activities { bottom: calc(154px + var(--safe-bottom)); }
   dialog { margin: auto 0 0; max-width: none; width: 100%; max-height: 90dvh; padding: 14px 24px calc(26px + var(--safe-bottom)); border: 0; border-bottom: 0; border-radius: 26px 26px 0 0; }
   .sheet-handle { display: block; width: 34px; height: 4px; border-radius: 4px; background: var(--line); margin: 0 auto 14px; }
   dialog header { margin-bottom: 15px; }
@@ -688,13 +750,14 @@ dialog header .icon-button { width: 38px; height: 38px; }
 .casting-library-row>span{display:grid;gap:6px;min-width:0;text-align:left}
 .casting-library-row strong{overflow-wrap:anywhere}
 .casting-library-row small{color:var(--muted);font-weight:400}
-</style></head><body><div class="app-shell"><main class="main-content"><header class="page-heading"><div><p class="eyebrow">FAITES COMME CHEZ VOUS</p><h1>À votre rythme<span>.</span></h1></div><span class="build-chip">2026.10.68</span></header>
+</style></head><body><div class="app-shell"><main class="main-content"><header class="page-heading"><div><p class="eyebrow">FAITES COMME CHEZ VOUS</p><h1>À votre rythme<span>.</span></h1></div><span class="build-chip">2026.10.80</span></header>
   <div class="segmented settings-tabs" role="group" aria-label="Sections des réglages"><button data-action="settings-tab" data-id="lecture" class="" aria-pressed="false"><i data-lucide="book-open" aria-hidden="true"></i><span>Lecture</span></button><button data-action="settings-tab" data-id="voix" class="active" aria-pressed="true"><i data-lucide="audio-lines" aria-hidden="true"></i><span>Voix & analyse</span></button><button data-action="settings-tab" data-id="apropos" class="" aria-pressed="false"><i data-lucide="info" aria-hidden="true"></i><span>À propos</span></button></div>
   <div class="settings-pane">
-  <section class="settings-section"><div class="section-heading"><h2>Analyse IA du téléphone</h2><span class="pill">FACULTATIF</span></div><p class="section-description">La même analyse des personnages que le studio, appelée directement depuis le téléphone : aucun Mac requis.</p><p class="section-description"><strong>Active</strong> · deepseek-chat</p>
+  <section class="settings-section"><div class="section-heading"><h2>Analyse IA du téléphone</h2><span class="pill">FACULTATIF</span></div><p class="section-description">La même analyse des personnages que le studio, appelée directement depuis le téléphone.</p>
+  <p class="ia-choice"><strong>Deux chemins.</strong> <strong>Sans clé</strong> : le repérage local lit les indices de dialogue — immédiat, plus approximatif. <strong>Avec une clé</strong> (ou une <strong>IA locale</strong>) : le modèle identifie vraiment chaque locuteur — de quelques minutes à plusieurs heures par livre selon le modèle, une nuit entière pour un gros roman. Dans tous les cas, le premier chapitre démarre dès qu'il est prêt et les voix choisies servent tout le livre.</p><p class="section-description"><strong>Active</strong> · deepseek-chat</p>
   <form id="ia-form">
     <label for="ia-provider">Fournisseur</label>
-    <select id="ia-provider" name="provider"><option value="zai" >GLM · Z.ai</option><option value="bigmodel" >GLM · BigModel (Chine)</option><option value="deepseek" selected>DeepSeek</option><option value="openai" >OpenAI</option><option value="mistral" >Mistral</option><option value="groq" >Groq</option><option value="openrouter" >OpenRouter</option><option value="opencode-zen" >OpenCode Zen</option><option value="opencode-go" >OpenCode Go (abonnement)</option><option value="custom" >Autre adresse (OpenAI-compatible)</option></select>
+    <select id="ia-provider" name="provider"><option value="zai" >GLM · Z.ai</option><option value="bigmodel" >GLM · BigModel (Chine)</option><option value="deepseek" selected>DeepSeek</option><option value="openai" >OpenAI</option><option value="mistral" >Mistral</option><option value="groq" >Groq</option><option value="openrouter" >OpenRouter</option><option value="opencode-zen" >OpenCode Zen</option><option value="opencode-go" >OpenCode Go (abonnement)</option><option value="local" >IA locale (Ollama, LM Studio, llama.cpp)</option><option value="custom" >Autre adresse (OpenAI-compatible)</option></select>
     <label for="ia-url">Adresse du fournisseur</label>
     <input id="ia-url" name="url" type="url" placeholder="https://…" value="https://api.deepseek.com/v1" autocapitalize="none" spellcheck="false" required />
     <p class="ia-keys-line"><a id="ia-keys" class="link-button" href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer" >Trouver ma clé chez DeepSeek →</a></p>

@@ -10,13 +10,16 @@ import './reader.css';
 import { App } from '@capacitor/app';
 import { SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { library, readSettings, saveSettings } from './storage';
-import { importBook, welcomeBook, chapterAt, minutesLeft, reparerParagraphes } from './books';
+import { importBook, welcomeBook, chapterAt, minutesLeft, reparerParagraphes, normaliserTitresChapitres } from './books';
+import { readerHeaderView, readerNavigationView } from './reader-controls';
+import { chapterAnalysisReady, proposeChapterVoices, confirmChapterVoices, chapterReviewView, type ChapterVoiceChoice } from './chapter-voices';
 import { audio, native, Reader, Update, modelCatalog } from './engine';
 import type { Book, UpdateInfo, Voice } from './types';
 import { openCasting } from './casting-ui';
 import { analyseLocalePerimee, besoinsVoix, characterAt, relancerAnalyse, speechProfile } from './casting';
 import { castingBusy, castingActivities, castingProgress, dismissCastingActivity, prepareCasting, watchCasting } from './casting-jobs';
-import { activityView, analysisChip } from './activity-view';
+import { activityView, analysisChip, downloadActivityView } from './activity-view';
+import { voiceDownloads, installVoice, monitorVoiceDownloads, watchVoiceDownloads, dismissVoiceDownload } from './voice-downloads';
 import { etapesLivre } from './book-progress';
 import { preparerLivreAudio } from './book-setup';
 import { lectureBody, settingsViewHTML, type SettingsTab } from './settings-view';
@@ -46,13 +49,15 @@ let search = '';
 let importing = false;
 let savedPosition = '';
 let toastTimer: ReturnType<typeof setTimeout>;
-let downloading = false;
 let systemTheme = '';
 let wasPreparing = false;
 /** Chapitre audio en cours (détection du changement de chapitre) et livre dont
  *  la distribution a été affinée pendant l'écoute (rechargement différé). */
 let chapitreCharge = -1;
 let rafraichissementAttente = '';
+let chapterReview: { book: Book; start: number; choices: ChapterVoiceChoice[]; ready: boolean; working: boolean } | undefined;
+let chapterPlaybackRequest = false;
+let chapterPendingKey = '';
 /** Séquence « Tout préparer » : livre en cours de préparation complète. */
 let bookSetup: string | null = null;
 let setupStatus = '';
@@ -265,12 +270,7 @@ const pageOf = (index: number) => Math.max(0, pages.findIndex(p => p.some(r => r
 
 function readerHeader() {
   const book = current()!;
-  return `<header class="reader-header">${iconButton('arrow-left','Retour à la bibliothèque','back')}<div><span>${esc(book.title.replace(/\n/g,' '))}</span><small>${esc(book.author)}</small></div>${iconButton('users','Personnages et voix de ce livre','casting')}<button class="header-action" data-action="book-settings" data-id="${book.id}">${icon('sliders-horizontal')}<span>Gérer</span></button>${iconButton('text-cursor-input','Apparence du texte','appearance')}</header>`;
-}
-function readerSubhead() {
-  const book = current()!; const chapter = chapterAt(book); const index = book.chapters.indexOf(chapter);
-  const step = (dir: -1 | 1, name: string) => `<button class="chapter-step" data-action="chapter-step" data-id="${dir}" ${index + dir < 0 || index + dir >= book.chapters.length ? 'disabled' : ''} aria-label="${name}">${icon(dir < 0 ? 'chevron-left' : 'chevron-right')}</button>`;
-  return `<div class="reader-subhead">${step(-1,'Chapitre précédent')}<button class="chapter-current" data-action="chapters">${icon('list')}<span class="chapter-name">${esc(chapter.title)}</span>${icon('chevron-down')}</button>${step(1,'Chapitre suivant')}${iconButton(book.bookmarks.includes(book.position) ? 'bookmark-check' : 'bookmark','Marquer le passage','bookmark')}</div>`;
+  return readerHeaderView(book, analysisChip(castingActivities(), book.id));
 }
 function sentenceButton(text: string, index: number, book: Book, debut = 0) {
   const isCurrent = index === book.position;
@@ -281,10 +281,10 @@ function sentenceButton(text: string, index: number, book: Book, debut = 0) {
 }
 function readingScroll() {
   const book = current()!; const chapter = chapterAt(book);
-  return `<article class="reading-page"><div class="page-title"><p class="eyebrow">${book.sample?'PRENDRE LE TEMPS':esc(book.author.toUpperCase())}</p><h1>${esc(chapter.title)}</h1></div><div class="reader-text">${book.segments.slice(chapter.start,chapter.end).map((text,i)=>sentenceButton(text,chapter.start+i,book)).join('')}</div><button class="next-chapter" data-action="chapter-next">${chapter.end<book.segments.length?'Chapitre suivant':'Retour à la bibliothèque'} ${icon('arrow-right')}</button></article>`;
+  return `<article class="reading-page"><div class="page-title"><p class="eyebrow">${book.sample?'PRENDRE LE TEMPS':esc(book.author.toUpperCase())}</p><h1>${esc(chapter.title)}</h1></div><div class="reader-text">${book.segments.slice(chapter.start,chapter.end).map((text,i)=>sentenceButton(text,chapter.start+i,book)).join('')}</div></article>`;
 }
 function readingPages() {
-  return `<article class="reading-page paged"><div class="page-title"><p class="eyebrow" id="page-eyebrow"></p><h1 id="page-heading"></h1></div><div class="reader-text" id="page-text"></div><footer class="page-footer" id="page-footer"><button class="page-turn" disabled aria-hidden="true">${icon('chevron-left')}</button><span class="page-count"><b>1</b><i> / 1</i></span><button class="page-turn" disabled aria-hidden="true">${icon('chevron-right')}</button></footer></article>`;
+  return `<article class="reading-page paged"><div class="page-title"><p class="eyebrow" id="page-eyebrow"></p><h1 id="page-heading"></h1></div><div class="reader-text" id="page-text"></div></article>`;
 }
 function playerHTML() {
   const book = current()!; const chapter = chapterAt(book);
@@ -292,14 +292,17 @@ function playerHTML() {
   const speaker = characterAt(book, book.position)?.name || '';
   const focus = Boolean(settings.focus);
   const status = audio.state.error || (audio.state.preparing?`Préparation ${audio.state.prepared ?? 0} / ${audio.state.total ?? 0} passages`:audio.state.loading?`${speaker?`${speaker} · `:''}La voix prépare le prochain passage…`:isPlaying?`${speaker?`${esc(speaker)} · `:''}${esc(chapter.title)} — laissez l’histoire vous emporter.`:'Touchez une phrase pour choisir le départ.');
-  return `<section class="player ${focus ? 'reduit' : ''}" aria-label="Lecteur audio"><div class="player-top"><button class="voice-chip" data-action="choose-voice">${icon('audio-lines')}<span>${esc(characterAt(book, book.position)?.name || voiceName())}</span>${icon('chevron-down')}</button><button class="speed-chip" data-action="speed" aria-label="Vitesse de ${esc(voiceName())}">${settings.rate.toLocaleString('fr')}<span>×</span></button><button class="sleep-chip ${audio.state.sleepAt?'on':''}" data-action="sleep">${icon('moon')}${audio.state.sleepAt?`${Math.max(1,Math.ceil((audio.state.sleepAt-Date.now())/60000))} min`:'Minuteur'}</button>${analysisChip(castingActivities(), book.id)}<button class="icon-button focus-button" data-action="focus" aria-label="${focus?'Afficher les commandes':'Réduire le lecteur'}">${icon(focus?'chevrons-up':'chevrons-down')}</button></div><label class="sr-only" for="progress">Position dans le livre</label><input class="progress-slider" id="progress" type="range" min="0" max="${book.segments.length-1}" value="${Math.min(book.position,book.segments.length-1)}" style="--progress:${progress(book)}" /><div class="time-row"><span>${percent(book)} % du livre</span><span>${book.completed?'Lecture terminée':`${minutes(book)} restantes`}</span></div><div class="reader-jumps" role="group" aria-label="Navigation page et paragraphe"><button class="jump" data-action="paragraph-prev" aria-label="Paragraphe précédent">${icon('pilcrow')}<span>Préc.</span></button><button class="jump" data-action="page-prev" aria-label="Page précédente">${icon('chevron-left')}<span>Page</span></button><button class="jump" data-action="page-next" aria-label="Page suivante"><span>Page</span>${icon('chevron-right')}</button><button class="jump" data-action="paragraph-next" aria-label="Paragraphe suivant"><span>Suiv.</span>${icon('pilcrow')}</button></div><div class="transport">${iconButton('skip-back','Phrase précédente','previous')}<button class="play-button ${audio.state.loading?'loading':''}" data-action="toggle" aria-label="${isPlaying?'Mettre en pause':'Lire à voix haute'}">${icon(audio.state.loading?'loader-circle':isPlaying?'pause':'play')}</button>${iconButton('skip-forward','Phrase suivante','next')}${iconButton('download','Préparer ce chapitre hors ligne','prepare')}</div><p class="player-status" aria-live="polite">${esc(status)}</p></section>`;
+  return `<section class="player ${focus ? 'reduit' : ''}" aria-label="Lecteur audio"><div class="player-top"><button class="voice-chip" data-action="choose-voice">${icon('audio-lines')}<span>${esc(characterAt(book, book.position)?.name || voiceName())}</span>${icon('chevron-down')}</button><button class="speed-chip" data-action="speed" aria-label="Vitesse de ${esc(voiceName())}">${settings.rate.toLocaleString('fr')}<span>×</span></button><button class="sleep-chip ${audio.state.sleepAt?'on':''}" data-action="sleep">${icon('moon')}${audio.state.sleepAt?`${Math.max(1,Math.ceil((audio.state.sleepAt-Date.now())/60000))} min`:'Minuteur'}</button><button class="icon-button focus-button" data-action="focus" aria-label="${focus?'Afficher les commandes':'Réduire le lecteur'}">${icon(focus?'chevrons-up':'chevrons-down')}</button></div>
+    <label class="sr-only" for="progress">Position dans le livre</label><input class="progress-slider" id="progress" type="range" min="0" max="${book.segments.length-1}" value="${Math.min(book.position,book.segments.length-1)}" style="--progress:${progress(book)}" /><div class="time-row"><span>${percent(book)} % du livre</span><span>${book.completed?'Lecture terminée':`${minutes(book)} restantes`}</span></div>
+    ${readerNavigationView(book, settings.layout)}
+    <div class="transport"><button class="sentence-jump" data-action="previous" aria-label="Revenir d’une phrase">${icon('rotate-ccw')}<span>Phrase −1</span></button><button class="play-button ${audio.state.loading?'loading':''}" data-action="toggle" aria-label="${isPlaying?'Mettre en pause':'Lire à voix haute'}">${icon(audio.state.loading?'loader-circle':isPlaying?'pause':'play')}</button><button class="sentence-jump" data-action="next" aria-label="Avancer d’une phrase">${icon('rotate-cw')}<span>Phrase +1</span></button></div><p class="player-status" aria-live="polite">${esc(status)}</p></section>`;
 }
 function nowBar() {
   return `<aside class="now-bar" id="now-bar" hidden data-action="follow" role="button" tabindex="0" aria-label="Revenir à la phrase en cours"><span class="now-wave" aria-hidden="true"><b></b><b></b><b></b></span><div class="now-copy"><small>EN COURS · <span id="now-chapter"></span></small><p id="now-text"></p></div><span class="now-return">${icon('locate-fixed')}<i>Revenir</i></span></aside>`;
 }
 function readerView() {
   const book = current()!; if (!book) return libraryView();
-  return `${readerHeader()}${readerSubhead()}${settings.layout === 'pages' ? readingPages() : readingScroll()}${nowBar()}${playerHTML()}`;
+  return `${readerHeader()}${settings.layout === 'pages' ? readingPages() : readingScroll()}${nowBar()}${playerHTML()}`;
 }
 
 /* ---------------------------------------------------- gérer un livre (page) */
@@ -332,6 +335,8 @@ function bookView() {
     <button class="setting-row" data-action="relancer-tout" data-id="${book.id}"><span>${icon('refresh-cw')} Tout relancer</span><strong>Paragraphes, analyse, voix, lecture ${icon('chevron-right')}</strong></button>
   </section>
   <section class="settings-section"><h2>Réglages du livre</h2>
+    ${actionRow('appearance', book.id, 'text-cursor-input', 'Réglages de lecture', 'Taille du texte, thème, marges, mise en page et surlignage.')}
+    ${actionRow('prepare', book.id, 'download', 'Emporter le chapitre en cours', 'Prépare les passages audio pour l’écoute hors ligne.')}
     ${actionRow('clear-audio', book.id, 'hard-drive', 'Effacer les audios préparés', 'Libère l’espace des passages déjà générés. Les chapitres se réécoutent en direct ou se préparent à nouveau.')}
   </section>
   <section class="settings-section danger-zone"><h2>Supprimer</h2>
@@ -382,7 +387,7 @@ function drawPage(direction?: 'next' | 'prev' | 'auto') {
   box.innerHTML = (pages[page] ?? []).map(run => sentenceButton(book.segments[run.index].slice(run.from, run.to), run.index, book, run.from)).join('');
   box.classList.remove('turn-next', 'turn-prev');
   if (direction === 'next' || direction === 'prev') { void box.offsetWidth; box.classList.add(direction === 'next' ? 'turn-next' : 'turn-prev'); }
-  footer.innerHTML = `<button class="page-turn" data-action="page-prev" ${first?'disabled':''} aria-label="Page précédente">${icon('chevron-left')}</button><span class="page-count"><b>${page+1}</b><i> / ${pages.length}</i></span><button class="page-turn" data-action="page-next" ${page>=pages.length-1?'disabled':''} aria-label="Page suivante">${icon('chevron-right')}</button>`;
+  syncPageControls();
   decorate();
 }
 function syncNowBar() {
@@ -407,7 +412,21 @@ function observePlayer() {
 function replacePlayer() {
   const player = document.querySelector('.player'); if (!player) return;
   const temp = document.createElement('div'); temp.innerHTML = playerHTML();
-  player.replaceWith(temp.querySelector('.player')!); decorate(); observePlayer();
+  player.replaceWith(temp.querySelector('.player')!); syncPageControls(); decorate(); observePlayer();
+}
+function syncPageControls() {
+  if (settings.layout !== 'pages') return;
+  const label = document.querySelector('#page-footer');
+  if (label) label.innerHTML = `<b>${page + 1}</b> / ${pages.length || 1}`;
+  const prev = document.querySelector<HTMLButtonElement>('.reader-navigation [data-action="page-prev"]');
+  const next = document.querySelector<HTMLButtonElement>('.reader-navigation [data-action="page-next"]');
+  if (prev) prev.disabled = page <= 0;
+  if (next) next.disabled = page >= pages.length - 1;
+}
+function refreshReaderAnalysis() {
+  const host = document.querySelector('#reader-analysis');
+  const book = current();
+  if (host && book) host.innerHTML = analysisChip(castingActivities(), book.id);
 }
 const karaoke = { index: -1, mot: -1 };
 
@@ -577,7 +596,7 @@ function settingsView() {
 function render() {
   savePrefs();
   app.className = `app-shell ${screen==='reader'?'reader-mode':''} layout-${settings.layout} ${active()?'has-player':''}`;
-  app.innerHTML = `${navigation()}<main id="main" class="main-content ${screen==='reader'?'reader-content':''}"><div id="analysis-activities" role="region" aria-label="Suivi des analyses" aria-live="polite" aria-relevant="additions text">${screen==='reader' ? '' : activityView(castingActivities())}</div>${screen==='library'?libraryView():screen==='reader'?readerView():screen==='voices'?voicesView():screen==='book'?bookView():settingsView()}</main>${miniPlayer()}`;
+  app.innerHTML = `${navigation()}<main id="main" class="main-content ${screen==='reader'?'reader-content':''}"><div id="analysis-activities" role="region" aria-label="Tâches en cours" aria-live="polite" aria-relevant="additions text">${backgroundActivities()}</div>${screen==='library'?libraryView():screen==='reader'?readerView():screen==='voices'?voicesView():screen==='book'?bookView():settingsView()}</main>${miniPlayer()}`;
   orchestrerFermeture();
   decorate();
   if (screen === 'reader') {
@@ -607,6 +626,11 @@ function prepareBook(book: Book) {
 watchCasting(id => {
   const book = books.find(b => b.id === id);
   if (!book) return;
+  if (chapterReview?.book.id === id && !chapterReview.ready && chapterAnalysisReady(book, settings)) {
+    chapterReview.ready = true;
+    chapterReview.choices = proposeChapterVoices(book, [...allVoices(), ...clones]);
+    drawChapterReview();
+  } else if (chapterReview?.book.id === id && !chapterReview.ready) drawChapterReview();
   if (!castingBusy(book)) {
     // Distribution affinée pendant l'écoute : la file audio est rechargée au
     // prochain changement de chapitre pour ne pas couper le passage en cours.
@@ -620,18 +644,25 @@ watchCasting(id => {
 function refreshActivities() {
   // Pastille flottante hors lecteur ; puce du lecteur sinon. La bulle ne
   // décale plus la mise en page : aucun repagination nécessaire.
-  if (screen === 'reader') { replacePlayer(); orchestrerFermeture(); return; }
+  if (screen === 'reader') refreshReaderAnalysis();
   const region = document.querySelector('#analysis-activities');
   if (!region) return;
   // Ne pas perdre le focus clavier à chaque phase IA.
   const focused = region.contains(document.activeElement) ? document.activeElement as HTMLElement : null;
   const action = focused?.dataset.action, id = focused?.dataset.id;
-  region.innerHTML = activityView(castingActivities());
+  region.innerHTML = backgroundActivities();
   decorate();
   if (action) [...region.querySelectorAll<HTMLElement>('[data-action]')]
     .find(el => el.dataset.action === action && el.dataset.id === id)?.focus({ preventScroll: true });
   orchestrerFermeture();
 }
+function backgroundActivities() {
+  return downloadActivityView(voiceDownloads()) + (screen === 'reader' ? '' : activityView(castingActivities()));
+}
+watchVoiceDownloads(updated => {
+  if (updated) models = updated;
+  if (screen === 'voices') render(); else refreshActivities();
+});
 /** Un bilan « Analyse terminée » se ferme seul après quelques secondes ; une
  *  erreur reste jusqu'à ce qu'on la lise et la ferme. */
 const fermeturesProgrammees = new Map<string, ReturnType<typeof setTimeout>>();
@@ -654,7 +685,6 @@ async function lancerPreparation(b: Book) {
   sheet.close(); render();
   const statut = (texte: string) => {
     setupStatus = texte;
-    if (texte.startsWith('Téléchargement')) void pollModels();
     if (screen === 'book' && currentId === b.id) render();
     toast(texte);
   };
@@ -665,13 +695,80 @@ async function lancerPreparation(b: Book) {
       screen = 'reader'; follow = true; page = 0; pagesKey = ''; chapitreCharge = chapterAt(b).start;
       await audio.load(b, settings);
       render();
-      await audio.play();
+      await requestChapterPlayback(b);
     });
   } catch (e) {
     toast(e instanceof Error ? e.message : String(e));
   } finally {
     bookSetup = null; setupStatus = '';
     if (screen === 'book' && currentId === b.id) render();
+  }
+}
+
+function drawChapterReview() {
+  if (!chapterReview) return;
+  modal('Les voix de ce chapitre', chapterReviewView(chapterReview.book, chapterReview.choices,
+    [...allVoices(), ...clones], chapterReview.ready, chapterReview.working));
+}
+
+async function requestChapterPlayback(book: Book) {
+  if (chapterPlaybackRequest) return;
+  chapterPlaybackRequest = true;
+  try {
+    if (book.sample) { await audio.play(); return; }
+    prepareBook(book);
+    const ready = chapterAnalysisReady(book, settings);
+    const choices = proposeChapterVoices(book, [...allVoices(), ...clones]);
+    const installed = (id: string) => id === 'system:default' || [...allVoices(), ...clones].some(v => v.id === id && v.installed);
+    if (ready && choices.every(c => c.confirmed && installed(c.voice))) {
+      await audio.load(book, settings); await audio.play(); return;
+    }
+    chapterReview = { book, start: chapterAt(book).start, choices: ready ? choices : [], ready, working: false };
+    await audio.pause();
+    drawChapterReview();
+  } finally { chapterPlaybackRequest = false; }
+}
+
+async function confirmChapterReview() {
+  const review = chapterReview;
+  if (!review || !review.ready || review.working) return;
+  if (chapterAt(review.book).start !== review.start) {
+    chapterReview = undefined; await requestChapterPlayback(review.book); return;
+  }
+  const selection: Record<string, string> = {};
+  sheet.querySelectorAll<HTMLSelectElement>('[data-role-id]').forEach(select => { selection[select.dataset.roleId!] = select.value; });
+  const latest = proposeChapterVoices(review.book, [...allVoices(), ...clones]);
+  if (latest.some(c => !review.choices.some(old => old.role.id === c.role.id))) {
+    review.choices = latest; drawChapterReview(); return;
+  }
+  review.working = true;
+  try {
+    confirmChapterVoices(review.choices, selection);
+    await library.save(review.book);
+    drawChapterReview();
+    for (const id of new Set(review.choices.map(c => c.role.voice))) {
+      const voice = [...allVoices(), ...clones].find(v => v.id === id);
+      if (voice && !voice.installed) {
+        await installVoice(id, voice.name);
+        while (true) {
+          const result = await Reader.models(); models = result.voices;
+          if (result.downloads[id]?.error) throw new Error(result.downloads[id].error);
+          if (result.voices.some(v => v.id === id && v.installed)) break;
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+    }
+    if (chapterReview !== review) return;
+    chapterReview = undefined; sheet.close();
+    currentId = review.book.id; screen = 'reader'; follow = true; pagesKey = '';
+    await audio.load(review.book, settings); render(); await audio.play();
+  } catch (error) {
+    review.working = false;
+    if (chapterReview === review) {
+      drawChapterReview();
+      const status = sheet.querySelector('.chapter-review-status');
+      if (status) status.textContent = error instanceof Error ? error.message : String(error);
+    }
   }
 }
 
@@ -691,7 +788,7 @@ async function openBook(id: string, listen = false) {
   screen = 'reader'; follow = true; page = 0; pagesKey = '';
   if (audio.state.bookId !== id || distributionPerimee) await audio.load(book, settings);
   render();
-  if (listen) await audio.play();
+  if (listen) await requestChapterPlayback(book);
   else if (settings.layout === 'pages') jumpToCurrent();
   else { guard(); document.querySelector('.current-sentence')?.scrollIntoView({ block: 'center' }); }
 }
@@ -701,6 +798,7 @@ async function importFiles(files: File[]) {
   for (const file of files) {
     try {
       const book = await importBook(file);
+      normaliserTitresChapitres(book);
       if (books.some(b => b.id === book.id)) { toast(`${book.title} est déjà dans votre bibliothèque.`); continue; }
       await library.save(book); books.unshift(book); imported.push(book); count++;
       prepareBook(book);
@@ -709,12 +807,22 @@ async function importFiles(files: File[]) {
   importing = false; screen = 'library'; filter = 'all'; search = ''; render();
   if (count) toast(`${count} livre${count>1?'s':''} ajouté${count>1?'s':''} à votre bibliothèque.`);
   fileInput.value = '';
-  if (imported.length === 1) await castingSheet(imported[0]);
+  if (imported.length === 1) { currentId = imported[0].id; screen = 'book'; render(); }
 }
 
 /* ------------------------------------------------------------ lecture suivie */
 
 function updatePlayback() {
+  const pendingKey = `${audio.state.bookId}:${audio.state.index}`;
+  if (!audio.state.awaitingChapter) chapterPendingKey = '';
+  if (audio.state.awaitingChapter && !chapterReview && !chapterPlaybackRequest && chapterPendingKey !== pendingKey) {
+    chapterPendingKey = pendingKey;
+    const target = active();
+    if (target && audio.state.index < target.segments.length) {
+      target.position = audio.state.index;
+      void requestChapterPlayback(target).catch(error => toast(String(error)));
+    }
+  }
   // La progression (position du WAV, mot du TTS) arrive ~5 fois par seconde :
   // on ne redessine que le karaoké, pas toute la page.
   const lecture = active();
@@ -770,6 +878,7 @@ function updatePlayback() {
   syncNowBar();
 }
 audio.onChange = updatePlayback;
+sheet.addEventListener('close', () => { chapterReview = undefined; });
 
 /* -------------------------------------------------------------- mises à jour */
 
@@ -855,7 +964,8 @@ async function handle(action: string, el: HTMLElement) {
     case 'back': screen = 'library'; follow = true; render(); window.scrollTo(0, 0); break;
     case 'open': await openBook(id); break;
     case 'listen': await openBook(id, true); break;
-    case 'toggle': if (audio.state.playing || audio.state.loading) await audio.pause(); else { if (book) await audio.load(book, settings); await audio.play(); } break;
+    case 'toggle': if (audio.state.playing || audio.state.loading) await audio.pause(); else if (book) { if (audio.state.bookId !== book.id) await audio.load(book, settings); await requestChapterPlayback(book); } break;
+    case 'chapter-voices-confirm': await confirmChapterReview(); break;
     case 'previous': await seekTo(audio.state.index - 1); break;
     case 'next': await seekTo(audio.state.index + 1); break;
     case 'sentence': await seekTo(Number(el.dataset.index)); break;
@@ -898,7 +1008,7 @@ async function handle(action: string, el: HTMLElement) {
     case 'font': settings.fontSize = Number(id); sheet.close(); pagesKey = ''; render(); break;
     case 'theme': settings.theme = id as typeof settings.theme; sheet.close(); render(); break;
     case 'layout': settings.layout = (id || (settings.layout === 'pages' ? 'scroll' : 'pages')) as 'pages' | 'scroll'; pagesKey = ''; sheet.close(); render(); toast(settings.layout === 'pages' ? 'Lecture page à page.' : 'Lecture en défilement continu.'); break;
-    case 'chapters': if (book) modal('Dans ce livre',`<div class="chapter-list">${book.chapters.map((c,i)=>`<button data-action="chapter" data-index="${c.start}" class="${chapterAt(book)===c?'active':''}"><span>${String(i+1).padStart(2,'0')}</span><strong>${esc(c.title)}</strong>${icon(chapterAt(book)===c?'audio-lines':'chevron-right')}</button>`).join('')}</div>${book.bookmarks.length?`<h3 class="bookmarks-heading">Vos signets</h3><div class="chapter-list">${book.bookmarks.map(i=>`<button data-action="chapter" data-index="${i}">${icon('bookmark')}<strong>${esc(book.segments[i]?.slice(0,90))}…</strong></button>`).join('')}</div>`:''}`); break;
+    case 'chapters': if (book) modal('Chapitres et signets',`<button class="setting-row" data-action="bookmark"><span>${icon('bookmark')}${book.bookmarks.includes(book.position) ? 'Retirer le signet de ce passage' : 'Ajouter ce passage aux signets'}</span></button><div class="chapter-list">${book.chapters.map((c,i)=>`<button data-action="chapter" data-index="${c.start}" class="${chapterAt(book)===c?'active':''}"><span>${String(i+1).padStart(2,'0')}</span><strong>${esc(c.title)}</strong>${icon(chapterAt(book)===c?'audio-lines':'chevron-right')}</button>`).join('')}</div>${book.bookmarks.length?`<h3 class="bookmarks-heading">Vos signets</h3><div class="chapter-list">${book.bookmarks.map(i=>`<button data-action="chapter" data-index="${i}">${icon('bookmark')}<strong>${esc(book.segments[i]?.slice(0,90))}…</strong></button>`).join('')}</div>`:''}`); break;
     case 'chapter': follow = true; page = 0; await audio.seek(Number(el.dataset.index)); sheet.close(); render(); window.scrollTo(0, 0); break;
     case 'chapter-next': if (book) { const next = chapterAt(book).end; if (next < book.segments.length) { follow = true; page = 0; await audio.seek(next); render(); window.scrollTo(0, 0); } else { screen = 'library'; render(); } } break;
     case 'bookmark': if (book) { const pos = Math.min(book.position, book.segments.length - 1); book.bookmarks = book.bookmarks.includes(pos) ? book.bookmarks.filter(i => i !== pos) : [...book.bookmarks, pos].sort((a, b) => a - b); await library.save(book); render(); toast(book.bookmarks.includes(pos)?'Passage ajouté aux signets.':'Signet retiré.'); } break;
@@ -912,7 +1022,7 @@ async function handle(action: string, el: HTMLElement) {
     }
     case 'install':
       if (!native) { toast('Le téléchargement des modèles est disponible dans l’APK Android.'); break; }
-      await Reader.installModel({ id }); downloading = true; toast('Téléchargement démarré. Gardez l’app ouverte.'); void pollModels(); break;
+      await installVoice(id, models.find(v => v.id === id)?.name ?? id); break;
     case 'remove-model': if (native) { await audio.pause(); await Reader.removeModel({ id }); if (settings.voice === id) { settings.voice = 'system:default'; savePrefs(); } models = (await Reader.models()).voices; render(); toast('Voix supprimée de cet appareil.'); } break;
     case 'voice-settings': if (native) await Reader.voiceSettings(); else toast('Les réglages des voix Android sont accessibles dans l’APK.'); break;
     case 'prepare': if (native && book) { if (book.segments.slice(chapterAt(book).start, chapterAt(book).end).some((_, offset) => speechProfile(book, settings, chapterAt(book).start + offset).voice.startsWith('system:'))) { toast('Pour préparer ce chapitre, choisissez une voix Piper pour chaque rôle utilisé.'); break; } modal('Emporter ce chapitre',`<p class="sheet-description">Les passages de « ${esc(chapterAt(book).title)} » seront générés et conservés sur le téléphone. Avec une voix clonée, votre Mac doit rester connecté pendant la préparation.</p><button class="primary" data-action="prepare-confirm">${icon('download')} Préparer le chapitre</button>`); } else toast('La préparation hors ligne est disponible dans l’APK Android.'); break;
@@ -982,6 +1092,7 @@ async function handle(action: string, el: HTMLElement) {
     case 'delete': if (audio.state.bookId === id) await audio.pause(); await library.remove(id); books = books.filter(b => b.id !== id); dismissCastingActivity(id); currentId = ''; screen = 'library'; sheet.close(); render(); toast('Livre supprimé de la bibliothèque.'); break;
     case 'check-update': await checkUpdate(); break;
     case 'activity-dismiss': dismissCastingActivity(id); refreshActivities(); break;
+    case 'download-dismiss': dismissVoiceDownload(id); break;
     case 'update-now': await downloadUpdate(); break;
     case 'install-update': await installUpdate(); break;
     case 'update-permission': if (native) await Update.openInstallSettings(); else toast('Disponible dans l’application Android.'); break;
@@ -1023,18 +1134,6 @@ async function handle(action: string, el: HTMLElement) {
 
 /* ------------------------------------------------------------------ modèles */
 
-async function pollModels() {
-  if (!native) return;
-  try {
-    const result = await Reader.models(); models = result.voices;
-    const entries = Object.entries(result.downloads);
-    downloading = entries.some(([, d]) => d.progress < 100 && !d.error);
-    const status = entries.map(([id, d]) => `${modelCatalog.find(m => m.id === id)?.name ?? id} : ${d.error || `${Math.round(d.progress)} %`}`).join(' · ');
-    const el = document.querySelector('#download-status'); if (el) el.textContent = status;
-    if (!downloading) { render(); if (status) toast(status); }
-  } catch (e) { toast(String(e)); downloading = false; }
-  if (downloading) setTimeout(() => void pollModels(), 1000);
-}
 
 /* ------------------------------------------------------------------ écoute */
 
@@ -1171,11 +1270,13 @@ document.addEventListener('change', event => {
 async function init() {
   try {
     books = await library.all();
+    for (const book of books) if (normaliserTitresChapitres(book)) await library.save(book);
     if (!books.length && !localStorage.getItem('pk-reader-welcomed')) { const book = welcomeBook(); await library.save(book); books = [book]; localStorage.setItem('pk-reader-welcomed','1'); }
     voices = await audio.voices();
     if (native) { models = (await Reader.models()).voices; if (settings.server && settings.token) void Reader.connect({ server: settings.server, token: settings.token }).then(r => { clones = r.voices; if (screen === 'voices') render(); }).catch(() => {}); }
     if (native) { try { settings.ia = await Reader.iaConfig(); } catch { settings.ia = undefined; } }
     render(); await audio.init();
+    if (native) void monitorVoiceDownloads();
     if (native) void Update.addListener('progress', ({ progress }) => {
       updateProgress = Math.max(0, Math.min(100, Math.round(progress)));
       const bar = document.querySelector<HTMLElement>('#update-progress');

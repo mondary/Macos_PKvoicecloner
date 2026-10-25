@@ -1,4 +1,5 @@
 import type { CastingActivity } from './casting-jobs';
+import type { VoiceDownload } from './voice-downloads';
 
 const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g,
   c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
@@ -64,4 +65,23 @@ export function analysisChip(items: CastingActivity[], bookId: string): string {
   return `<button type="button" class="player-analysis ${item.state}" data-action="casting" data-id="${esc(bookId)}"
     aria-label="${esc(etat.texte)} — ${esc(etat.detail)}. Ouvrir les voix du livre.">
     <span class="bubble-dot" aria-hidden="true"></span>${esc(court)}</button>`;
+}
+
+/** Même famille de pastilles, mais aucun délai de disparition : l'utilisateur
+ *  ferme lui-même le résultat, les tâches en cours ne sont pas masquables. */
+export function downloadActivityView(items: VoiceDownload[]): string {
+  return items.map(item => {
+    const terminal = item.state !== 'running';
+    const label = item.state === 'done' ? `${item.name} · 100 % · Installée`
+      : item.state === 'error' ? `${item.name} · Échec du téléchargement`
+      : item.progress >= 100 ? `${item.name} · Installation…` : `${item.name} · ${Math.round(item.progress)} %`;
+    return `<div class="analysis-bubble download-bubble ${item.state}">
+      <button type="button" class="bubble-main" data-action="nav" data-id="voices"
+        aria-label="${esc(label)}${item.error ? ` : ${esc(item.error)}` : ''}. Ouvrir les voix.">
+        <span class="bubble-dot" aria-hidden="true"></span><span class="bubble-text">${esc(label)}</span>
+        ${!terminal ? `<span class="bubble-bar" style="width:${item.progress}%"></span>` : ''}
+      </button>
+      ${terminal ? `<button type="button" class="bubble-close" data-action="download-dismiss" data-id="${esc(item.id)}" aria-label="Fermer le suivi de ${esc(item.name)}">${icon('x')}</button>` : ''}
+    </div>${item.error ? `<p class="download-error">${esc(item.error)}</p>` : ''}`;
+  }).join('');
 }

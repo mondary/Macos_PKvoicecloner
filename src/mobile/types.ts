@@ -55,6 +55,7 @@ export interface UpdateInfo {
   url?: string; size?: number; digest?: string; notes?: string; page?: string;
 }
 export interface Playback {
+  awaitingChapter?: boolean;
   bookId: string; index: number; playing: boolean; loading: boolean;
   error?: string; sleepAt?: number; preparing?: boolean; prepared?: number; total?: number;
   speaker?: string; voice?: string;

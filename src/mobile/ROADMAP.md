@@ -1,6 +1,6 @@
 # PK Reader — feuille de route lecteur
 
-Retours des 21 au 25/10. État des sources au 2026.10.79.
+Retours des 21 au 25/10. État des sources au 2026.10.80.
 
 ## Fait
 
@@ -32,6 +32,8 @@ Retours des 21 au 25/10. État des sources au 2026.10.79.
 - Préparation en streaming : chapitre courant analysé en priorité, lecture immédiate, reste du livre en arrière-plan, file rafraîchie aux changements de chapitre — 2026.10.77.
 - Pastille de suivi discrète, pipeline accéléré et IA locale (Ollama/LM Studio/llama.cpp) — 2026.10.78.
 - Page « Gérer le livre » en quatre étapes avec relance ciblée et « Tout relancer » — 2026.10.79.
+- Notifications fixes des téléchargements, soutien Ko-fi explicite, navigation chapitre/page/phrase regroupée — 2026.10.80.
+- Validation rapide des voix par chapitre, choix mémorisés et arrêt Android avant les nouveaux personnages — 2026.10.80.
 
 ## Reste
 

@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.87** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
+version **2026.10.88** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
 
 📱 **Android** — [download the APK](https://github.com/mondary/Macos_PKvoicecloner/releases/latest/download/PK-Reader-latest.apk) (stable link following the latest version) · 🍎 **macOS** — [DMG 2026.10.66](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/v2026.10.66)
 
@@ -24,7 +24,11 @@ The **PK Reader** Android app reads EPUB, text PDFs and TXT using Android voices
 
 **Manage the book** — four steps (Paragraphs, Analysis, Voices, Current-chapter listening) show their percentage and details, and can be relaunched separately; “Relaunch everything” chains paragraphs, full analysis, voices and playback.
 
-[Android installation and guide (French)](docs/ANDROID.md) · [Current APK](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.79) (`pk-<version>` release, direct link) · [Android changelog](src/mobile/CHANGELOG.md)
+**Grouped controls** — chapter, page and sentence navigation sit near Play/Pause, with distinct labels. The analysis count stays beside “Manage”. Voice downloads remain visible in a fixed notification until the result is dismissed. About provides an explicit “Support on Ko-fi” button.
+
+**Confirm a chapter, not the whole book** — before playback, a summary proposes voices for this chapter’s characters, distinguishing installed voices from downloads. Confirm or edit; those choices carry over to later chapters. If everything is already analysed and confirmed, playback continues without a dialog. Otherwise it waits for confirmation of new characters.
+
+[Android installation and guide (French)](docs/ANDROID.md) · [Current APK](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.80) (`pk-<version>` release, direct link) · [Android changelog](src/mobile/CHANGELOG.md)
 
 > APKs live in `pk-<version>` releases (newest first on the releases page). The **Latest** badge follows the last published release, Android or macOS: it may point at the DMG without the APK disappearing — the direct link above stays valid.
 
@@ -33,6 +37,8 @@ The **PK Reader** Android app reads EPUB, text PDFs and TXT using Android voices
 <img src="store/screenshots/android-reader/casting.png" width="300" alt="Web preview of the characters sheet: proposed roles, an assigned passage and voices using demonstration data" />
 
 <img src="store/screenshots/android-reader/analysis-progress.png" width="230" alt="Analysis progress pill: step, batches and elapsed time, demonstration state" />
+
+<img src="store/screenshots/android-reader/chapter-voices.png" width="230" alt="Chapter voice summary with installed and downloadable proposals, demonstration data" />
 
 ### macOS · PK Voice Studio
 

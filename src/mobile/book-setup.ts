@@ -3,6 +3,7 @@ import { prepareCasting } from './casting-jobs';
 import { chapterAt } from './books';
 import { audio, native, Reader } from './engine';
 import { library } from './storage';
+import { installVoice } from './voice-downloads';
 import type { Book, Chapter, Settings, Voice } from './types';
 
 /** Chapitres dont chaque phrase a une voix téléchargeable (Piper) : seuls eux
@@ -16,7 +17,7 @@ export function chapitresPreparables(book: Book, settings: Settings): { chapitre
 }
 
 const installer = async (voice: Voice, statut: (texte: string) => void) => {
-  await Reader.installModel({ id: voice.id });
+  await installVoice(voice.id, voice.name);
   while (true) {
     const result = await Reader.models();
     const state = result.downloads[voice.id];
@@ -68,7 +69,9 @@ export async function preparerLivreAudio(book: Book, available: Voice[], setting
     await Promise.race([chapitrePret, arrierePlan]);
   }
   // 2. Télécharger les voix manquantes proposées, puis réassocier les timbres.
-  if (await telechargerVoixManquantes(book, available, settings, statut)) {
+  // Avec une lecture interactive, le bilan du chapitre doit être validé avant
+  // tout téléchargement : seules les voix effectivement choisies sont installées.
+  if (!demarrerLecture && await telechargerVoixManquantes(book, available, settings, statut)) {
     statut('Voix du chapitre installées.');
   }
   // 3. Lecture immédiate : le reste de l'analyse continue en arrière-plan et
@@ -82,16 +85,15 @@ export async function preparerLivreAudio(book: Book, available: Voice[], setting
     await audio.load(book, settings);
   }
   // 4. Arrière-plan : fin de l'analyse, voix découvertes en route, statut final.
-  void suiteArrierePlan(arrierePlan, book, available, settings, statut);
+  void suiteArrierePlan(arrierePlan, book, statut);
 }
 
-async function suiteArrierePlan(arrierePlan: Promise<void>, book: Book, available: Voice[], settings: Settings,
+async function suiteArrierePlan(arrierePlan: Promise<void>, book: Book,
   statut: (texte: string) => void) {
   try {
     await arrierePlan;
     const resultat = book.casting?.analysis;
     if (resultat?.state !== 'ready') throw new Error(resultat?.error ?? 'L’analyse ne s’est pas terminée. Reprenez-la plus tard.');
-    await telechargerVoixManquantes(book, available, settings, () => {});
     statut('Analyse terminée : la distribution s’affine au fil des chapitres. Pour l’écoute hors ligne, « Emporter ce chapitre » reste disponible dans le lecteur.');
   } catch (error) {
     statut(`Analyse interrompue : ${error instanceof Error ? error.message : error} Les lots déjà validés sont conservés.`);

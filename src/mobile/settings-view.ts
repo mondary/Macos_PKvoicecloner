@@ -93,7 +93,7 @@ export function settingsViewHTML(o: SettingsViewOptions): string {
   const apropos = `
   ${o.updateHTML}
   <section class="settings-section"><h2>Crédits & inspirations</h2><div class="credits-list"><p>PK Reader est un projet original. Son ergonomie de lecture s’inspire de <a href="https://play.google.com/store/apps/details?id=voice.reader.ai" target="_blank" rel="noopener noreferrer">TTS Reader Pro</a> et de <a href="https://readexa.uk/" target="_blank" rel="noopener noreferrer">Readexa</a>.</p><p>Moteurs et bibliothèques : Capacitor, sherpa-onnx, Piper, PDF.js, fflate, Lucide, DM Sans et Literata — licences dans <code>THIRD_PARTY.md</code>.</p></div></section>
-  <section class="settings-section about"><span class="brand-mark">${icon('audio-lines')}</span><div><h2>PK Reader <span>${version}</span></h2><p>Vos livres. Votre rythme. Votre voix.</p></div><a href="https://ko-fi.com/pouark" target="_blank" rel="noopener noreferrer" aria-label="Soutenir PK Reader sur Ko-fi">${icon('heart')}</a></section>
+  <section class="settings-section about"><span class="brand-mark">${icon('audio-lines')}</span><div><h2>PK Reader <span>${version}</span></h2><p>Vos livres. Votre rythme. Votre voix.</p></div><a class="support-kofi" href="https://ko-fi.com/pouark" target="_blank" rel="noopener noreferrer">${icon('coffee')}<span>Soutenir sur Ko-fi</span>${icon('arrow-up-right')}</a></section>
   ${!native ? '<p class="web-note">Aperçu web : les voix Piper, l’IA du téléphone et les mises à jour fonctionnent dans l’APK Android.</p>' : ''}`;
   return `<header class="page-heading"><div><p class="eyebrow">FAITES COMME CHEZ VOUS</p><h1>À votre rythme<span>.</span></h1></div><span class="build-chip">${version}</span></header>
   ${navigation}

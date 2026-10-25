@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.83** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
+version **2026.10.84** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
 
 📱 **Android** — [download the APK](https://github.com/mondary/Macos_PKvoicecloner/releases/latest/download/PK-Reader-latest.apk) (stable link following the latest version) · 🍎 **macOS** — [DMG 2026.10.66](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/v2026.10.66)
 
@@ -20,13 +20,17 @@ The **PK Reader** Android app reads EPUB, text PDFs and TXT using Android voices
 
 **In-app updates (Android 2026.10.61)** — Settings → **Updates**: PK Reader checks GitHub releases, downloads the APK, verifies its digest and signature, then opens the Android installer. No more browser or Downloads folder. The signing key is now **permanent**: after one last reinstall for versions ≤ 2026.10.60, updates install over the app and keep the library.
 
-[Android installation and guide (French)](docs/ANDROID.md) · [Current APK](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.75) (`pk-<version>` release, direct link) · [Android changelog](src/mobile/CHANGELOG.md)
+**Analysis progress** — a panel on every screen shows the book, model, current step, chapter and saved batches. The result or error stays visible until dismissed; “View voices” opens the cast.
+
+[Android installation and guide (French)](docs/ANDROID.md) · [Current APK](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.76) (`pk-<version>` release, direct link) · [Android changelog](src/mobile/CHANGELOG.md)
 
 > APKs live in `pk-<version>` releases (newest first on the releases page). The **Latest** badge follows the last published release, Android or macOS: it may point at the DMG without the APK disappearing — the direct link above stays valid.
 
 <img src="store/screenshots/android-reader/library.png" width="230" alt="PK Reader library web preview" /> <img src="store/screenshots/android-reader/reader.png" width="230" alt="PK Reader reading screen web preview" />
 
 <img src="store/screenshots/android-reader/casting.png" width="300" alt="Web preview of the characters sheet: proposed roles, an assigned passage and voices using demonstration data" />
+
+<img src="store/screenshots/android-reader/analysis-progress.png" width="230" alt="Analysis progress in settings: review step and saved batches, demonstration state" />
 
 ### macOS · PK Voice Studio
 

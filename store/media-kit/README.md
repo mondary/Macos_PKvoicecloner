@@ -1,5 +1,14 @@
 # Media-kit — captures de PK Reader
 
+## Suivi des analyses (2026.10.76)
+
+`store/screenshots/android-reader/analysis-progress.png` : capture web à 390×844 @2x,
+vraie page Réglages et composant `activityView` de production. L’état IA est simulé
+(livre « Le voyage de Camille », relecture, 2 lots enregistrés sur 8) ; aucun appel
+payant ni donnée personnelle. Contrôle également à 1280×900, et erreur à 360×800.
+Les transitions file → traitement → succès/échec et reprise sont vérifiées par
+`pnpm exec vitest run src/mobile/tests/casting-jobs.test.ts`.
+
 ## Capture « Les voix de ce livre » (fiche personnages)
 
 La capture `store/screenshots/android-reader/casting.png` (390×844) montre la

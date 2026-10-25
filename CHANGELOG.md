@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.84] - 2026-10-25
+
+### Added
+- **PK Reader Android 2026.10.76** : suivi visible des analyses sur tous les écrans (file, modèle, phase, chapitre, lots), bilan et erreur conservés jusqu’à fermeture.
+
 ## [2026.10.83] - 2026-10-25
 
 ### Fixed

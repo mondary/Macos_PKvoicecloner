@@ -15,7 +15,8 @@ import { audio, native, Reader, Update, modelCatalog } from './engine';
 import type { Book, UpdateInfo, Voice } from './types';
 import { openCasting } from './casting-ui';
 import { analyseLocalePerimee, besoinsVoix, characterAt, relancerAnalyse, speechProfile } from './casting';
-import { castingBusy, prepareCasting, watchCasting } from './casting-jobs';
+import { castingBusy, castingActivities, dismissCastingActivity, prepareCasting, watchCasting } from './casting-jobs';
+import { activityView } from './activity-view';
 import { preparerLivreAudio } from './book-setup';
 import { lectureBody, settingsViewHTML, type SettingsTab } from './settings-view';
 import { fournisseurParId, fournisseurParUrl, optionsModeles } from './ia-providers';
@@ -568,7 +569,7 @@ function settingsView() {
 function render() {
   savePrefs();
   app.className = `app-shell ${screen==='reader'?'reader-mode':''} layout-${settings.layout} ${active()?'has-player':''}`;
-  app.innerHTML = `${navigation()}<main id="main" class="main-content ${screen==='reader'?'reader-content':''}">${screen==='library'?libraryView():screen==='reader'?readerView():screen==='voices'?voicesView():screen==='book'?bookView():settingsView()}</main>${miniPlayer()}`;
+  app.innerHTML = `${navigation()}<main id="main" class="main-content ${screen==='reader'?'reader-content':''}"><section id="analysis-activities" aria-label="Suivi des analyses" aria-live="polite" aria-relevant="additions text">${activityView(castingActivities())}</section>${screen==='library'?libraryView():screen==='reader'?readerView():screen==='voices'?voicesView():screen==='book'?bookView():settingsView()}</main>${miniPlayer()}`;
   decorate();
   if (screen === 'reader') {
     observePlayer();
@@ -593,8 +594,23 @@ function prepareBook(book: Book) {
 }
 watchCasting(id => {
   const book = books.find(b => b.id === id);
-  if (book && !castingBusy(book) && screen === 'library') render();
+  if (book && !castingBusy(book) && screen === 'library') { render(); return; }
+  refreshActivities();
 });
+function refreshActivities() {
+  const region = document.querySelector('#analysis-activities');
+  if (!region) return;
+  const height = region.getBoundingClientRect().height;
+  // Ne pas reconstruire les formulaires, ni perdre le focus à chaque phase IA.
+  const focused = region.contains(document.activeElement) ? document.activeElement as HTMLElement : null;
+  const action = focused?.dataset.action, id = focused?.dataset.id;
+  region.innerHTML = activityView(castingActivities());
+  if (action) [...region.querySelectorAll<HTMLElement>('[data-action]')]
+    .find(el => el.dataset.action === action && el.dataset.id === id)?.focus({ preventScroll: true });
+  if (screen === 'reader' && settings.layout === 'pages' && height !== region.getBoundingClientRect().height) {
+    pagesKey = ''; mountPages();
+  }
+}
 async function openBook(id: string, listen = false) {
   const ancien = books.find(b => b.id === id);
   if (ancien && (!ancien.paragraphs || ancien.paragraphs.length !== ancien.segments.length)) {
@@ -876,12 +892,14 @@ async function handle(action: string, el: HTMLElement) {
       sheet.close();
       prepareBook(b);
       render();
-      toast('Analyse relancée. Ouvrez « Les voix de ce livre » pour suivre la progression.');
+      window.scrollTo(0, 0);
+      toast('Analyse relancée. Le suivi est affiché en haut de l’écran.');
       break;
     }
     case 'delete-confirm': if (books.some(b => b.id === id && castingBusy(b))) { toast('Attendez la fin de la préparation de ce livre avant de le retirer.'); break; } modal('Supprimer ce livre ?',`<p class="sheet-description">Le livre, sa position et ses signets seront retirés de cette bibliothèque. Le fichier d’origine restera intact.</p><button class="primary danger-button" data-action="delete" data-id="${id}">Supprimer le livre</button>`); break;
-    case 'delete': if (audio.state.bookId === id) await audio.pause(); await library.remove(id); books = books.filter(b => b.id !== id); currentId = ''; screen = 'library'; sheet.close(); render(); toast('Livre supprimé de la bibliothèque.'); break;
+    case 'delete': if (audio.state.bookId === id) await audio.pause(); await library.remove(id); books = books.filter(b => b.id !== id); dismissCastingActivity(id); currentId = ''; screen = 'library'; sheet.close(); render(); toast('Livre supprimé de la bibliothèque.'); break;
     case 'check-update': await checkUpdate(); break;
+    case 'activity-dismiss': dismissCastingActivity(id); refreshActivities(); break;
     case 'update-now': await downloadUpdate(); break;
     case 'install-update': await installUpdate(); break;
     case 'update-permission': if (native) await Update.openInstallSettings(); else toast('Disponible dans l’application Android.'); break;

@@ -1,6 +1,6 @@
 # PK Reader — feuille de route lecteur
 
-Retours des 21 au 25/10. État des sources au 2026.10.75.
+Retours des 21 au 25/10. État des sources au 2026.10.76.
 
 ## Fait
 
@@ -28,6 +28,7 @@ Retours des 21 au 25/10. État des sources au 2026.10.75.
 - OpenCode Zen et OpenCode Go ajoutés aux fournisseurs IA guidés — 2026.10.71 ; session OpenCode Go et modèles gratuits masqués — 2026.10.73.
 - Bibliothèque repensée et couvertures importées au contour réel, sans cadre — 2026.10.74.
 - OpenCode Go : liste des modèles sur l’URL dédiée, clé enregistrée même si le test échoue, carte « Vérifier les mises à jour » — 2026.10.75.
+- Suivi des analyses sur tous les écrans : file, source, étape, chapitre, lots, bilan et erreur — 2026.10.76.
 
 ## Reste
 

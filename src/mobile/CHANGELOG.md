@@ -1,5 +1,11 @@
 # PK Reader Android
 
+## [2026.10.76] - 2026-10-25
+
+### Added
+- Suivi des analyses sur tous les écrans : livre, source (IA et modèle, studio ou repérage local), file d’attente, étape, chapitre et lots enregistrés. La relance remonte au suivi ; changer d’onglet conserve l’avancement sans effacer les formulaires.
+- Bilan et erreur conservés jusqu’à fermeture, avec accès direct aux voix du livre. Une erreur ne disparaît plus avec le toast.
+
 ## [2026.10.75] - 2026-10-25
 
 ### Fixed

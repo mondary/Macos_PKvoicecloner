@@ -63,12 +63,14 @@ La passerelle est indépendante du serveur principal et s’arrête avec Ctrl-C.
 
 ## Gérer un livre — une page, pas un menu
 
-Chaque livre a un bouton **Gérer** visible sur sa fiche dans la bibliothèque, et l’en-tête du lecteur propose le même bouton. Il ouvre une **page dédiée** où chaque action est affichée avec une phrase qui l’explique :
+Chaque livre a un bouton **Gérer** visible sur sa fiche dans la bibliothèque, et l’en-tête du lecteur propose le même bouton. Il ouvre une **page dédiée** organisée autour d’une progression en quatre étapes, chacune avec son pourcentage et son état :
 
-- **Préparer le livre audio** — chapitre par chapitre, sans attendre le livre entier : le chapitre à écouter est analysé en priorité, ses voix manquantes sont téléchargées, puis **la lecture démarre** pendant que le reste du livre continue de s'analyser en arrière-plan. À chaque fin d'analyse pendant l'écoute, la file audio est rechargée au prochain changement de chapitre — jamais en plein passage. Les téléchargements de voix peuvent continuer pendant l'écoute. Gardez l'app ouverte ; chaque étape est annoncée et le panneau de suivi affiche le lot en cours. La mise en cache hors ligne reste disponible dans le lecteur (« Emporter ce chapitre ») : la lecture synthétise sinon les passages à la demande.
-- **Personnages et voix** — la fiche personnages et voix, avec l’état de l’analyse.
-- **Relancer l’analyse des personnages** — recalcule les attributions automatiques avec la méthode active ; corrections manuelles, voix et réglages conservés.
-- **Reconstituer les paragraphes**, **Effacer les audios préparés**, et **Supprimer ce livre de la bibliothèque** (le fichier d’origine reste intact) — chacun avec son explication.
+- **Paragraphes** — 100 % quand la navigation par paragraphe est prête ; sinon **Reconstruire** (le texte n’est jamais modifié).
+- **Analyse des personnages** — nombre de chapitres terminés et de lots traités (`1/2 chapitres · 1/2 lots`), phase en cours pendant le travail, erreur affichée telle quelle. Sans clé ni IA locale, le repérage local est l’état final assumé (100 %). **Relancer** recalcule les attributions automatiques sans toucher aux corrections manuelles ni aux voix.
+- **Voix des personnages** — rôles avec un timbre adapté et nombre de voix à compléter ; **Choisir** ouvre la fiche des voix.
+- **Écoute · chapitre en cours** — 100 % quand le chapitre où vous en êtes a tous ses lots analysés ; **Préparer** lance la séquence (analyse prioritaire, voix, lecture immédiate, suite en arrière-plan).
+
+**Tout relancer** enchaîne les quatre étapes : paragraphes reconstitués, analyse repartant de zéro, voix manquantes téléchargées, préparation et lecture. En dessous : **Effacer les audios préparés** et **Supprimer ce livre** (le fichier d’origine reste intact).
 
 ## Une voix par personnage
 

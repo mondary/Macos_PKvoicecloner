@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.86** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
+version **2026.10.87** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
 
 📱 **Android** — [download the APK](https://github.com/mondary/Macos_PKvoicecloner/releases/latest/download/PK-Reader-latest.apk) (stable link following the latest version) · 🍎 **macOS** — [DMG 2026.10.66](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/v2026.10.66)
 
@@ -22,7 +22,9 @@ The **PK Reader** Android app reads EPUB, text PDFs and TXT using Android voices
 
 **Analysis progress** — a discreet pill at the bottom of the screen (a chip inside the reader) shows the current step and saved batches, with elapsed time and a remaining estimate. Tap it for details and voices; results fade on their own, errors stay until dismissed.
 
-[Android installation and guide (French)](docs/ANDROID.md) · [Current APK](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.78) (`pk-<version>` release, direct link) · [Android changelog](src/mobile/CHANGELOG.md)
+**Manage the book** — four steps (Paragraphs, Analysis, Voices, Current-chapter listening) show their percentage and details, and can be relaunched separately; “Relaunch everything” chains paragraphs, full analysis, voices and playback.
+
+[Android installation and guide (French)](docs/ANDROID.md) · [Current APK](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.79) (`pk-<version>` release, direct link) · [Android changelog](src/mobile/CHANGELOG.md)
 
 > APKs live in `pk-<version>` releases (newest first on the releases page). The **Latest** badge follows the last published release, Android or macOS: it may point at the DMG without the APK disappearing — the direct link above stays valid.
 

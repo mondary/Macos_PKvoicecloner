@@ -390,6 +390,26 @@ textarea { resize: vertical; line-height: 1.6; }
 .ia-model-row .small-button { white-space: nowrap; }
 #ia-provider, #ia-model-select { width: 100%; min-height: 44px; padding: 10px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; font: inherit; }
 /* Page « Gérer le livre » : actions visibles, chacune expliquée. */
+.book-steps { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 10px; }
+.book-step { display: flex; align-items: flex-start; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.step-icon { flex: none; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: var(--line-soft); color: var(--muted); }
+.step-icon svg { width: 17px; height: 17px; }
+.book-step.done .step-icon, .book-step.running .step-icon { background: var(--accent-soft); color: var(--accent); }
+.book-step.error .step-icon { background: transparent; color: var(--danger); }
+.book-step.running .step-icon svg { animation: turn 1.4s linear infinite; }
+.step-copy { flex: 1; min-width: 0; }
+.step-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.step-copy strong { font-size: 13px; font-weight: 600; }
+.step-pct { flex: none; color: var(--muted); font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.book-step.done .step-pct { color: var(--accent); }
+.book-step.error .step-pct { color: var(--danger); }
+.step-copy small { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.55; overflow-wrap: anywhere; }
+.step-track { display: block; height: 3px; margin-top: 9px; border-radius: 999px; background: var(--line-soft); overflow: hidden; }
+.step-track i { display: block; height: 100%; border-radius: inherit; background: var(--accent-fill); transition: width 0.4s cubic-bezier(0.22, 0.61, 0.36, 1); }
+.book-step.error .step-track i { background: var(--danger); }
+.book-step > .small-button { flex: none; align-self: center; min-width: 84px; }
+@media (max-width: 720px) { .book-step { flex-wrap: wrap; } .book-step > .small-button { width: 100%; } }
+
 .book-manage { border: 1px solid var(--line); border-radius: 999px; padding: 9px 14px; font-size: 11px; font-weight: 600; color: var(--ink-soft); background: var(--surface); min-height: 40px; }
 .book-manage:hover { border-color: var(--accent); color: var(--accent); }
 .header-action { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 8px 11px; font-size: 11px; font-weight: 600; color: var(--ink-soft); background: var(--surface); flex: none; }

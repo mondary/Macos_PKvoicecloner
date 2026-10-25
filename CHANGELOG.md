@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.87] - 2026-10-25
+
+### Changed
+- **PK Reader Android 2026.10.79** : page « Gérer le livre » avec progression en quatre étapes (pourcentages, états, détails), relance ciblée par étape et « Tout relancer ».
+
 ## [2026.10.86] - 2026-10-25
 
 ### Changed

@@ -25,6 +25,7 @@
 
 ## Skills récemment appliquées
 
+- `fixing-accessibility` / `app-presence-sync` / `-pk-COMMIT` — PK Reader 2026.10.79 : page « Gérer le livre » en quatre étapes (paragraphes, analyse, voix, écoute) avec pourcentages, états et relance ciblée ou globale. Tests et documentation synchronisés.
 - `fixing-accessibility` / `app-presence-sync` / `-pk-COMMIT` — PK Reader 2026.10.78 : pastille de suivi compacte, relecture IA conditionnelle, sous-lots de 60, casting plafonné et fournisseur IA locale (Ollama, LM Studio, llama.cpp) avec disclaimers. Tests et captures synchronisés.
 - `fixing-accessibility` / `app-presence-sync` / `-pk-COMMIT` — PK Reader 2026.10.76 : suivi d’analyse partagé, progression réelle des lots, erreurs persistantes dans la session, région live et conservation du focus des formulaires ; documentation FR/EN.
 - `nosdk-cloud-builds` / `app-presence-sync` / `fixing-accessibility` / `premium-promo-media` / `pk-commits` — PK Reader 2026.10.64 à 2026.10.67 : repérage de locuteurs fondé sur des indices de parole, analyse IA autonome sur le téléphone (fournisseur OpenAI-compatible, clé Android Keystore, trois passes par lots de 40), séquence « Préparer le livre audio » en un bouton, menu du livre accessible depuis le lecteur, dix voix françaises Piper (dont Siwis légère 13 Mo). Build Android via GitHub Actions.

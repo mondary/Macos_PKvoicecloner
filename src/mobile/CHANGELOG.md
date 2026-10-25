@@ -1,5 +1,12 @@
 # PK Reader Android
 
+## [2026.10.79] - 2026-10-25
+
+### Changed
+- **Page « Gérer le livre » en quatre étapes** : Paragraphes, Analyse des personnages, Voix et Écoute du chapitre courant affichent chacun un pourcentage, un état (prêt, en cours, erreur, à faire), le détail réel (chapitres/lots, rôles avec ou sans voix) et une barre de progression.
+- **Relance ciblée** : chaque étape a son action (Reconstruire, Relancer, Choisir, Préparer) ; chaque relance conserve corrections manuelles et voix. **Tout relancer** enchaîne paragraphes, analyse complète, voix et lecture.
+- L’analyse en cours et les erreurs s’affichent en direct sur cette page, sans passer par la fiche des voix.
+
 ## [2026.10.78] - 2026-10-25
 
 ### Changed

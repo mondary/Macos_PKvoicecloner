@@ -15,8 +15,9 @@ import { audio, native, Reader, Update, modelCatalog } from './engine';
 import type { Book, UpdateInfo, Voice } from './types';
 import { openCasting } from './casting-ui';
 import { analyseLocalePerimee, besoinsVoix, characterAt, relancerAnalyse, speechProfile } from './casting';
-import { castingBusy, castingActivities, dismissCastingActivity, prepareCasting, watchCasting } from './casting-jobs';
+import { castingBusy, castingActivities, castingProgress, dismissCastingActivity, prepareCasting, watchCasting } from './casting-jobs';
 import { activityView, analysisChip } from './activity-view';
+import { etapesLivre } from './book-progress';
 import { preparerLivreAudio } from './book-setup';
 import { lectureBody, settingsViewHTML, type SettingsTab } from './settings-view';
 import { adresseLocale, fournisseurParId, fournisseurParUrl, optionsModeles } from './ia-providers';
@@ -311,23 +312,26 @@ function actionRow(action: string, id: string, ic: string, titre: string, descri
 function bookView() {
   const book = current();
   if (!book) { screen = 'library'; return libraryView(); }
-  const analyse = castingBusy(book) ? 'Analyse en cours…'
-    : book.casting?.analysis?.state === 'ready' ? 'Distribution prête'
-    : book.casting?.analysis?.error ? 'Analyse à reprendre'
-    : 'À préparer';
-  const prepare = bookSetup === book.id
-    ? `<p class="setup-status" role="status">${esc(setupStatus || 'Préparation en cours…')}</p>`
-    : '';
+  const etapes = etapesLivre(book, [...voices, ...models], {
+    busy: castingBusy(book),
+    progress: castingProgress(book),
+    setup: bookSetup === book.id ? (setupStatus || 'Préparation en cours…') : '',
+    ia: !!(settings.ia?.enabled && settings.ia.modele && settings.ia.revision),
+  });
+  const pretes = etapes.filter(e => e.etat === 'done').length;
+  const icone = (etat: string) => etat === 'done' ? 'check' : etat === 'running' ? 'loader' : etat === 'error' ? 'alert-triangle' : 'circle';
   return `<header class="book-page-head">${iconButton('arrow-left','Retour à la bibliothèque','back')}<div><p class="eyebrow">VOTRE LIVRE</p><h1>${esc(book.title.replace(/\n/g,' '))}</h1><p>${esc(book.author)} · ${book.format}${book.completed ? ' · lu en entier' : book.position > 0 ? ` · ${percent(book)} %` : ''}</p></div></header>
   <section class="book-hero"><div class="book-detail-cover">${cover(book)}</div><div class="book-hero-copy"><p class="section-description">${book.position > 0 ? `${percent(book)} % lu${book.completed ? '' : ` · ${minutes(book)} restantes`}` : 'Pas encore commencé'}</p><button class="primary" data-action="listen" data-id="${book.id}">${icon('play')} ${book.completed ? 'Réécouter' : book.position > 0 ? 'Reprendre l’écoute' : 'Écouter'}</button></div></section>
-  <section class="settings-section"><h2>Écouter et préparer</h2>
-    ${actionRow('prepare-book', book.id, 'wand-sparkles', 'Préparer et écouter', 'Analyse le chapitre à écouter en priorité puis démarre la lecture ; le reste du livre continue de s’analyser en arrière-plan, chapitre par chapitre.')}
-    ${prepare}
-    ${actionRow('casting', book.id, 'users', 'Personnages et voix', `${analyse} · vérifier les rôles et choisir une voix pour chacun.`)}
+  <section class="settings-section"><div class="section-heading"><h2>Progression</h2><span class="pill">${pretes}/4 PRÊTES</span></div>
+    <ol class="book-steps">${etapes.map(e => `<li class="book-step ${e.etat}">
+      <span class="step-icon">${icon(icone(e.etat))}</span>
+      <div class="step-copy"><div class="step-head"><strong>${esc(e.titre)}</strong><span class="step-pct">${e.pct} %</span></div>
+      <small>${esc(e.detail)}</small><span class="step-track" aria-hidden="true"><i style="width:${e.pct}%"></i></span></div>
+      <button class="small-button" data-action="${e.action}" data-id="${book.id}">${esc(e.libelle)}</button>
+    </li>`).join('')}</ol>
+    <button class="setting-row" data-action="relancer-tout" data-id="${book.id}"><span>${icon('refresh-cw')} Tout relancer</span><strong>Paragraphes, analyse, voix, lecture ${icon('chevron-right')}</strong></button>
   </section>
   <section class="settings-section"><h2>Réglages du livre</h2>
-    ${actionRow('reanalyser', book.id, 'refresh-cw', 'Relancer l’analyse des personnages', 'Recalcule les attributions automatiques. Vos corrections manuelles, vos voix et vos réglages sont conservés.')}
-    ${actionRow('reparagrapher', book.id, 'pilcrow', 'Reconstituer les paragraphes', 'Répare la navigation par paragraphe d’un livre importé avant cette fonction. Le texte n’est pas modifié.')}
     ${actionRow('clear-audio', book.id, 'hard-drive', 'Effacer les audios préparés', 'Libère l’espace des passages déjà générés. Les chapitres se réécoutent en direct ou se préparent à nouveau.')}
   </section>
   <section class="settings-section danger-zone"><h2>Supprimer</h2>
@@ -609,6 +613,8 @@ watchCasting(id => {
     if (audio.state.bookId === id) rafraichissementAttente = id;
     if (screen === 'library') { render(); return; }
   }
+  // La page « Gérer le livre » montre l'avancement des quatre étapes en direct.
+  if (screen === 'book' && currentId === id) { render(); return; }
   refreshActivities();
 });
 function refreshActivities() {
@@ -639,6 +645,36 @@ function orchestrerFermeture() {
     }, 6000));
   }
 }
+/** Séquence unique : analyse prioritaire du chapitre, voix, lecture immédiate,
+ *  puis suite en arrière-plan. Utilisée par « Préparer et écouter » et
+ *  « Tout relancer ». */
+async function lancerPreparation(b: Book) {
+  if (castingBusy(b) || bookSetup) { toast('Une préparation est déjà en cours pour ce livre.'); return; }
+  bookSetup = b.id; setupStatus = 'Démarrage de la préparation…';
+  sheet.close(); render();
+  const statut = (texte: string) => {
+    setupStatus = texte;
+    if (texte.startsWith('Téléchargement')) void pollModels();
+    if (screen === 'book' && currentId === b.id) render();
+    toast(texte);
+  };
+  try {
+    await preparerLivreAudio(b, allVoices(), settings, statut, async () => {
+      currentId = b.id; b.opened = Date.now();
+      await library.save(b);
+      screen = 'reader'; follow = true; page = 0; pagesKey = ''; chapitreCharge = chapterAt(b).start;
+      await audio.load(b, settings);
+      render();
+      await audio.play();
+    });
+  } catch (e) {
+    toast(e instanceof Error ? e.message : String(e));
+  } finally {
+    bookSetup = null; setupStatus = '';
+    if (screen === 'book' && currentId === b.id) render();
+  }
+}
+
 async function openBook(id: string, listen = false) {
   const ancien = books.find(b => b.id === id);
   if (ancien && (!ancien.paragraphs || ancien.paragraphs.length !== ancien.segments.length)) {
@@ -894,29 +930,23 @@ async function handle(action: string, el: HTMLElement) {
     }
     case 'prepare-book-run': {
       const b = books.find(b => b.id === id); if (!b) break;
-      bookSetup = id; setupStatus = 'Démarrage de la préparation…';
-      sheet.close(); render();
-      const statut = (texte: string) => {
-        setupStatus = texte;
-        if (texte.startsWith('Téléchargement')) void pollModels();
-        if (screen === 'book' && currentId === b.id) render();
-        toast(texte);
-      };
-      try {
-        await preparerLivreAudio(b, allVoices(), settings, statut, async () => {
-          currentId = id; b.opened = Date.now();
-          await library.save(b);
-          screen = 'reader'; follow = true; page = 0; pagesKey = ''; chapitreCharge = chapterAt(b).start;
-          await audio.load(b, settings);
-          render();
-          await audio.play();
-        });
-      } catch (e) {
-        toast(e instanceof Error ? e.message : String(e));
-      } finally {
-        bookSetup = null; setupStatus = '';
-        if (screen === 'book' && currentId === b.id) render();
-      }
+      await lancerPreparation(b);
+      break;
+    }
+    case 'relancer-tout': {
+      const b = books.find(b => b.id === id); if (!b) break;
+      if (castingBusy(b) || bookSetup) { toast('Une préparation est déjà en cours pour ce livre.'); break; }
+      modal('Tout relancer ?', `<p class="sheet-description">Les paragraphes sont reconstitués, l'analyse des personnages repart de zéro, les voix manquantes sont téléchargées, puis la préparation et l'écoute redémarrent. Vos corrections manuelles et les voix que vous avez choisies sont conservées.</p><button class="primary" data-action="relancer-tout-confirm" data-id="${id}">${icon('refresh-cw')} Tout relancer</button>`);
+      break;
+    }
+    case 'relancer-tout-confirm': {
+      const b = books.find(b => b.id === id); if (!b) break;
+      if (castingBusy(b) || bookSetup) { toast('Une préparation est déjà en cours pour ce livre.'); break; }
+      reparerParagraphes(b);
+      relancerAnalyse(b);
+      await library.save(b);
+      sheet.close();
+      await lancerPreparation(b);
       break;
     }
     case 'reparagrapher': {

@@ -18,6 +18,7 @@ import { analyseLocalePerimee, besoinsVoix, characterAt, relancerAnalyse, speech
 import { castingBusy, prepareCasting, watchCasting } from './casting-jobs';
 import { preparerLivreAudio } from './book-setup';
 import { lectureBody, settingsViewHTML, type SettingsTab } from './settings-view';
+import { fournisseurParId, fournisseurParUrl, optionsModeles } from './ia-providers';
 import { decouperMots, motPourPlage, motPourProgression, rendreMots } from './karaoke';
 
 /* ------------------------------------------------------------------ état */
@@ -863,6 +864,32 @@ async function handle(action: string, el: HTMLElement) {
       toast('IA du téléphone désactivée. Le repérage local reprend la main.');
       break;
     }
+    case 'ia-load-models': {
+      const status = document.querySelector<HTMLElement>('#ia-status');
+      const url = document.querySelector<HTMLInputElement>('#ia-url')?.value.trim() ?? '';
+      const cle = document.querySelector<HTMLInputElement>('#ia-key')?.value.trim() ?? '';
+      const bouton = document.querySelector<HTMLButtonElement>('[data-action="ia-load-models"]');
+      if (!native) { if (status) status.textContent = 'Le chargement des modèles se fait dans l’APK Android.'; break; }
+      if (!url) { if (status) status.textContent = 'Choisissez un fournisseur ou saisissez son adresse.'; break; }
+      if (!cle) { if (status) status.textContent = 'Collez d’abord la clé API pour interroger le fournisseur.'; break; }
+      if (bouton) { bouton.disabled = true; bouton.textContent = 'Chargement…'; }
+      try {
+        const result = await Reader.iaModels({ url, cle });
+        const fournisseur = fournisseurParUrl(url);
+        const select = document.querySelector<HTMLSelectElement>('#ia-model-select');
+        if (select) {
+          const precedent = select.value !== '__libre__' ? select.value : '';
+          const liste = optionsModeles(fournisseur, precedent, result.modeles);
+          select.innerHTML = `${liste.map(id => `<option value="${esc(id)}" ${id === precedent ? 'selected' : ''}>${esc(id)}</option>`).join('')}<option value="__libre__">Autre modèle (saisie libre)</option>`;
+        }
+        if (status) status.textContent = `${result.modeles.length} modèles proposés par ${fournisseur.nom}. Choisissez-en un puis enregistrez.`;
+      } catch (error) {
+        if (status) status.textContent = error instanceof Error ? error.message : String(error);
+      } finally {
+        if (bouton) { bouton.disabled = false; bouton.textContent = 'Charger les modèles'; }
+      }
+      break;
+    }
   }
 }
 
@@ -944,10 +971,17 @@ document.addEventListener('submit', e => {
   if (form.id === 'ia-form') {
     const data = new FormData(form);
     const status = document.querySelector<HTMLElement>('#ia-status');
+    const choisi = form.querySelector<HTMLSelectElement>('#ia-model-select')?.value ?? '';
+    const manuel = String(data.get('model-manual') ?? '').trim();
+    const modele = choisi && choisi !== '__libre__' ? choisi : manuel;
+    if (!modele) {
+      if (status) status.textContent = 'Choisissez un modèle dans la liste ou saisissez son identifiant.';
+      return;
+    }
     if (!native) { if (status) status.textContent = 'La configuration de l’IA se fait dans l’APK Android.'; return; }
-    const button = form.querySelector<HTMLButtonElement>('button')!;
+    const button = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
     button.disabled = true; button.textContent = 'Test en cours…';
-    void Reader.saveIA({ url: String(data.get('url')).trim(), modele: String(data.get('model')).trim(), cle: String(data.get('key')).trim() })
+    void Reader.saveIA({ url: String(data.get('url')).trim(), modele, cle: String(data.get('key')).trim() })
       .then(config => {
         settings.ia = config; savePrefs();
         button.disabled = false; button.textContent = 'Tester et enregistrer';
@@ -964,7 +998,31 @@ document.addEventListener('submit', e => {
 });
 window.addEventListener('hashchange', () => { if (location.hash === '#library') { screen = 'library'; render(); } });
 
-/* -------------------------------------------------------------------- départ */
+/* ------------------------------------------------------------ fournisseur IA */
+
+/** Changement de fournisseur : adresse et lien de clé pré-remplis, modèles
+ *  connus proposés dans la déroulante. */
+document.addEventListener('change', event => {
+  const el = event.target as HTMLElement;
+  if (el.id !== 'ia-provider') return;
+  const fournisseur = fournisseurParId((el as HTMLSelectElement).value);
+  const url = document.querySelector<HTMLInputElement>('#ia-url');
+  if (url && fournisseur.url) url.value = fournisseur.url;
+  const lien = document.querySelector<HTMLAnchorElement>('#ia-keys');
+  if (lien) {
+    lien.hidden = !fournisseur.cles;
+    lien.href = fournisseur.cles || '#';
+    lien.textContent = fournisseur.cles ? `Trouver ma clé chez ${fournisseur.nom} →` : '';
+  }
+  const select = document.querySelector<HTMLSelectElement>('#ia-model-select');
+  if (select) {
+    select.innerHTML = `${optionsModeles(fournisseur).map(id => `<option value="${esc(id)}">${esc(id)}</option>`).join('')}<option value="__libre__">Autre modèle (saisie libre)</option>`;
+  }
+  const manuel = document.querySelector<HTMLInputElement>('#ia-model-manual');
+  if (manuel) manuel.value = '';
+  const status = document.querySelector<HTMLElement>('#ia-status');
+  if (status) status.textContent = '';
+});
 
 async function init() {
   try {

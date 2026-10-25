@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.77** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
+version **2026.10.78** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
 
 📱 **Android** — [télécharger l’APK](https://github.com/mondary/Macos_PKvoicecloner/releases/latest/download/PK-Reader-latest.apk) (lien stable qui suit la dernière version) · 🍎 **macOS** — [DMG 2026.10.66](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/v2026.10.66)
 
@@ -20,7 +20,7 @@ L’application Android **PK Reader** lit vos EPUB, PDF texte et TXT avec les vo
 
 **Mise à jour depuis l'app (Android 2026.10.61)** — Réglages → **Mises à jour** : PK Reader vérifie les releases GitHub, télécharge l'APK, contrôle son empreinte et sa signature, puis ouvre l'installateur Android. Plus besoin de passer par le navigateur ni par le dossier Téléchargements. La clé de signature est désormais **permanente** : après une dernière réinstallation pour les versions ≤ 2026.10.60, les mises à jour s'installent par-dessus l'app et conservent la bibliothèque.
 
-[Installation et guide Android](docs/ANDROID.md) · [APK de la version courante](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.69) (release `pk-<version>`, lien direct) · [Changelog Android](src/mobile/CHANGELOG.md)
+[Installation et guide Android](docs/ANDROID.md) · [APK de la version courante](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.70) (release `pk-<version>`, lien direct) · [Changelog Android](src/mobile/CHANGELOG.md)
 
 > Les APK vivent dans les releases `pk-<version>` (la plus récente en tête de la page des releases). Le badge **Latest** suit la dernière livraison publiée, Android ou macOS : il peut pointer sur le DMG sans que l'APK disparaisse — le lien direct ci-dessus reste valable.
 

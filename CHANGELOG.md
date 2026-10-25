@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.78] - 2026-10-25
+
+### Added
+- **PK Reader Android 2026.10.70 — configuration IA guidée** : sélection du fournisseur (adresse et page de clés pré-remplies), puis chargement de la liste réelle des modèles depuis le fournisseur et choix dans une déroulante. Saisie libre conservée en secours.
+
 ## [2026.10.77] - 2026-10-25
 
 ### Changed

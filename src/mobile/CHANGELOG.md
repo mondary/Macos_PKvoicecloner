@@ -1,5 +1,11 @@
 # PK Reader Android
 
+## [2026.10.70] - 2026-10-25
+
+### Added
+- **Configuration IA guidée** : choix du fournisseur (GLM/Z.ai, BigModel, DeepSeek, OpenAI, Mistral, Groq, OpenRouter ou adresse personnalisée), adresse remplie automatiquement, lien direct vers la page des clés du fournisseur, puis **Charger les modèles** qui interroge `GET /models` et remplit une liste déroulante — plus besoin de saisir l’identifiant à la main (saisie libre conservée en secours).
+- La liste des modèles est récupérée avec la clé collée sans l’enregistrer ; seuls les modèles de conversation sont proposés (embeddings, TTS, images écartés).
+
 ## [2026.10.69] - 2026-10-25
 
 ### Changed

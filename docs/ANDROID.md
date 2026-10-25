@@ -4,7 +4,7 @@ PK Reader est l’application de lecture personnelle du projet. Elle importe des
 
 ## Installer
 
-Le workflow **Android Reader** construit un APK de développement pour Android 8+ en ARM64 et x86_64. À chaque build réussi, l’APK est publié sur la release `pk-<version>` : lien direct `https://github.com/mondary/Macos_PKvoicecloner/releases/download/pk-<version>/PK-Reader-<version>-debug.apk` — par exemple `https://github.com/mondary/Macos_PKvoicecloner/releases/download/pk-2026.10.69/PK-Reader-2026.10.69-debug.apk`. Le badge **Latest** est réservé à la dernière livraison Android ; les DMG restent accessibles dans leurs releases `v…`. Les notes de la release reprennent la section correspondante du changelog Android. L’artefact CI du même nom reste disponible. Ce paquet sert aux essais ; il n’est pas publié sur Google Play.
+Le workflow **Android Reader** construit un APK de développement pour Android 8+ en ARM64 et x86_64. À chaque build réussi, l’APK est publié sur la release `pk-<version>` : lien direct `https://github.com/mondary/Macos_PKvoicecloner/releases/download/pk-<version>/PK-Reader-<version>-debug.apk` — par exemple `https://github.com/mondary/Macos_PKvoicecloner/releases/download/pk-2026.10.70/PK-Reader-2026.10.70-debug.apk`. Le badge **Latest** est réservé à la dernière livraison Android ; les DMG restent accessibles dans leurs releases `v…`. Les notes de la release reprennent la section correspondante du changelog Android. L’artefact CI du même nom reste disponible. Ce paquet sert aux essais ; il n’est pas publié sur Google Play.
 
 **Vérifier la version** — le même numéro se lit partout : nom du fichier APK, nom de l’artefact GitHub, écran Android **Paramètres → Applications → PK Reader**, et dans l’app en bas de la bibliothèque et dans **Réglages → À propos**. Le workflow refuse un APK dont le `versionName` ne correspond pas à ce numéro.
 
@@ -12,7 +12,7 @@ Le workflow **Android Reader** construit un APK de développement pour Android 8
 
 Le téléphone peut exécuter lui-même l'analyse des personnages avec un fournisseur **OpenAI-compatible**, sans passerelle ni Mac. C'est le même travail que le studio, directement dans l'APK.
 
-1. **Réglages → Analyse IA du téléphone** : adresse HTTPS du fournisseur, modèle, clé API. Un appel de vérification est effectué avant d'enregistrer ; une configuration qui échoue n'écrase pas la précédente.
+1. **Réglages → Analyse IA du téléphone** : choisissez le fournisseur (GLM/Z.ai, BigModel, DeepSeek, OpenAI, Mistral, Groq, OpenRouter) — l’adresse et le lien vers la page des clés se remplissent seuls. Collez la clé, appuyez sur **Charger les modèles**, choisissez le modèle dans la liste (ou saisissez son identifiant), puis **Tester et enregistrer**. Un appel de vérification est effectué avant d’enregistrer ; une configuration qui échoue n’écrase pas la précédente.
 2. **Ouvrir un livre** : la préparation enchaîne, par lots de 40 phrases, une distribution **étayée** (chaque nouveau personnage doit citer une ligne où il parle réellement), une attribution indexée, puis une **relecture critique**. Les passages dont la confiance n'est pas haute restent au narrateur.
 3. **Progression et reprise** : l'écran indique la phase (personnages / attribution / relecture) et l'avancement. Chaque lot validé est sauvegardé ; une coupure reprend sans refaire le travail déjà fait.
 

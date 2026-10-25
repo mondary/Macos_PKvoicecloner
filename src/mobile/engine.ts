@@ -13,6 +13,7 @@ interface ReaderPlugin {
   iaConfig(): Promise<{ url: string; modele: string; revision: string; enabled: boolean; hasKey?: boolean }>;
   saveIA(options: { url: string; modele: string; cle: string }): Promise<{ url: string; modele: string; revision: string; enabled: boolean; hasKey?: boolean }>;
   clearIA(): Promise<{ url: string; modele: string; revision: string; enabled: boolean; hasKey?: boolean }>;
+  iaModels(options: { url: string; cle: string }): Promise<{ modeles: string[] }>;
   chatIA(options: { revision: string; message: string; json: boolean }): Promise<{ texte: string }>;
   analyser(options: AnalyseRequest & { server: string; token: string }): Promise<{
     personnages: { id: string; nom: string; genre: string; role: string }[]; locuteurs: string[];

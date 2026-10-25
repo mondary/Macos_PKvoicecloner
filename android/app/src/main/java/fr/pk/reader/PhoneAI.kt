@@ -69,6 +69,34 @@ object PhoneAI {
         return publicConfig(context)
     }
 
+    /** Liste des modèles du fournisseur (GET /models). La clé n'est utilisée que
+     *  pour cet appel : elle n'est pas enregistrée ici. */
+    fun modeles(url: String, cle: String): List<String> {
+        val base = endpoint(url)
+        require(cle.isNotBlank()) { "Collez la clé API pour charger les modèles." }
+        val connexion = (URL("$base/models").openConnection() as HttpURLConnection).apply {
+            connectTimeout = 15000; readTimeout = 20000; requestMethod = "GET"
+            setRequestProperty("Authorization", "Bearer $cle")
+            setRequestProperty("Accept", "application/json")
+        }
+        try {
+            val code = connexion.responseCode
+            val bytes = lire(if (code in 200..299) connexion.inputStream else connexion.errorStream)
+            require(code in 200..299) { when (code) {
+                401, 403 -> "Clé refusée par le fournisseur — vérifiez-la."
+                else -> "Le fournisseur n’a pas renvoyé sa liste de modèles (HTTP $code). Choisissez un modèle proposé ou saisissez son identifiant."
+            } }
+            val data = JSONObject(String(bytes, Charsets.UTF_8)).optJSONArray("data")
+                ?: error("Liste de modèles inattendue. Choisissez un modèle proposé ou saisissez son identifiant.")
+            val inutiles = listOf("embed", "whisper", "tts", "dall-e", "moderation", "audio", "image", "rerank")
+            val noms = (0 until data.length()).mapNotNull { data.optJSONObject(it)?.optString("id")?.takeIf { id -> id.isNotBlank() } }
+                .filterNot { id -> inutiles.any { id.contains(it, ignoreCase = true) } }
+                .distinct().sorted()
+            require(noms.isNotEmpty()) { "Aucun modèle de conversation dans la liste du fournisseur." }
+            return noms.take(300)
+        } finally { connexion.disconnect() }
+    }
+
     fun chat(context: Context, revision: String, message: String, json: Boolean): String {
         val prefs = context.getSharedPreferences(STORE, Context.MODE_PRIVATE)
         require(revision.isNotEmpty() && revision == prefs.getString("revision", "")) {

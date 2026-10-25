@@ -19,6 +19,10 @@ describe('page Réglages en onglets', () => {
   it('l’onglet Voix & analyse regroupe IA, studio et gestion des voix', () => {
     const html = settingsViewHTML({ ...base, tab: 'voix' });
     expect(html).toContain('id="ia-form"');
+    expect(html).toContain('id="ia-provider"');
+    expect(html).toContain('id="ia-model-select"');
+    expect(html).toContain('data-action="ia-load-models"');
+    expect(html).toContain('Trouver ma clé chez GLM · Z.ai');
     expect(html).toContain('id="studio-form"');
     expect(html).toContain('Télécharger ou gérer les voix');
     expect(html).not.toContain('Interligne');

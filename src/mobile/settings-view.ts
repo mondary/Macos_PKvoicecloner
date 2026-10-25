@@ -1,4 +1,5 @@
 import type { Settings } from './types';
+import { FOURNISSEURS, fournisseurParUrl, optionsModeles, type FournisseurIA } from './ia-providers';
 
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 const icon = (name: string) => `<i data-lucide="${name}" aria-hidden="true"></i>`;
@@ -42,6 +43,39 @@ export interface SettingsViewOptions {
   updateHTML: string;
 }
 
+const optionsFournisseur = (actuel: FournisseurIA) => FOURNISSEURS.map(f =>
+  `<option value="${f.id}" ${f.id === actuel.id ? 'selected' : ''}>${esc(f.nom)}</option>`).join('');
+
+function optionsModele(fournisseur: FournisseurIA, actuel: string): string {
+  const liste = optionsModeles(fournisseur, actuel);
+  return `${liste.length ? liste.map(id => `<option value="${esc(id)}" ${id === actuel ? 'selected' : ''}>${esc(id)}</option>`).join('') : '<option value="">Choisir un modèle…</option>'}<option value="__libre__">Autre modèle (saisie libre)</option>`;
+}
+
+/** Réglages IA : fournisseur → adresse + lien de clé remplis, puis modèle
+ *  choisi dans la liste chargée depuis le fournisseur (ou saisie libre). */
+function iaSection(settings: Settings): string {
+  const fournisseur = settings.ia?.url ? fournisseurParUrl(settings.ia.url) : FOURNISSEURS[0];
+  const actuel = settings.ia?.modele ?? '';
+  const cle = settings.ia?.hasKey ? 'Clé enregistrée — laisser vide pour la conserver' : 'Collez votre clé API';
+  return `<section class="settings-section"><div class="section-heading"><h2>Analyse IA du téléphone</h2><span class="pill">FACULTATIF</span></div><p class="section-description">La même analyse des personnages que le studio, appelée directement depuis le téléphone : aucun Mac requis.</p>${settings.ia?.enabled ? `<p class="section-description"><strong>Active</strong> · ${esc(settings.ia.modele)}</p>` : ''}
+  <form id="ia-form">
+    <label for="ia-provider">Fournisseur</label>
+    <select id="ia-provider" name="provider">${optionsFournisseur(fournisseur)}</select>
+    <label for="ia-url">Adresse du fournisseur</label>
+    <input id="ia-url" name="url" type="url" placeholder="https://…" value="${esc(settings.ia?.url || fournisseur.url)}" autocapitalize="none" spellcheck="false" required />
+    <p class="ia-keys-line"><a id="ia-keys" class="link-button" href="${esc(fournisseur.cles)}" target="_blank" rel="noopener noreferrer" ${fournisseur.cles ? '' : 'hidden'}>Trouver ma clé chez ${esc(fournisseur.nom)} →</a></p>
+    <label for="ia-key">Clé API</label>
+    <input id="ia-key" name="key" type="password" placeholder="${cle}" autocomplete="off" />
+    <label for="ia-model-select">Modèle</label>
+    <div class="ia-model-row"><select id="ia-model-select" name="model-select">${optionsModele(fournisseur, actuel)}</select><button type="button" class="small-button" data-action="ia-load-models">Charger les modèles</button></div>
+    <label for="ia-model-manual">Ou saisir un identifiant de modèle</label>
+    <input id="ia-model-manual" name="model-manual" type="text" placeholder="ex. glm-4.7" value="${esc(actuel)}" autocapitalize="none" spellcheck="false" />
+    <button type="submit" class="primary">${icon('sparkles')} Tester et enregistrer</button>
+  </form>
+  <p id="ia-status" role="status"></p>${settings.ia?.enabled ? `<button class="setting-row danger" data-action="ia-clear"><span>${icon('trash-2')} Désactiver l’IA du téléphone</span>${icon('chevron-right')}</button>` : ''}
+  <details class="connection-help"><summary>Que se passe-t-il quand elle est activée ?</summary><p>À l’ouverture d’un livre, les personnages sont identifiés puis les dialogues attribués par ce modèle, avec une relecture critique des passages incertains. La préparation prend plusieurs minutes et consomme des tokens ; chaque lot est sauvegardé et une coupure se reprend sans refaire le travail déjà fait.</p><p>Le texte des passages analysés est envoyé au fournisseur choisi. La clé reste chiffrée sur ce téléphone (Android Keystore) : elle n’est jamais réaffichée. Désactivez l’IA à tout moment : le repérage local reprend la main, les attributions déjà obtenues restent acquises.</p></details></section>`;
+}
+
 /** La page Réglages en trois onglets : Lecture, Voix & analyse, À propos. */
 export function settingsViewHTML(o: SettingsViewOptions): string {
   const { settings, tab, version, native } = o;
@@ -50,7 +84,7 @@ export function settingsViewHTML(o: SettingsViewOptions): string {
     `<button data-action="settings-tab" data-id="${id}" class="${tab===id?'active':''}" aria-pressed="${tab===id}">${icon(ic)}<span>${label}</span></button>`).join('')}</div>`;
   const lecture = `<div class="settings-group-list">${lectureBody(settings)}</div>`;
   const voix = `
-  <section class="settings-section"><div class="section-heading"><h2>Analyse IA du téléphone</h2><span class="pill">FACULTATIF</span></div><p class="section-description">La même analyse des personnages que le studio, appelée directement depuis le téléphone : aucun Mac requis. Tout fournisseur OpenAI-compatible convient — GLM, DeepSeek, OpenAI.</p>${settings.ia?.enabled ? `<p class="section-description"><strong>Active</strong> · ${esc(settings.ia.modele)}</p>` : ''}<form id="ia-form"><label for="ia-url">Adresse du fournisseur</label><input id="ia-url" name="url" type="url" placeholder="https://open.bigmodel.cn/api/paas/v4" value="${esc(settings.ia?.url ?? '')}" autocapitalize="none" spellcheck="false" required /><label for="ia-model">Modèle</label><input id="ia-model" name="model" type="text" placeholder="glm-4.7, deepseek-chat…" value="${esc(settings.ia?.modele ?? '')}" autocapitalize="none" spellcheck="false" required /><label for="ia-key">Clé API</label><input id="ia-key" name="key" type="password" placeholder="${settings.ia?.hasKey ? 'Clé enregistrée — laisser vide pour la conserver' : 'sk-…'}" autocomplete="off" /><button type="submit" class="primary">${icon('sparkles')} Tester et enregistrer</button></form><p id="ia-status" role="status"></p>${settings.ia?.enabled ? `<button class="setting-row danger" data-action="ia-clear"><span>${icon('trash-2')} Désactiver l’IA du téléphone</span>${icon('chevron-right')}</button>` : ''}<details class="connection-help"><summary>Que se passe-t-il quand elle est activée ?</summary><p>À l’ouverture d’un livre, les personnages sont identifiés puis les dialogues attribués par ce modèle, avec une relecture critique des passages incertains. La préparation prend plusieurs minutes et consomme des tokens ; chaque lot est sauvegardé et une coupure se reprend sans refaire le travail déjà fait.</p><p>Le texte des passages analysés est envoyé au fournisseur choisi. La clé reste chiffrée sur ce téléphone (Android Keystore) : elle n’est jamais réaffichée. Désactivez l’IA à tout moment : le repérage local reprend la main, les attributions déjà obtenues restent acquises.</p><p>Exemples d’adresses : GLM <code>https://open.bigmodel.cn/api/paas/v4</code> · DeepSeek <code>https://api.deepseek.com/v1</code> · OpenAI <code>https://api.openai.com/v1</code></p></details></section>
+  ${iaSection(settings)}
   <section class="settings-section"><div class="section-heading"><h2>Votre studio vocal</h2><span class="pill">FACULTATIF</span></div><p class="section-description">Retrouvez vos voix clonées depuis PK Voice Studio. Les passages générés restent sur le téléphone pour les prochaines écoutes.</p><form id="studio-form"><label for="server">Adresse du studio</label><input id="server" name="server" type="url" placeholder="http://192.168.1.20:8810" value="${esc(settings.server)}" autocapitalize="none" spellcheck="false" required /><label for="token">Code de connexion</label><input id="token" name="token" type="password" placeholder="Le code affiché par votre Mac" value="${esc(settings.token)}" autocomplete="off" required /><button type="submit" class="primary">${icon('plug')} Connecter le studio</button></form><details class="connection-help"><summary>Comment connecter mon Mac ?</summary><p>Démarrez PK Voice Studio, puis la passerelle mobile depuis le dossier du projet :</p><code>python3 src/server/mobile_gateway.py</code><p>Recopiez l’adresse et le code affichés. Votre téléphone et votre Mac doivent être sur le même réseau. La génération se fait sur le Mac ; l’audio est enregistré sur le téléphone.</p></details></section>
   <button class="setting-row" data-action="nav" data-id="voices"><span>${icon('sliders-horizontal')} Télécharger ou gérer les voix</span>${icon('chevron-right')}</button>`;
   const apropos = `

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { appliquerAnalyse, ensureCasting, characterAt, speechProfile, suggestCasting, voixParGenreParDefaut, preparerDistributionLocale, proposerVoix, besoinsVoix } from '../casting';
+import { appliquerAnalyse, ensureCasting, characterAt, speechProfile, suggestCasting, voixParGenreParDefaut, preparerDistributionLocale, proposerVoix, besoinsVoix, relancerAnalyse } from '../casting';
 import { analyserLivre } from '../casting-analysis';
 import { defaults, type Book, type Voice } from '../types';
 
@@ -91,6 +91,21 @@ describe('préparation automatique du livre', () => {
       '— Bonjour, dit Pierre.', '— Salut, répondit Alice.', '— Tu viens ? demanda Pierre.', '— Oui, dit Alice.'];
     preparerDistributionLocale(book, catalog, defaults.voice);
     expect(book.casting!.characters.map(c => c.name)).toEqual(['Narrateur', 'Pierre', 'Alice']);
+  });
+
+  it('relancerAnalyse conserve les corrections manuelles et les voix choisies', () => {
+    const book = fixture();
+    const cast = ensureCasting(book);
+    cast.characters.push(
+      { id: 'auto', name: 'Auto', voice: 'neural:tom', pitch: 1, rate: 1, automaticVoice: true, autoRole: true },
+      { id: 'choisi', name: 'Choisi', voice: 'neural:gilles', pitch: 1, rate: 1, automaticVoice: false, autoRole: true });
+    cast.assignments = { '1': 'auto', '2': 'choisi', '3': 'narrator' };
+    cast.manualAssignments = { '2': true };
+    cast.analysis = { completed: ['0:5'], state: 'ready', localRevision: 2 };
+    relancerAnalyse(book);
+    expect(cast.assignments).toEqual({ '2': 'choisi' });
+    expect(cast.characters.map(c => c.id)).toEqual(['narrator', 'choisi']);
+    expect(cast.analysis).toBeUndefined();
   });
 
   it('attribue les répliques alternées entre deux locuteurs ancrés', () => {

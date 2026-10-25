@@ -40,10 +40,15 @@ export const Reader = registerPlugin<ReaderPlugin>('Reader');
 export const Update = registerPlugin<UpdatePlugin>('Update');
 export const modelCatalog: Voice[] = [
   { id: 'neural:siwis', name: 'Siwis', language: 'fr-FR', kind: 'neural', detail: 'Français · Piper · douce et posée', size: 20.9, installed: false },
+  { id: 'neural:siwis_leger', name: 'Siwis · légère', language: 'fr-FR', kind: 'neural', detail: 'Français · Piper · la même voix, 13 Mo seulement', size: 13.3, installed: false },
   { id: 'neural:tom', name: 'Tom', language: 'fr-FR', kind: 'neural', detail: 'Français · Piper · claire et chaleureuse', size: 21, installed: false },
   { id: 'neural:gilles', name: 'Gilles', language: 'fr-FR', kind: 'neural', detail: 'Français · Piper · voix masculine', size: 21.2, installed: false },
   { id: 'neural:upmc', name: 'UPMC · Jessica', language: 'fr-FR', kind: 'neural', detail: 'Français · Piper · voix féminine', size: 22.6, installed: false },
   { id: 'neural:upmc_pierre', name: 'UPMC · Pierre', language: 'fr-FR', kind: 'neural', detail: 'Français · Piper · voix masculine · même téléchargement que Jessica', size: 22.6, installed: false },
+  { id: 'neural:tjiho1', name: 'Tjiho 1', language: 'fr-FR', kind: 'neural', detail: 'Français · Piper · timbre supplémentaire', size: 21, installed: false },
+  { id: 'neural:tjiho2', name: 'Tjiho 2', language: 'fr-FR', kind: 'neural', detail: 'Français · Piper · timbre supplémentaire', size: 21, installed: false },
+  { id: 'neural:tjiho3', name: 'Tjiho 3', language: 'fr-FR', kind: 'neural', detail: 'Français · Piper · timbre supplémentaire', size: 21.1, installed: false },
+  { id: 'neural:miro', name: 'Miro', language: 'fr-FR', kind: 'neural', detail: 'Français · Piper · timbre supplémentaire', size: 21.3, installed: false },
   { id: 'neural:lessac', name: 'Lessac', language: 'en-US', kind: 'neural', detail: 'English · Piper · récit naturel', size: 21, installed: false },
 ];
 

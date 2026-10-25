@@ -14,8 +14,9 @@ import { importBook, welcomeBook, chapterAt, minutesLeft, reparerParagraphes } f
 import { audio, native, Reader, Update, modelCatalog } from './engine';
 import type { Book, UpdateInfo, Voice } from './types';
 import { openCasting } from './casting-ui';
-import { analyseLocalePerimee, besoinsVoix, characterAt, speechProfile } from './casting';
+import { analyseLocalePerimee, besoinsVoix, characterAt, relancerAnalyse, speechProfile } from './casting';
 import { castingBusy, prepareCasting, watchCasting } from './casting-jobs';
+import { preparerLivreAudio } from './book-setup';
 import { decouperMots, motPourPlage, motPourProgression, rendreMots } from './karaoke';
 
 /* ------------------------------------------------------------------ état */
@@ -43,6 +44,9 @@ let toastTimer: ReturnType<typeof setTimeout>;
 let downloading = false;
 let systemTheme = '';
 let wasPreparing = false;
+/** Séquence « Tout préparer » : livre en cours de préparation complète. */
+let bookSetup: string | null = null;
+let setupStatus = '';
 
 /** Mise à jour intégrée : état de la vérification, du téléchargement et de l'installateur. */
 let updateInfo: UpdateInfo | null = null;
@@ -251,7 +255,7 @@ const pageOf = (index: number) => Math.max(0, pages.findIndex(p => p.some(r => r
 
 function readerHeader() {
   const book = current()!;
-  return `<header class="reader-header">${iconButton('arrow-left','Retour à la bibliothèque','back')}<div><span>${esc(book.title.replace(/\n/g,' '))}</span><small>${esc(book.author)}</small></div>${iconButton('users','Personnages et voix de ce livre','casting')}${iconButton('text-cursor-input','Apparence du texte','appearance')}</header>`;
+  return `<header class="reader-header">${iconButton('arrow-left','Retour à la bibliothèque','back')}<div><span>${esc(book.title.replace(/\n/g,' '))}</span><small>${esc(book.author)}</small></div>${iconButton('users','Personnages et voix de ce livre','casting')}${iconButton('ellipsis','Réglages du livre','book-menu','').replace('data-action="book-menu"', `data-action="book-menu" data-id="${book.id}"`)}${iconButton('text-cursor-input','Apparence du texte','appearance')}</header>`;
 }
 function readerSubhead() {
   const book = current()!; const chapter = chapterAt(book); const index = book.chapters.indexOf(chapter);
@@ -767,7 +771,27 @@ async function handle(action: string, el: HTMLElement) {
     case 'voice-settings': if (native) await Reader.voiceSettings(); else toast('Les réglages des voix Android sont accessibles dans l’APK.'); break;
     case 'prepare': if (native && book) { if (book.segments.slice(chapterAt(book).start, chapterAt(book).end).some((_, offset) => speechProfile(book, settings, chapterAt(book).start + offset).voice.startsWith('system:'))) { toast('Pour préparer ce chapitre, choisissez une voix Piper pour chaque rôle utilisé.'); break; } modal('Emporter ce chapitre',`<p class="sheet-description">Les passages de « ${esc(chapterAt(book).title)} » seront générés et conservés sur le téléphone. Avec une voix clonée, votre Mac doit rester connecté pendant la préparation.</p><button class="primary" data-action="prepare-confirm">${icon('download')} Préparer le chapitre</button>`); } else toast('La préparation hors ligne est disponible dans l’APK Android.'); break;
     case 'prepare-confirm': if (book) { await Reader.command({ action:'prepare', index:chapterAt(book).start, end:chapterAt(book).end }); sheet.close(); toast('Préparation du chapitre démarrée.'); } break;
-    case 'book-menu': { const b = books.find(b => b.id === id); if (b) modal(esc(b.title.replace(/\n/g,' ')),`<button class="setting-row" data-action="open" data-id="${id}"><span>${icon('book-open')} Ouvrir le livre</span></button><button class="setting-row" data-action="casting" data-id="${id}"><span>${icon('users')} Les voix de ce livre${castingBusy(b) ? ' · préparation en cours' : b.casting?.analysis?.state === 'ready' ? ' · prêtes' : ' · à préparer'}</span></button><button class="setting-row" data-action="reparagrapher" data-id="${id}"><span>${icon('pilcrow')} Reconstituer les paragraphes</span></button><button class="setting-row" data-action="clear-audio" data-id="${id}"><span>${icon('hard-drive')} Effacer les audios préparés</span></button><button class="setting-row danger" data-action="delete-confirm" data-id="${id}"><span>${icon('trash-2')} Retirer de la bibliothèque</span></button>`); break; }
+    case 'book-menu': { const b = books.find(b => b.id === id); if (b) modal(esc(b.title.replace(/\n/g,' ')),`<button class="setting-row" data-action="open" data-id="${id}"><span>${icon('book-open')} Ouvrir le livre</span></button><button class="setting-row" data-action="casting" data-id="${id}"><span>${icon('users')} Les voix de ce livre${castingBusy(b) ? ' · préparation en cours' : b.casting?.analysis?.state === 'ready' ? ' · prêtes' : ' · à préparer'}</span></button><button class="setting-row" data-action="prepare-book" data-id="${id}"><span>${icon('wand-sparkles')} Préparer le livre audio — analyse, voix et mise en cache</span></button><button class="setting-row" data-action="reanalyser" data-id="${id}"><span>${icon('refresh-cw')} Relancer l’analyse des personnages</span></button><button class="setting-row" data-action="reparagrapher" data-id="${id}"><span>${icon('pilcrow')} Reconstituer les paragraphes</span></button><button class="setting-row" data-action="clear-audio" data-id="${id}"><span>${icon('hard-drive')} Effacer les audios préparés</span></button><button class="setting-row danger" data-action="delete-confirm" data-id="${id}"><span>${icon('trash-2')} Supprimer ce livre de la bibliothèque</span></button>`); break; }
+    case 'prepare-book': {
+      const b = books.find(b => b.id === id); if (!b) break;
+      if (castingBusy(b) || bookSetup) { toast('Une préparation est déjà en cours pour ce livre.'); break; }
+      const ia = settings.ia?.enabled && settings.ia.modele ? `l’IA ${esc(settings.ia.modele)}` : 'le repérage local';
+      modal('Préparer le livre audio ?', `<p class="sheet-description">Toute la séquence enchaînée : analyse des personnages (${ia}), téléchargement des voix manquantes, puis mise en cache du livre pour l’écoute hors ligne. Vos corrections et vos voix sont conservées. Gardez l’app ouverte ; vous pouvez suivre la progression et reprendre en cas d’interruption.</p><button class="primary" data-action="prepare-book-run" data-id="${id}">${icon('wand-sparkles')} Tout préparer</button>`);
+      break;
+    }
+    case 'prepare-book-run': {
+      const b = books.find(b => b.id === id); if (!b) break;
+      sheet.close(); render();
+      bookSetup = id;
+      try {
+        await preparerLivreAudio(b, allVoices(), settings, texte => { setupStatus = texte; toast(texte); });
+      } catch (e) {
+        toast(e instanceof Error ? e.message : String(e));
+      } finally {
+        bookSetup = null; setupStatus = '';
+      }
+      break;
+    }
     case 'reparagrapher': {
       const b = books.find(b => b.id === id);
       if (b) {
@@ -779,8 +803,25 @@ async function handle(action: string, el: HTMLElement) {
       break;
     }
     case 'clear-audio': if (native) { await audio.pause(); await Reader.clearAudio({ bookId: id }); toast('Audios de ce livre effacés.'); } else toast('Aucun audio conservé dans cet aperçu web.'); sheet.close(); break;
-    case 'delete-confirm': if (books.some(b => b.id === id && castingBusy(b))) { toast('Attendez la fin de la préparation de ce livre avant de le retirer.'); break; } modal('Retirer ce livre ?',`<p class="sheet-description">Le livre, sa position et ses signets seront retirés de cette bibliothèque. Le fichier d’origine restera intact.</p><button class="primary danger-button" data-action="delete" data-id="${id}">Retirer le livre</button>`); break;
-    case 'delete': if (audio.state.bookId === id) await audio.pause(); await library.remove(id); books = books.filter(b => b.id !== id); sheet.close(); render(); toast('Livre retiré de la bibliothèque.'); break;
+    case 'reanalyser': {
+      const b = books.find(b => b.id === id); if (!b) break;
+      if (castingBusy(b)) { toast('Attendez la fin de l’analyse en cours.'); break; }
+      const mode = settings.ia?.enabled && settings.ia.modele ? ` avec l’IA ${esc(settings.ia.modele)}` : ' par le repérage local';
+      modal('Relancer l’analyse ?', `<p class="sheet-description">Les attributions automatiques seront recalculées${mode}. Vos corrections manuelles, vos voix et vos réglages sont conservés. La préparation peut prendre plusieurs minutes.</p><button class="primary" data-action="reanalyser-confirm" data-id="${id}">${icon('refresh-cw')} Relancer l’analyse</button>`);
+      break;
+    }
+    case 'reanalyser-confirm': {
+      const b = books.find(b => b.id === id); if (!b) break;
+      relancerAnalyse(b);
+      await library.save(b);
+      sheet.close();
+      prepareBook(b);
+      render();
+      toast('Analyse relancée. Ouvrez « Les voix de ce livre » pour suivre la progression.');
+      break;
+    }
+    case 'delete-confirm': if (books.some(b => b.id === id && castingBusy(b))) { toast('Attendez la fin de la préparation de ce livre avant de le retirer.'); break; } modal('Supprimer ce livre ?',`<p class="sheet-description">Le livre, sa position et ses signets seront retirés de cette bibliothèque. Le fichier d’origine restera intact.</p><button class="primary danger-button" data-action="delete" data-id="${id}">Supprimer le livre</button>`); break;
+    case 'delete': if (audio.state.bookId === id) await audio.pause(); await library.remove(id); books = books.filter(b => b.id !== id); sheet.close(); render(); toast('Livre supprimé de la bibliothèque.'); break;
     case 'check-update': await checkUpdate(); break;
     case 'update-now': await downloadUpdate(); break;
     case 'install-update': await installUpdate(); break;

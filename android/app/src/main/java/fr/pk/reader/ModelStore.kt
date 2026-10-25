@@ -26,10 +26,15 @@ object ModelStore {
     private const val MOTEURS_CHAUDS = 3
     val catalog = listOf(
         VoiceModel("siwis", "Siwis", "fr-FR", "vits-piper-fr_FR-siwis-medium-int8", "3909cff9b3cfd4820c66aa13bf554315c82e34899c161f0b446ece372bc4b5ec", 20914888),
+        VoiceModel("siwis_leger", "Siwis · légère", "fr-FR", "vits-piper-fr_FR-siwis-low-int8", "c001d38068a316c93601a7d10d0b983c9e61adf2af0c4533595483c7f6cba614", 13317962),
         VoiceModel("tom", "Tom", "fr-FR", "vits-piper-fr_FR-tom-medium-int8", "b158f884eb4231b8dddd372c3dc506949630c992a8e48ca692a90323e8bb4e09", 21019617),
         VoiceModel("gilles", "Gilles", "fr-FR", "vits-piper-fr_FR-gilles-low-int8", "92d2bfd9b6b32b9787557c466b15620e453aecc10ec521762660e034941b3c43", 21248965),
         VoiceModel("upmc", "UPMC · Jessica", "fr-FR", "vits-piper-fr_FR-upmc-medium-int8", "ec4930dd3778e19e6ea2bc0d16c5a50a82f428ba7ee43dceab1df7efbaf9f1d3", 22588190, sid = 0),
         VoiceModel("upmc_pierre", "UPMC · Pierre", "fr-FR", "vits-piper-fr_FR-upmc-medium-int8", "ec4930dd3778e19e6ea2bc0d16c5a50a82f428ba7ee43dceab1df7efbaf9f1d3", 22588190, sid = 1, base = "upmc"),
+        VoiceModel("tjiho1", "Tjiho 1", "fr-FR", "vits-piper-fr_FR-tjiho-model1-int8", "37b67c70f16495737eb053dad44ce3fb57e6cc1137de33c9ac72b5c4c7f82cb7", 21032428),
+        VoiceModel("tjiho2", "Tjiho 2", "fr-FR", "vits-piper-fr_FR-tjiho-model2-int8", "28b22750bffbcdcb69065bf1151dea552e449a1e729f7fd07ec02a0cc273f942", 21030373),
+        VoiceModel("tjiho3", "Tjiho 3", "fr-FR", "vits-piper-fr_FR-tjiho-model3-int8", "bf12e13b73c55ff57d54eaf4fa0f0223c738c9549e2b62358fe9814cc2a6c623", 21062372),
+        VoiceModel("miro", "Miro", "fr-FR", "vits-piper-fr_FR-miro-high-int8", "301fc4b6a49f6feb466cb2e03e8f26e81060cc82675f7ef77b812fee36781911", 21268816),
         VoiceModel("lessac", "Lessac", "en-US", "vits-piper-en_US-lessac-medium-int8", "f1c6d0295cf16087b05f80fdca5b44daca5cd78e2c425d419a42ba34929805f9", 20969179)
     )
     val downloads = ConcurrentHashMap<String, JSONObject>()

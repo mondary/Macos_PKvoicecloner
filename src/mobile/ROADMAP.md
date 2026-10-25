@@ -1,6 +1,6 @@
 # PK Reader — feuille de route lecteur
 
-Retours des 21 au 24/10. État des sources au 2026.10.66.
+Retours des 21 au 25/10. État des sources au 2026.10.67.
 
 ## Fait
 
@@ -21,6 +21,7 @@ Retours des 21 au 24/10. État des sources au 2026.10.66.
 - Étiquettes corroborées, mots ordinaires/pronoms exclus des rôles automatiques, réanalyse locale des livres existants et passages attribués consultables — 2026.10.64.
 - Dialogue façon scénario : étiquettes en capitales suivies d’un tiret cadratin, suffixes parenthésés, noms composés avec deux-points dans un échange d’au moins deux ; le cast du studio remplace le repérage local supplanté — 2026.10.65.
 - Analyse IA 100 % autonome sur le téléphone : fournisseur OpenAI-compatible réglé dans l’app (clé chiffrée Android Keystore), distribution étayée par des lignes de parole, attribution JSON indexée, relecture critique, lots de 40 phrases, reprise après coupure — 2026.10.66.
+- « Préparer le livre audio » : séquence complète en un bouton (analyse, voix manquantes, mise en cache chapitre par chapitre) ; menu du livre accessible depuis le lecteur ; suppression et relance d’analyse explicites ; dix voix françaises dont Siwis légère à 13 Mo — 2026.10.67.
 
 ## Reste
 

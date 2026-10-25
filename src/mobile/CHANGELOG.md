@@ -1,5 +1,16 @@
 # PK Reader Android
 
+## [2026.10.67] - 2026-10-25
+
+### Added
+- **« Préparer le livre audio » — la séquence complète en un bouton** : depuis le menu du livre (⋯), l'analyse des personnages, le téléchargement des voix manquantes et la mise en cache du livre s'enchaînent automatiquement, chapitre par chapitre, avec progression et reprise après interruption. Les corrections manuelles et les voix choisies sont conservées.
+- **Réglages du livre depuis le lecteur** : le bouton ⋯ de l'en-tête ouvre le menu du livre (voix, préparation, analyse, paragraphes, audios, suppression) sans revenir à la bibliothèque.
+- **Cinq voix françaises supplémentaires, dont une ultra-légère** : Siwis · légère (13 Mo), Tjiho 1, 2 et 3, Miro — dix voix françaises au catalogue.
+
+### Changed
+- **Suppression plus claire** : le menu du livre dit « Supprimer ce livre de la bibliothèque » et la confirmation également.
+- **Relancer l'analyse** : une entrée dédiée du menu du livre recalcule les attributions automatiques (IA du téléphone ou repérage local) en conservant corrections, voix et réglages.
+
 ## [2026.10.66] - 2026-10-24
 
 ### Added

@@ -114,7 +114,7 @@ export function appliquerAnalyse(draft: Casting, analyse: AnalyseStudio,
 /** Le genre des voix Android n'est pas fourni par leur API : ne pas le deviner
  *  depuis leur nom. Les timbres Piper du catalogue ont des métadonnées connues. */
 const genresPiper: Record<string, Gender> = {
-  'neural:siwis': 'femme', 'neural:tom': 'homme', 'neural:gilles': 'homme',
+  'neural:siwis': 'femme', 'neural:siwis_leger': 'femme', 'neural:tom': 'homme', 'neural:gilles': 'homme',
   'neural:upmc': 'femme', 'neural:upmc_pierre': 'homme', 'neural:lessac': 'femme',
 };
 export const genreVoix = (v: Voice) => v.gender ?? genresPiper[v.id] ?? 'indetermine';
@@ -187,6 +187,20 @@ export function besoinsVoix(casting: Casting, available: Voice[], language: stri
 
 export const LOCAL_CASTING_REVISION = 2;
 export const analyseLocalePerimee = (book: Book) => book.casting?.analysis?.localRevision !== LOCAL_CASTING_REVISION;
+
+/** Relance une analyse complète : efface les attributions automatiques et les
+ *  rôles auto devenus inutiles, conserve corrections manuelles, voix choisies et
+ *  réglages. `prepareCasting` enchaîne ensuite le repérage local puis l'IA. */
+export function relancerAnalyse(book: Book): void {
+  const cast = book.casting;
+  if (!cast) return;
+  const manuel = cast.manualAssignments ?? {};
+  cast.assignments = Object.fromEntries(Object.entries(cast.assignments).filter(([index]) => manuel[index]));
+  const utilises = new Set(Object.values(cast.assignments));
+  cast.characters = cast.characters.filter(c =>
+    c.id === 'narrator' || !roleAuto(c) || !c.automaticVoice || utilises.has(c.id));
+  cast.analysis = undefined;
+}
 
 /** Recalcule les anciennes attributions locales, pas les choix manuels ni les
  * lots déjà validés par le studio. Les indices ambigus restent au narrateur. */

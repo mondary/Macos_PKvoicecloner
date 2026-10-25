@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.75] - 2026-10-25
+
+### Added
+- **PK Reader Android 2026.10.67 — « Préparer le livre audio »** : la séquence complète (analyse des personnages, téléchargement des voix manquantes, mise en cache chapitre par chapitre) se lance en un bouton depuis le menu du livre, désormais aussi accessible depuis le lecteur. Cinq voix françaises de plus au catalogue, dont Siwis · légère à 13 Mo — dix voix françaises au total.
+
 ## [2026.10.74] - 2026-10-24
 
 ### Added

@@ -115,7 +115,7 @@ export function appliquerAnalyse(draft: Casting, analyse: AnalyseStudio,
  *  depuis leur nom. Les timbres Piper du catalogue ont des métadonnées connues. */
 const genresPiper: Record<string, Gender> = {
   'neural:siwis': 'femme', 'neural:siwis_leger': 'femme', 'neural:tom': 'homme', 'neural:gilles': 'homme',
-  'neural:upmc': 'femme', 'neural:upmc_pierre': 'homme', 'neural:lessac': 'femme',
+  'neural:upmc': 'femme', 'neural:upmc_pierre': 'homme', 'neural:lessac': 'femme', 'neural:kokoro_siwis': 'femme',
 };
 export const genreVoix = (v: Voice) => v.gender ?? genresPiper[v.id] ?? 'indetermine';
 export const modeleVoix = (v: Voice) => v.modelId ?? (v.id === 'neural:upmc_pierre' ? 'neural:upmc' : v.id);

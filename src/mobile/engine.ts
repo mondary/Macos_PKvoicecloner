@@ -52,6 +52,7 @@ export const modelCatalog: Voice[] = [
   { id: 'neural:tjiho3', name: 'Tjiho 3', language: 'fr-FR', kind: 'neural', detail: 'Français · Piper · timbre supplémentaire', size: 21.1, installed: false },
   { id: 'neural:miro', name: 'Miro', language: 'fr-FR', kind: 'neural', detail: 'Français · Piper · timbre supplémentaire', size: 21.3, installed: false },
   { id: 'neural:lessac', name: 'Lessac', language: 'en-US', kind: 'neural', detail: 'English · Piper · récit naturel', size: 21, installed: false },
+  { id: 'neural:kokoro_siwis', name: 'Siwis · Kokoro', language: 'fr-FR', kind: 'neural', detail: 'Français · Kokoro · la plus naturelle · 132 Mo, génération plus lente', size: 132.3, installed: false },
 ];
 
 class AudioEngine {

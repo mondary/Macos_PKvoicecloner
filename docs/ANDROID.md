@@ -47,6 +47,8 @@ Après compilation, l’APK récupéré localement se trouve dans `releases/andr
 
 ## Les trois sources de voix
 
+**Onze voix françaises** : dix timbres Piper (13 à 22 Mo) et **Siwis · Kokoro** (132 Mo, modèle Kokoro v1.0 int8) — même locutrice que Siwis, mais nettement plus naturelle ; la génération est plus lente, chaque passage est mis en cache après première écoute. Toutes fonctionnent hors ligne, empreinte SHA-256 vérifiée au téléchargement.
+
 | Source | Installation | Réseau pendant la lecture |
 |---|---|---|
 | Voix Android | Moteur du téléphone ou autre moteur TTS installé | Selon la voix Android choisie |

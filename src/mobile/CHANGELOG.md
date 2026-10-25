@@ -1,5 +1,16 @@
 # PK Reader Android
 
+## [2026.10.82] - 2026-10-25
+
+### Added
+- **Siwis · Kokoro**, onzième voix française : le modèle Kokoro v1.0 (int8, 132 Mo) rejoint le catalogue Piper. C’est la même locutrice que Siwis, avec une nettement meilleure naturelleté — au prix d’une génération plus lente et d’un téléchargement plus lourd. Comme toujours : hors ligne, sur le téléphone, empreinte vérifiée.
+
+### Fixed
+- **Aperçu fidèle dans la fiche des personnages** : le bouton Écouter jouait la voix générale du lecteur au lieu de la voix choisie pour le rôle — tous les aperçus sonnaient pareil. Il utilise maintenant la liste du rôle et nomme la voix jouée (fiche et bilan de chapitre).
+
+### Changed
+- **Mini-lecteur naviguable** : chapitre, page et phrase restent accessibles sur une seule ligne d’icônes en mode réduit — plus besoin de déplier le lecteur pour tourner la page.
+
 ## [2026.10.81] - 2026-10-25
 
 ### Added

@@ -430,10 +430,9 @@ function syncPageControls() {
   if (settings.layout !== 'pages') return;
   const label = document.querySelector('#page-footer');
   if (label) label.innerHTML = `<b>${page + 1}</b> / ${pages.length || 1}`;
-  const prev = document.querySelector<HTMLButtonElement>('.reader-navigation [data-action="page-prev"]');
-  const next = document.querySelector<HTMLButtonElement>('.reader-navigation [data-action="page-next"]');
-  if (prev) prev.disabled = page <= 0;
-  if (next) next.disabled = page >= pages.length - 1;
+  // Les boutons Page existent en double : navigation complète et mini-lecteur.
+  document.querySelectorAll<HTMLButtonElement>('[data-action="page-prev"]').forEach(bouton => { bouton.disabled = page <= 0; });
+  document.querySelectorAll<HTMLButtonElement>('[data-action="page-next"]').forEach(bouton => { bouton.disabled = page >= pages.length - 1; });
 }
 function refreshReaderAnalysis() {
   const host = document.querySelector('#reader-analysis');
@@ -990,13 +989,14 @@ async function handle(action: string, el: HTMLElement) {
         if (review.book.casting?.assignments[String(i)] === id) text = review.book.segments[i];
       }
       const role = review.choices.find(c => c.role.id === id)?.role;
+      const timbre = [...allVoices(), ...clones].find(v => v.id === voice)?.name ?? voice;
       const demo = welcomeBook();
       demo.id = 'voice-preview'; demo.title = 'Aperçu de la voix';
       demo.segments = [text || `Bonjour, je m’appelle ${role?.name ?? 'ce personnage'}. Voici la voix que je proposerai pour ce livre.`];
       await audio.pause();
       await audio.load(demo, { ...settings, voice });
       await audio.play();
-      toast('Aperçu de la voix en cours.');
+      toast(`Aperçu : ${timbre}.`);
       break;
     }
     case 'previous': await seekTo(audio.state.index - 1); break;

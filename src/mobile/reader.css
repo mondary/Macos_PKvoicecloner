@@ -25,7 +25,15 @@
 .sentence-jump svg { width: 22px; height: 22px; }
 .sentence-jump span { font-size: 10px; }
 .sentence-jump:hover { background: var(--accent-soft); }
-.player.reduit .reader-navigation, .player.reduit .sentence-jump { display: none; }
+.player.reduit .reader-navigation { display: none; }
+.player.reduit .sentence-jump { display: none; }
+/* Navigation du mini-lecteur : chapitre, page et phrase sur une seule ligne. */
+.reader-nav-mini { display: none; align-items: center; justify-content: center; gap: 2px; margin-top: 6px; }
+.reader-nav-mini button { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; color: var(--ink-soft); }
+.reader-nav-mini button svg { width: 17px; height: 17px; }
+.reader-nav-mini button:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent); }
+.reader-nav-mini .nav-mini-sep { width: 1px; height: 18px; background: var(--line); margin: 0 6px; }
+.player.reduit .reader-nav-mini { display: flex; }
 /* Mini-lecteur : fine ligne de progression à la place du curseur complet. */
 .player-mini-progress { display: none; position: absolute; left: 0; bottom: 0; height: 2px; background: var(--accent-fill); border-radius: 999px; transition: width 0.3s ease; }
 .player.reduit .player-mini-progress { display: block; }

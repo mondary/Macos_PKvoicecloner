@@ -82,10 +82,19 @@ try {
   // Mini-lecteur par défaut : la page doit contenir plusieurs paragraphes.
   if (!await evaluate('!!document.querySelector(".player.reduit")')) throw new Error('Lecteur non réduit par défaut');
   await wait('getComputedStyle(document.querySelector(".player-mini-progress")).display !== "none"');
+  // Mini-lecteur : chapitre, page et phrase restent accessibles sur une ligne.
+  await wait('getComputedStyle(document.querySelector(".reader-nav-mini")).display !== "none"');
+  const miniBoutons = await evaluate('document.querySelectorAll(".reader-nav-mini button").length');
+  if (miniBoutons !== 6) throw new Error(`Navigation réduite incomplète : ${miniBoutons} boutons`);
+  await click('.reader-nav-mini [data-action="next"]');
+  await wait('document.querySelector("#progress").value === "1"');
+  await click('.reader-nav-mini [data-action="previous"]');
+  await wait('document.querySelector("#progress").value === "0"');
   const hauteurMini = await evaluate('parseInt(getComputedStyle(document.documentElement).getPropertyValue("--player-h"))');
   const pagesMini = await evaluate('document.querySelector("#page-footer").textContent');
   await click('[data-action="focus"]');
   await wait(`parseInt(getComputedStyle(document.documentElement).getPropertyValue("--player-h")) > ${hauteurMini} + 60`);
+  if (!await evaluate('getComputedStyle(document.querySelector(".reader-nav-mini")).display === "none"')) throw new Error('Navigation réduite visible en mode étendu');
   const pagesEtendues = await evaluate('document.querySelector("#page-footer").textContent');
   const lireNombre = (texte) => parseInt((texte.match(/(\d+)\s*\/\s*(\d+)/) || [0, 0, 0])[2], 10);
   if (!(lireNombre(pagesMini) < lireNombre(pagesEtendues))) {

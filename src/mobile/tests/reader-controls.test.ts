@@ -18,12 +18,18 @@ describe('lecteur regroupé', () => {
 
   it('sépare pages et chapitres par des icônes et libellés explicites', () => {
     document.body.innerHTML = readerNavigationView(welcomeBook(), 'pages');
-    expect(document.querySelectorAll('[data-action="page-prev"]')).toHaveLength(1);
-    expect(document.querySelectorAll('[data-action="chapter-step"]')).toHaveLength(2);
+    expect(document.querySelectorAll('[data-action="page-prev"]')).toHaveLength(2);
+    expect(document.querySelectorAll('[data-action="chapter-step"]')).toHaveLength(4);
     expect(document.querySelector('[aria-label="Chapitre précédent"]')?.hasAttribute('disabled')).toBe(true);
     expect(document.querySelector('[aria-label="Page suivante"] [data-lucide="chevron-right"]')).not.toBeNull();
     expect(document.querySelector('[aria-label="Chapitre suivant"] [data-lucide="skip-forward"]')).not.toBeNull();
     expect(document.querySelector('[data-action="chapters"]')?.getAttribute('aria-label')).toContain('signet');
+    // Mini-lecteur : chapitre, page et phrase tiennent sur une seule ligne.
+    const mini = document.querySelector('.reader-nav-mini');
+    expect(mini?.getAttribute('role')).toBe('group');
+    expect(mini?.querySelectorAll('button')).toHaveLength(6);
+    expect(mini?.querySelector('[data-action="next"] [data-lucide="rotate-cw"]')).not.toBeNull();
+    expect(mini?.querySelector('[aria-label="Chapitre précédent"]')?.hasAttribute('disabled')).toBe(true);
   });
 
   it('répare les titres de chapitres inconnus sans toucher au texte ni aux lots validés', () => {

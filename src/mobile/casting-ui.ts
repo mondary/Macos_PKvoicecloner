@@ -138,10 +138,15 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
       case 'next': first += 20; draw(); break;
       case 'preview': {
         if (!role) return;
-        const demo: Book = { ...book, id: 'casting-preview', position: 0, segments: [`Bonjour, voici la voix de ${role.name} dans cette histoire.`], casting: { enabled: true, characters: [role], assignments: { '0': role.id } } };
+        // On écoute la voix choisie dans la liste de ce rôle, pas la voix
+        // générale du lecteur : sinon tous les aperçus sonnent pareil.
+        const choisie = sheet.querySelector<HTMLSelectElement>(`#cast-voice-${button.dataset.id}`)?.value.trim()
+          || role.voice || settings.voice;
+        const timbre = catalog.find(v => v.id === choisie)?.name ?? choisie;
+        const demo: Book = { ...book, id: 'casting-preview', position: 0, segments: [`Bonjour, voici la voix de ${role.name} dans cette histoire.`], casting: { enabled: true, characters: [{ ...role, voice: choisie }], assignments: { '0': role.id } } };
         preview = true;
-        await audio.load(demo, { ...settings, voice: settings.voice.startsWith('clone:') ? 'system:default' : settings.voice });
-        await audio.play(); message('Exemple en cours.'); break;
+        await audio.load(demo, { ...settings, voice: choisie.startsWith('clone:') ? 'system:default' : choisie });
+        await audio.play(); message(`Exemple avec ${timbre} en cours.`); break;
       }
       case 'download': {
         if (!native) { message('Le téléchargement des voix est disponible dans l’APK Android.', true); return; }

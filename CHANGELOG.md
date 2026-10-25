@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.90] - 2026-10-25
+
+### Added
+- **PK Reader Android 2026.10.82** : voix française « Siwis · Kokoro » (132 Mo, int8) en plus des dix Piper ; aperçu sonore fidèle à la voix choisie ; navigation chapitre/page/phrase sur une ligne dans le mini-lecteur.
+
 ## [2026.10.89] - 2026-10-25
 
 ### Added

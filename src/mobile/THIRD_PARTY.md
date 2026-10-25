@@ -21,3 +21,7 @@ Voice model cards (the app downloads model weights directly from upstream; it do
 - Lessac: https://huggingface.co/rhasspy/piper-voices/blob/main/en/en_US/lessac/medium/MODEL_CARD
 
 This debug APK is for development and evaluation. A public distribution must include all applicable license texts and comply with the copyleft requirements of the linked phonemizer; the existing Apache-2.0 label does not relicense those dependencies.
+
+## Kokoro
+
+- **Kokoro-82M v1.0 (int8)** (hexgrad), archive sherpa-onnx `kokoro-int8-multi-lang-v1_0`, licence Apache-2.0.

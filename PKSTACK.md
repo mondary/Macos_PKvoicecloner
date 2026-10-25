@@ -25,6 +25,7 @@
 
 ## Skills récemment appliquées
 
+- `fixing-accessibility` / `app-presence-sync` / `-pk-COMMIT` — PK Reader 2026.10.82 : voix française Kokoro int8 intégrée au moteur sherpa-onnx existant (empreinte vérifiée, mémoire maîtrisée), aperçu sonore corrigé et navigation réduite sur une ligne.
 - `fixing-accessibility` / `app-presence-sync` / `-pk-COMMIT` — PK Reader 2026.10.81 : aperçu sonore par association dans le bilan de chapitre, mini-lecteur par défaut (plusieurs paragraphes par page), repagination liée à la hauteur du lecteur et bascule pages/défilement dans le lecteur. QA navigatrice étendue.
 - `fixing-accessibility` / `app-presence-sync` / `-pk-COMMIT` — PK Reader 2026.10.80 : suivi fixe partagé des téléchargements (installation manuelle ou automatique), bouton Ko-fi nommé, navigation chapitre/page/phrase regroupée et titres génériques réparés. Tests de suivi et de commandes, captures de démonstration.
 - `fixing-accessibility` / `app-presence-sync` / `-pk-COMMIT` — PK Reader 2026.10.79 : page « Gérer le livre » en quatre étapes (paragraphes, analyse, voix, écoute) avec pourcentages, états et relance ciblée ou globale. Tests et documentation synchronisés.

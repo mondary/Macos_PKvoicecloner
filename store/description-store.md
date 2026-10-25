@@ -23,15 +23,15 @@ pas autonomes et nécessitent encore le dépôt et son environnement Python.
 
 ## Assets
 
-### PK Reader Android — 2026.10.80
+### PK Reader Android — 2026.10.81
 
 **FR — Lecture simplifiée** : commandes chapitre/page/phrase regroupées près du lecteur, compteur d’analyse près de Gérer, téléchargements de voix suivis par des notifications fixes jusqu’à fermeture du résultat. Bouton « Soutenir sur Ko-fi » explicite dans À propos.
 
 **EN — Simpler reading**: chapter/page/sentence controls grouped near playback, analysis count beside Manage, and fixed voice-download notifications until results are dismissed. Explicit Ko-fi support button in About.
 
-**FR — Bilan par chapitre** : validez les propositions de voix du premier chapitre, puis retrouvez ces associations au suivant. Seuls les nouveaux personnages ou une préparation incomplète interrompent la lecture pour confirmation.
+**FR — Bilan par chapitre** : chaque proposition de voix s’écoute avant validation, sur un extrait du personnage. Validez le premier chapitre, puis retrouvez ces associations au suivant ; seuls les nouveaux personnages interrompent la lecture. En lecture, le lecteur réduit laisse plusieurs paragraphes par page, avec bascule pages/défilement.
 
-**EN — Chapter summary**: confirm voice proposals for the first chapter, then reuse those associations in the next. Only new characters or incomplete preparation interrupt playback for confirmation.
+**EN — Chapter summary**: listen to each voice proposal before confirming, on an excerpt of the character. Confirm the first chapter, then reuse those associations later; only new characters interrupt playback. While reading, the collapsed player leaves several paragraphs per page, with a paged/scrolling toggle.
 
 **FR — Préparation en streaming et IA au choix** : le chapitre à écouter est analysé en priorité et la lecture démarre pendant le reste de l’analyse ; pastille de suivi discrète ; clé API ou IA locale (Ollama, LM Studio), ou repérage local sans clé.
 

@@ -62,4 +62,4 @@ export interface Playback {
   /** Suivi de lecture : position et durée du passage (WAV), ou plage du mot lu (TTS). */
   position?: number; duree?: number; mot?: { debut: number; fin: number } | null;
 }
-export const defaults: Settings = { voice: 'system:default', rate: 1, theme: 'light', fontSize: 22, layout: 'pages', server: '', token: '', voiceLangues: false, voiceRates: {}, interligne: 1.95, marges: 0, bande: 0.28, surlignage: 'mots' };
+export const defaults: Settings = { voice: 'system:default', rate: 1, theme: 'light', fontSize: 22, layout: 'pages', server: '', token: '', voiceLangues: false, voiceRates: {}, interligne: 1.95, marges: 0, bande: 0.28, surlignage: 'mots', focus: true };

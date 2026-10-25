@@ -16,16 +16,19 @@
 .reader-mode.has-player #analysis-activities { bottom: calc(var(--player-h, 320px) + 12px); }
 .reader-navigation { margin-top: 8px; }
 .reader-nav-row { display: grid; grid-template-columns: 88px minmax(0, 1fr) 88px; align-items: center; gap: 4px; }
-.reader-nav-button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 44px; border-radius: 9px; font-size: 10px; color: var(--ink-soft); }
+.reader-nav-button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 40px; border-radius: 9px; font-size: 10px; color: var(--ink-soft); }
 .reader-nav-button svg { width: 16px; height: 16px; }
 .reader-nav-button:hover:not(:disabled) { background: var(--accent-soft); }
-.reader-nav-location { min-height: 44px; font-size: 11px; font-weight: 600; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reader-nav-location { min-height: 40px; font-size: 11px; font-weight: 600; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .reader-nav-row .page-count { min-width: 0; font-size: 11px; }
 .sentence-jump { display: grid; justify-items: center; align-content: center; gap: 4px; min-height: 48px; min-width: 76px; border-radius: 10px; color: var(--ink-soft); }
 .sentence-jump svg { width: 22px; height: 22px; }
 .sentence-jump span { font-size: 10px; }
 .sentence-jump:hover { background: var(--accent-soft); }
 .player.reduit .reader-navigation, .player.reduit .sentence-jump { display: none; }
+/* Mini-lecteur : fine ligne de progression à la place du curseur complet. */
+.player-mini-progress { display: none; position: absolute; left: 0; bottom: 0; height: 2px; background: var(--accent-fill); border-radius: 999px; transition: width 0.3s ease; }
+.player.reduit .player-mini-progress { display: block; }
 .reader-header small { display: block; font-size: 10px; color: var(--muted); margin-top: 5px; }
 .reader-subhead { display: flex; align-items: center; gap: 6px; padding: 10px 0; color: var(--muted); border-bottom: 1px solid var(--line-soft); }
 .chapter-step { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); flex: none; }
@@ -111,10 +114,10 @@
   position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: min(100%, 788px); z-index: 20;
   background: var(--glass-strong); backdrop-filter: blur(24px) saturate(1.4);
   border: 1px solid var(--line); border-bottom: 0; border-radius: 24px 24px 0 0;
-  padding: 18px 30px calc(14px + var(--safe-bottom));
+  padding: 14px 26px calc(12px + var(--safe-bottom));
   box-shadow: 0 -10px 34px -18px rgba(24, 38, 60, 0.35);
 }
-.player-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.player-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
 .voice-chip { display: flex; align-items: center; gap: 7px; font-size: 11px; min-height: 36px; padding: 7px 11px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); max-width: 65%; font-weight: 600; }
 .voice-chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .voice-chip svg { width: 15px; height: 15px; }
@@ -147,7 +150,7 @@ input.progress-slider { appearance: none; -webkit-appearance: none; padding: 0; 
 .progress-slider::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--accent); }
 .progress-slider::-moz-range-thumb { width: 12px; height: 12px; border: 2px solid var(--surface); border-radius: 50%; background: var(--accent); }
 .time-row { display: flex; align-items: center; justify-content: space-between; font-size: 9px; color: var(--muted); margin-top: 11px; font-variant-numeric: tabular-nums; }
-.transport { display: flex; align-items: center; justify-content: center; gap: 30px; margin: 14px 0 0; }
+.transport { display: flex; align-items: center; justify-content: center; gap: 30px; margin: 10px 0 0; }
 .play-button { width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-fill); color: #fff; box-shadow: 0 6px 16px -4px rgba(53, 94, 231, 0.45); flex-shrink: 0; }
 .play-button:hover { background: var(--accent-deep); }
 .play-button svg { width: 25px; height: 25px; fill: currentColor; stroke-width: 1.5; }

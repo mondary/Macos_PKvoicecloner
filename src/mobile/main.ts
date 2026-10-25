@@ -75,6 +75,9 @@ let page = 0;
 let pages: Page[] = [];
 let pagesKey = '';
 let pagesChapter = -1;
+/** Hauteur du lecteur au dernier découpage : les pages suivent l'espace réel,
+ *  mini-lecteur ou commandes complètes. */
+let pagesHauteur = -1;
 let fontsChecked = false;
 /** Les défilements déclenchés par l'app sont ignorés par la détection de geste. */
 let scrollGuard = 0;
@@ -292,10 +295,10 @@ function playerHTML() {
   const speaker = characterAt(book, book.position)?.name || '';
   const focus = Boolean(settings.focus);
   const status = audio.state.error || (audio.state.preparing?`Préparation ${audio.state.prepared ?? 0} / ${audio.state.total ?? 0} passages`:audio.state.loading?`${speaker?`${speaker} · `:''}La voix prépare le prochain passage…`:isPlaying?`${speaker?`${esc(speaker)} · `:''}${esc(chapter.title)} — laissez l’histoire vous emporter.`:'Touchez une phrase pour choisir le départ.');
-  return `<section class="player ${focus ? 'reduit' : ''}" aria-label="Lecteur audio"><div class="player-top"><button class="voice-chip" data-action="choose-voice">${icon('audio-lines')}<span>${esc(characterAt(book, book.position)?.name || voiceName())}</span>${icon('chevron-down')}</button><button class="speed-chip" data-action="speed" aria-label="Vitesse de ${esc(voiceName())}">${settings.rate.toLocaleString('fr')}<span>×</span></button><button class="sleep-chip ${audio.state.sleepAt?'on':''}" data-action="sleep">${icon('moon')}${audio.state.sleepAt?`${Math.max(1,Math.ceil((audio.state.sleepAt-Date.now())/60000))} min`:'Minuteur'}</button><button class="icon-button focus-button" data-action="focus" aria-label="${focus?'Afficher les commandes':'Réduire le lecteur'}">${icon(focus?'chevrons-up':'chevrons-down')}</button></div>
+  return `<section class="player ${focus ? 'reduit' : ''}" aria-label="Lecteur audio"><div class="player-top"><button class="voice-chip" data-action="choose-voice">${icon('audio-lines')}<span>${esc(characterAt(book, book.position)?.name || voiceName())}</span>${icon('chevron-down')}</button><button class="speed-chip" data-action="speed" aria-label="Vitesse de ${esc(voiceName())}">${settings.rate.toLocaleString('fr')}<span>×</span></button><button class="sleep-chip ${audio.state.sleepAt?'on':''}" data-action="sleep">${icon('moon')}${audio.state.sleepAt?`${Math.max(1,Math.ceil((audio.state.sleepAt-Date.now())/60000))} min`:'Minuteur'}</button><button class="icon-button" data-action="layout" aria-label="${settings.layout === 'pages' ? 'Passer en défilement continu' : 'Passer en lecture page à page'}">${icon(settings.layout === 'pages' ? 'align-justify' : 'book-open')}</button><button class="icon-button focus-button" data-action="focus" aria-label="${focus?'Afficher les commandes':'Réduire le lecteur'}">${icon(focus?'chevrons-up':'chevrons-down')}</button></div>
     <label class="sr-only" for="progress">Position dans le livre</label><input class="progress-slider" id="progress" type="range" min="0" max="${book.segments.length-1}" value="${Math.min(book.position,book.segments.length-1)}" style="--progress:${progress(book)}" /><div class="time-row"><span>${percent(book)} % du livre</span><span>${book.completed?'Lecture terminée':`${minutes(book)} restantes`}</span></div>
     ${readerNavigationView(book, settings.layout)}
-    <div class="transport"><button class="sentence-jump" data-action="previous" aria-label="Revenir d’une phrase">${icon('rotate-ccw')}<span>Phrase −1</span></button><button class="play-button ${audio.state.loading?'loading':''}" data-action="toggle" aria-label="${isPlaying?'Mettre en pause':'Lire à voix haute'}">${icon(audio.state.loading?'loader-circle':isPlaying?'pause':'play')}</button><button class="sentence-jump" data-action="next" aria-label="Avancer d’une phrase">${icon('rotate-cw')}<span>Phrase +1</span></button></div><p class="player-status" aria-live="polite">${esc(status)}</p></section>`;
+    <div class="transport"><button class="sentence-jump" data-action="previous" aria-label="Revenir d’une phrase">${icon('rotate-ccw')}<span>Phrase −1</span></button><button class="play-button ${audio.state.loading?'loading':''}" data-action="toggle" aria-label="${isPlaying?'Mettre en pause':'Lire à voix haute'}">${icon(audio.state.loading?'loader-circle':isPlaying?'pause':'play')}</button><button class="sentence-jump" data-action="next" aria-label="Avancer d’une phrase">${icon('rotate-cw')}<span>Phrase +1</span></button></div><p class="player-status" aria-live="polite">${esc(status)}</p><span class="player-mini-progress" style="width:${percent(book)}%" aria-hidden="true"></span></section>`;
 }
 function nowBar() {
   return `<aside class="now-bar" id="now-bar" hidden data-action="follow" role="button" tabindex="0" aria-label="Revenir à la phrase en cours"><span class="now-wave" aria-hidden="true"><b></b><b></b><b></b></span><div class="now-copy"><small>EN COURS · <span id="now-chapter"></span></small><p id="now-text"></p></div><span class="now-return">${icon('locate-fixed')}<i>Revenir</i></span></aside>`;
@@ -354,7 +357,7 @@ function mountPages(reset = false) {
   const eyebrow = document.querySelector('#page-eyebrow'); const heading = document.querySelector('#page-heading');
   if (eyebrow) eyebrow.textContent = book.sample ? 'PRENDRE LE TEMPS' : book.author.toUpperCase();
   if (heading) heading.textContent = chapter.title;
-  const key = [book.id, chapter.start, settings.fontSize, settings.theme, innerWidth, innerHeight].join(':');
+  const key = [book.id, chapter.start, settings.fontSize, settings.theme, innerWidth, innerHeight, pagesHauteur].join(':');
   if (reset || key !== pagesKey || pagesChapter !== chapter.start) {
     const title = document.querySelector<HTMLElement>('.page-title');
     title?.style.removeProperty('display');
@@ -404,7 +407,16 @@ function syncNowBar() {
 function observePlayer() {
   playerObserver?.disconnect();
   const player = document.querySelector<HTMLElement>('.player'); if (!player) return;
-  const apply = () => document.documentElement.style.setProperty('--player-h', `${Math.ceil(player.getBoundingClientRect().height)}px`);
+  const apply = () => {
+    const hauteur = Math.ceil(player.getBoundingClientRect().height);
+    document.documentElement.style.setProperty('--player-h', `${hauteur}px`);
+    // Le lecteur se replie ou se déplie : les pages sont redécoupées pour
+    // remplir l'espace réellement disponible, jamais avec une hauteur périmée.
+    if (hauteur !== pagesHauteur) {
+      pagesHauteur = hauteur;
+      if (screen === 'reader' && settings.layout === 'pages' && document.querySelector('#page-text')) mountPages();
+    }
+  };
   apply();
   playerObserver = new ResizeObserver(apply);
   playerObserver.observe(player);
@@ -966,6 +978,27 @@ async function handle(action: string, el: HTMLElement) {
     case 'listen': await openBook(id, true); break;
     case 'toggle': if (audio.state.playing || audio.state.loading) await audio.pause(); else if (book) { if (audio.state.bookId !== book.id) await audio.load(book, settings); await requestChapterPlayback(book); } break;
     case 'chapter-voices-confirm': await confirmChapterReview(); break;
+    case 'chapter-voice-preview': {
+      const review = chapterReview;
+      if (!review) break;
+      // On écoute la voix sélectionnée dans la liste, pas seulement la proposée.
+      const select = sheet.querySelector<HTMLSelectElement>(`[data-role-id="${id}"]`);
+      const voice = select?.value.trim() || 'system:default';
+      const chapter = review.book.chapters.find(c => c.start === review.start);
+      let text = '';
+      if (chapter) for (let i = chapter.start; i < chapter.end && !text; i++) {
+        if (review.book.casting?.assignments[String(i)] === id) text = review.book.segments[i];
+      }
+      const role = review.choices.find(c => c.role.id === id)?.role;
+      const demo = welcomeBook();
+      demo.id = 'voice-preview'; demo.title = 'Aperçu de la voix';
+      demo.segments = [text || `Bonjour, je m’appelle ${role?.name ?? 'ce personnage'}. Voici la voix que je proposerai pour ce livre.`];
+      await audio.pause();
+      await audio.load(demo, { ...settings, voice });
+      await audio.play();
+      toast('Aperçu de la voix en cours.');
+      break;
+    }
     case 'previous': await seekTo(audio.state.index - 1); break;
     case 'next': await seekTo(audio.state.index + 1); break;
     case 'sentence': await seekTo(Number(el.dataset.index)); break;

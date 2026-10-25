@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.88** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
+version **2026.10.89** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
 
 📱 **Android** — [télécharger l’APK](https://github.com/mondary/Macos_PKvoicecloner/releases/latest/download/PK-Reader-latest.apk) (lien stable qui suit la dernière version) · 🍎 **macOS** — [DMG 2026.10.66](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/v2026.10.66)
 
@@ -28,7 +28,9 @@ L’application Android **PK Reader** lit vos EPUB, PDF texte et TXT avec les vo
 
 **Valider un chapitre, pas tout le livre** — avant l’écoute, un bilan propose les voix des personnages de ce chapitre, en distinguant celles installées et celles à télécharger. Validez ou modifiez ; ces choix sont conservés pour les chapitres suivants. Si tout est déjà analysé et validé, la lecture continue sans dialogue. Sinon elle attend la validation des nouveaux personnages.
 
-[Installation et guide Android](docs/ANDROID.md) · [APK de la version courante](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.80) (release `pk-<version>`, lien direct) · [Changelog Android](src/mobile/CHANGELOG.md)
+**Choisir en écoutant** — chaque proposition se pré-écoute d’un bouton (« Écouter ») sur un extrait du personnage, avec la voix réellement sélectionnée. En lecture, le lecteur se réduit par défaut pour laisser **plusieurs paragraphes par page** ; un chevron déplie toutes les commandes, et un bouton bascule pages à tourner / défilement continu sans quitter le livre.
+
+[Installation et guide Android](docs/ANDROID.md) · [APK de la version courante](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.81) (release `pk-<version>`, lien direct) · [Changelog Android](src/mobile/CHANGELOG.md)
 
 > Les APK vivent dans les releases `pk-<version>` (la plus récente en tête de la page des releases). Le badge **Latest** suit la dernière livraison publiée, Android ou macOS : il peut pointer sur le DMG sans que l'APK disparaisse — le lien direct ci-dessus reste valable.
 

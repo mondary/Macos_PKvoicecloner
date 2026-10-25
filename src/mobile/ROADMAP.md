@@ -1,6 +1,6 @@
 # PK Reader — feuille de route lecteur
 
-Retours des 21 au 25/10. État des sources au 2026.10.80.
+Retours des 21 au 25/10. État des sources au 2026.10.81.
 
 ## Fait
 
@@ -34,6 +34,7 @@ Retours des 21 au 25/10. État des sources au 2026.10.80.
 - Page « Gérer le livre » en quatre étapes avec relance ciblée et « Tout relancer » — 2026.10.79.
 - Notifications fixes des téléchargements, soutien Ko-fi explicite, navigation chapitre/page/phrase regroupée — 2026.10.80.
 - Validation rapide des voix par chapitre, choix mémorisés et arrêt Android avant les nouveaux personnages — 2026.10.80.
+- Écoute d’essai par voix, mini-lecteur par défaut et repagination selon la hauteur réelle — 2026.10.81.
 
 ## Reste
 

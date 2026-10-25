@@ -1,5 +1,15 @@
 # PK Reader Android
 
+## [2026.10.81] - 2026-10-25
+
+### Added
+- **Écoute d’essai avant de valider** : dans le bilan des voix du chapitre, chaque association propose un bouton « Écouter » qui joue un extrait du personnage dans ce chapitre (ou une phrase de présentation) avec la voix choisie dans la liste — pas seulement la voix proposée.
+
+### Changed
+- **Mini-lecteur par défaut** : en lecture, le lecteur se réduit à l’essentiel (voix, vitesse, minuteur, lecture, fine ligne de progression) pour laisser **plusieurs paragraphes par page**. Le chevron en haut du lecteur déplie les commandes complètes (chapitre, page, phrase).
+- **Pages recalculées selon la place réelle** : déplier ou replier le lecteur redécoupe les pages avec la hauteur effectivement disponible, plus jamais avec une hauteur périmée.
+- **Bouton de mise en page dans le lecteur** : bascule directe entre pages à tourner et défilement continu, sans passer par les réglages.
+
 ## [2026.10.80] - 2026-10-25
 
 ### Changed

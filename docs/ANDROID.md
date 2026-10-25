@@ -19,7 +19,7 @@ Le téléphone peut exécuter lui-même l'analyse des personnages avec un fourni
 ### Téléchargements et commandes du lecteur
 
 - Les téléchargements de voix (manuels, depuis les personnages ou pendant la préparation) ont un **suivi fixe sur tous les écrans**. Faire défiler ou changer d’onglet ne le masque pas. « Miro · 100 % · Installée » et les erreurs restent jusqu’à fermeture explicite ; 100 % de transfert seul ne vaut pas installation terminée.
-- La navigation est regroupée en bas près de Lecture/Pause : **Chapitre** (précédent/suivant avec barre), **Page** (chevrons simples et compteur), **Phrase −1 / +1** (flèches circulaires). Plus de chevrons de page dans le corps du texte ni de flèches de chapitre en haut.
+- En lecture, le lecteur se **réduit par défaut** (voix, vitesse, minuteur, lecture, fine ligne de progression) pour laisser plusieurs paragraphes par page. Le chevron du lecteur **déplie toutes les commandes** : **Chapitre** (précédent/suivant avec barre), **Page** (chevrons et compteur), **Phrase −1 / +1** (flèches circulaires). Déplier ou replier redécoupe les pages avec la hauteur réelle. Un bouton du lecteur bascule **pages à tourner / défilement continu** sans quitter le livre.
 - Le titre du chapitre ouvre **Chapitres et signets**, où l’on peut ajouter un signet. Le sélecteur de voix reste dans le lecteur ; les réglages de lecture et la préparation hors ligne sont dans **Gérer**. Les titres « Inconnu » deviennent « Chapitre 1 », « Chapitre 2 », y compris pour les livres déjà importés, sans invalider l’analyse.
 - **Réglages → À propos → Soutenir sur Ko-fi** ouvre `https://ko-fi.com/pouark` ; le bouton remplace le cœur sans texte.
 
@@ -83,7 +83,7 @@ Chaque livre a un bouton **Gérer** visible sur sa fiche dans la bibliothèque, 
 
 ### Bilan automatique du chapitre avant l’écoute
 
-L’import démarre l’analyse. Au clic sur **Écouter**, le bilan du chapitre montre ses personnages, les voix proposées, celles déjà installées et celles à télécharger. Vous pouvez modifier les listes puis **Valider et écouter ce chapitre** ; seules les voix sélectionnées non installées sont alors téléchargées.
+L’import démarre l’analyse. Au clic sur **Écouter**, le bilan du chapitre montre ses personnages, les voix proposées, celles déjà installées et celles à télécharger. Chaque ligne propose **« Écouter »** : un extrait du personnage dans ce chapitre, lu avec la voix sélectionnée dans la liste. Modifiez, écoutez, puis **Validez et écoutez ce chapitre** ; seules les voix sélectionnées non installées sont alors téléchargées.
 
 Une validation fixe l’association personnage → voix dans le livre. Au chapitre suivant, les personnages connus la conservent ; si le chapitre est analysé et toutes ses voix validées/installées, il continue sans confirmation. En cas de nouveau personnage ou d’analyse incomplète, le lecteur s’arrête avant de prononcer le chapitre et affiche le bilan. Le service Android respecte aussi cet arrêt écran verrouillé ; revenez dans l’app pour valider si nécessaire. Les choix restent mémorisés après fermeture de l’app. Le guide de découverte n’exige pas de validation.
 

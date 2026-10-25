@@ -26,6 +26,11 @@ describe('bilan des voix par chapitre', () => {
     document.body.innerHTML = chapterReviewView(book, choices, voices, true);
     expect(document.body.textContent).toContain('2/2 voix installées');
     expect(document.querySelectorAll('select')).toHaveLength(2);
+    // Chaque association peut être écoutée avant de valider.
+    const ecoutes = document.querySelectorAll<HTMLButtonElement>('[data-action="chapter-voice-preview"]');
+    expect(ecoutes).toHaveLength(2);
+    expect(ecoutes[0].dataset.id).toBe('narrator');
+    expect(ecoutes[1].getAttribute('aria-label')).toContain('Camille');
   });
 
   it('réutilise les voix validées aux chapitres suivants, même après de nouvelles propositions', () => {

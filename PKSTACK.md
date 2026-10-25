@@ -25,6 +25,7 @@
 
 ## Skills récemment appliquées
 
+- `fixing-accessibility` / `app-presence-sync` / `-pk-COMMIT` — PK Reader 2026.10.81 : aperçu sonore par association dans le bilan de chapitre, mini-lecteur par défaut (plusieurs paragraphes par page), repagination liée à la hauteur du lecteur et bascule pages/défilement dans le lecteur. QA navigatrice étendue.
 - `fixing-accessibility` / `app-presence-sync` / `-pk-COMMIT` — PK Reader 2026.10.80 : suivi fixe partagé des téléchargements (installation manuelle ou automatique), bouton Ko-fi nommé, navigation chapitre/page/phrase regroupée et titres génériques réparés. Tests de suivi et de commandes, captures de démonstration.
 - `fixing-accessibility` / `app-presence-sync` / `-pk-COMMIT` — PK Reader 2026.10.79 : page « Gérer le livre » en quatre étapes (paragraphes, analyse, voix, écoute) avec pourcentages, états et relance ciblée ou globale. Tests et documentation synchronisés.
 - `fixing-accessibility` / `app-presence-sync` / `-pk-COMMIT` — PK Reader 2026.10.78 : pastille de suivi compacte, relecture IA conditionnelle, sous-lots de 60, casting plafonné et fournisseur IA locale (Ollama, LM Studio, llama.cpp) avec disclaimers. Tests et captures synchronisés.

@@ -79,6 +79,18 @@ try {
   await click('.book-open[data-id="demo-controls"]');
   await wait('!!document.querySelector(".reader-navigation") && document.querySelector("#page-footer")?.textContent.includes("/")');
   if (!await evaluate('document.querySelector("#page-heading").textContent === "Chapitre 1"')) throw new Error('Titre inconnu non réparé');
+  // Mini-lecteur par défaut : la page doit contenir plusieurs paragraphes.
+  if (!await evaluate('!!document.querySelector(".player.reduit")')) throw new Error('Lecteur non réduit par défaut');
+  await wait('getComputedStyle(document.querySelector(".player-mini-progress")).display !== "none"');
+  const hauteurMini = await evaluate('parseInt(getComputedStyle(document.documentElement).getPropertyValue("--player-h"))');
+  const pagesMini = await evaluate('document.querySelector("#page-footer").textContent');
+  await click('[data-action="focus"]');
+  await wait(`parseInt(getComputedStyle(document.documentElement).getPropertyValue("--player-h")) > ${hauteurMini} + 60`);
+  const pagesEtendues = await evaluate('document.querySelector("#page-footer").textContent');
+  const lireNombre = (texte) => parseInt((texte.match(/(\d+)\s*\/\s*(\d+)/) || [0, 0, 0])[2], 10);
+  if (!(lireNombre(pagesMini) < lireNombre(pagesEtendues))) {
+    throw new Error(`Le mini-lecteur doit afficher plus de texte par page (${pagesMini} vs ${pagesEtendues})`);
+  }
   const first = await evaluate('document.querySelector("#page-footer").textContent');
   await click('.reader-navigation [data-action="page-next"]');
   await wait(`document.querySelector('#page-footer').textContent !== ${JSON.stringify(first)}`);
@@ -90,6 +102,13 @@ try {
   await wait('document.querySelector(".reader-nav-location").textContent === "Chapitre 2"');
   await click('[data-action="chapter-step"][data-id="-1"]');
   await wait('document.querySelector(".reader-nav-location").textContent === "Chapitre 1"');
+  // Bascule défilement continu ↔ pages, sans quitter le lecteur.
+  await click('.player [data-action="layout"]');
+  await wait('document.querySelector("#app").className.includes("layout-scroll") && !document.querySelector("#page-text")');
+  await click('.player [data-action="layout"]');
+  await wait('document.querySelector("#app").className.includes("layout-pages") && !!document.querySelector("#page-text")');
+  await click('[data-action="focus"]');
+  await wait(`parseInt(getComputedStyle(document.documentElement).getPropertyValue("--player-h")) <= ${hauteurMini}`);
   await evaluate(`(async () => {
     const {analysisChip, downloadActivityView} = await import('/activity-view.ts');
     window.qaDownloads = downloadActivityView([{id:'neural:miro', name:'Miro', progress:64, state:'running'}]);
@@ -102,7 +121,14 @@ try {
   await viewport(390);
   await click('[data-action="toggle"]');
   await wait('!!document.querySelector(".chapter-review")');
+  const ecoutes = await evaluate('document.querySelectorAll(\'[data-action="chapter-voice-preview"]\').length');
+  if (ecoutes !== 2) throw new Error(`Boutons d’écoute attendus : 2, trouvés : ${ecoutes}`);
   await shot('chapter-voice-review');
+  // Écoute d’essai avec la voix sélectionnée, avant validation.
+  await evaluate('speechSynthesis.speak = () => {};');
+  await click('[data-action="chapter-voice-preview"]');
+  await delay(300);
+  if (!await evaluate('document.querySelector("#toast")?.textContent.includes("Aperçu")')) throw new Error('Aperçu de voix non signalé');
   // Voix système pour éviter tout téléchargement natif ; synthèse neutralisée
   // dans ce profil de test, le contrôle de lecture reste celui de production.
   await evaluate(`document.querySelectorAll('[data-role-id]').forEach(select => { select.value = 'system:default'; }); speechSynthesis.speak = () => {};`);

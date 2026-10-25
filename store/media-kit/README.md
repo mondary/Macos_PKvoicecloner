@@ -9,7 +9,7 @@ pnpm dev --port 5201
 PK_QA_URL=http://127.0.0.1:5201/ PK_QA_OUT=/chemin/captures node store/media-kit/capture-reader-controls.mjs
 ```
 
-Le script crée un livre fictif, vérifie chapitre/page/phrase et les titres de
+Le script vérifie aussi le lecteur réduit par défaut, le redécoupage des pages entre mini-lecteur et commandes dépliées (moins de pages en mode réduit), la bascule pages/défilement depuis le lecteur et l’aperçu sonore avant validation. Il crée un livre fictif, vérifie chapitre/page/phrase et les titres de
 repli, puis valide un chapitre avec voix système, passe au suivant sans
 redemander et vérifie l’arrêt sur un nouveau personnage. La synthèse est
 neutralisée dans le profil de test. Les états Miro 64 % et 100 % et le compteur

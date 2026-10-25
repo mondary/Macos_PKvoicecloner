@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.89] - 2026-10-25
+
+### Added
+- **PK Reader Android 2026.10.81** : écoute d’essai par voix dans le bilan de chapitre, mini-lecteur par défaut laissant plusieurs paragraphes par page, repagination selon la hauteur réelle du lecteur et bascule pages/défilement directement depuis le lecteur.
+
 ## [2026.10.88] - 2026-10-25
 
 ### Changed

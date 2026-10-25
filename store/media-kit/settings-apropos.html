@@ -502,9 +502,12 @@ details code { display: block; overflow-wrap: anywhere; background: var(--line-s
 .support-kofi:hover { border-color: var(--accent); }
 .chapter-voice-choices { border: 0; padding: 0; margin: 12px 0; min-width: 0; }
 .chapter-voice-choice { display: grid; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--line); }
-.chapter-voice-choice > span { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
-.chapter-voice-choice small { color: var(--muted); font-size: 11px; }
-.chapter-voice-choice select { width: 100%; min-height: 44px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; font: inherit; padding: 10px; }
+.chapter-voice-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 13px; }
+.chapter-voice-head small { color: var(--muted); font-size: 11px; }
+.chapter-voice-row { display: flex; align-items: center; gap: 8px; }
+.chapter-voice-row select { flex: 1; min-width: 0; width: 100%; min-height: 44px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; font: inherit; padding: 10px; }
+.chapter-voice-row .small-button { flex: none; min-height: 44px; }
+@media (max-width: 365px) { .chapter-voice-row { flex-wrap: wrap; } .chapter-voice-row .small-button { width: 100%; } }
 .chapter-review > .primary { width: 100%; }
 .chapter-review-status { font-size: 12px; line-height: 1.6; color: var(--ink-soft); }
 @media (max-width: 720px) { .about > .support-kofi { width: 100%; margin: 4px 0 0; } }
@@ -750,10 +753,10 @@ dialog header .icon-button { width: 38px; height: 38px; }
 .casting-library-row>span{display:grid;gap:6px;min-width:0;text-align:left}
 .casting-library-row strong{overflow-wrap:anywhere}
 .casting-library-row small{color:var(--muted);font-weight:400}
-</style></head><body><div class="app-shell"><main class="main-content"><header class="page-heading"><div><p class="eyebrow">FAITES COMME CHEZ VOUS</p><h1>À votre rythme<span>.</span></h1></div><span class="build-chip">2026.10.80</span></header>
+</style></head><body><div class="app-shell"><main class="main-content"><header class="page-heading"><div><p class="eyebrow">FAITES COMME CHEZ VOUS</p><h1>À votre rythme<span>.</span></h1></div><span class="build-chip">2026.10.81</span></header>
   <div class="segmented settings-tabs" role="group" aria-label="Sections des réglages"><button data-action="settings-tab" data-id="lecture" class="" aria-pressed="false"><i data-lucide="book-open" aria-hidden="true"></i><span>Lecture</span></button><button data-action="settings-tab" data-id="voix" class="" aria-pressed="false"><i data-lucide="audio-lines" aria-hidden="true"></i><span>Voix & analyse</span></button><button data-action="settings-tab" data-id="apropos" class="active" aria-pressed="true"><i data-lucide="info" aria-hidden="true"></i><span>À propos</span></button></div>
   <div class="settings-pane">
-  <section class="update-hero" aria-labelledby="update-title"><div class="update-hero-top"><span class="update-icon"><i data-lucide="refresh-cw" aria-hidden="true"></i></span><div class="update-hero-copy"><div class="update-kicker"><p class="eyebrow">PK READER</p><span class="update-badge">À VÉRIFIER</span></div><h2 id="update-title">Mises à jour</h2><p class="update-hero-detail">Version actuelle <strong>2026.10.80</strong>. Vérifiez les nouveautés publiées sur GitHub.</p></div></div><button class="primary update-action"><i data-lucide="refresh-cw" aria-hidden="true"></i> Vérifier les mises à jour</button></section>
+  <section class="update-hero" aria-labelledby="update-title"><div class="update-hero-top"><span class="update-icon"><i data-lucide="refresh-cw" aria-hidden="true"></i></span><div class="update-hero-copy"><div class="update-kicker"><p class="eyebrow">PK READER</p><span class="update-badge">À VÉRIFIER</span></div><h2 id="update-title">Mises à jour</h2><p class="update-hero-detail">Version actuelle <strong>2026.10.81</strong>. Vérifiez les nouveautés publiées sur GitHub.</p></div></div><button class="primary update-action"><i data-lucide="refresh-cw" aria-hidden="true"></i> Vérifier les mises à jour</button></section>
   <section class="settings-section"><h2>Crédits & inspirations</h2><div class="credits-list"><p>PK Reader est un projet original. Son ergonomie de lecture s’inspire de <a href="https://play.google.com/store/apps/details?id=voice.reader.ai" target="_blank" rel="noopener noreferrer">TTS Reader Pro</a> et de <a href="https://readexa.uk/" target="_blank" rel="noopener noreferrer">Readexa</a>.</p><p>Moteurs et bibliothèques : Capacitor, sherpa-onnx, Piper, PDF.js, fflate, Lucide, DM Sans et Literata — licences dans <code>THIRD_PARTY.md</code>.</p></div></section>
-  <section class="settings-section about"><span class="brand-mark"><i data-lucide="audio-lines" aria-hidden="true"></i></span><div><h2>PK Reader <span>2026.10.80</span></h2><p>Vos livres. Votre rythme. Votre voix.</p></div><a class="support-kofi" href="https://ko-fi.com/pouark" target="_blank" rel="noopener noreferrer"><i data-lucide="coffee" aria-hidden="true"></i><span>Soutenir sur Ko-fi</span><i data-lucide="arrow-up-right" aria-hidden="true"></i></a></section>
+  <section class="settings-section about"><span class="brand-mark"><i data-lucide="audio-lines" aria-hidden="true"></i></span><div><h2>PK Reader <span>2026.10.81</span></h2><p>Vos livres. Votre rythme. Votre voix.</p></div><a class="support-kofi" href="https://ko-fi.com/pouark" target="_blank" rel="noopener noreferrer"><i data-lucide="coffee" aria-hidden="true"></i><span>Soutenir sur Ko-fi</span><i data-lucide="arrow-up-right" aria-hidden="true"></i></a></section>
   </div></main></div></body></html>

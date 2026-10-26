@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.97** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
+version **2026.10.98** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
 
 📱 **Android** — [télécharger l’APK](https://github.com/mondary/Macos_PKvoicecloner/releases/latest/download/PK-Reader-latest.apk) (lien stable qui suit la dernière version) · 🍎 **macOS** — [DMG 2026.10.66](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/v2026.10.66)
 
@@ -24,15 +24,15 @@ L’application Android **PK Reader** lit vos EPUB, PDF texte et TXT avec les vo
 
 **Gérer le livre** — quatre étapes (Paragraphes, Analyse, Voix, Écoute du chapitre) affichent leur pourcentage et leur détail, et se relancent séparément ; « Tout relancer » enchaîne paragraphes, analyse complète, voix et lecture.
 
-**Commandes regroupées** — chapitre, page et phrase se pilotent près de Lecture/Pause, avec des libellés distincts. Le compteur d’analyse reste près de « Gérer ». Les analyses et téléchargements se suivent dans la cloche de notifications, sans encombrer l’écran ; « À propos » propose un bouton explicite « Soutenir sur Ko-fi ». La navigation ne garde que **Bibliothèque** et **Réglages** ; la liste des voix, compacte, s’ouvre depuis Réglages → Voix & analyse.
+**Commandes regroupées** — chapitre, page et phrase se pilotent sur une seule ligne autour de Lecture/Pause, avec le chapitre, la page, le pourcentage et le temps restant en pied de barre. Le compteur d’analyse reste près de « Gérer ». Les analyses et téléchargements se suivent dans la cloche de notifications, sans encombrer l’écran ; « À propos » propose un bouton explicite « Soutenir sur Ko-fi ». La navigation ne garde que **Bibliothèque** et **Réglages** ; la liste des voix, compacte, s’ouvre depuis Réglages → Voix & analyse.
 
 **Valider un chapitre, pas tout le livre** — avant l’écoute, un bilan propose les voix des personnages de ce chapitre, en distinguant celles installées et celles à télécharger. Il s’ouvre **même pendant l’analyse** : choisissez, validez, et l’écoute démarre aussitôt avec cette distribution provisoire, que l’analyse affine ensuite. Ces choix sont conservés pour les chapitres suivants ; seuls les nouveaux personnages redemandent une confirmation. Si tout est déjà validé, la lecture continue sans dialogue.
 
-**Choisir en écoutant** — chaque proposition se pré-écoute d’un bouton (« Écouter ») sur un extrait du personnage, avec la voix réellement sélectionnée et nommée. En lecture, le lecteur se réduit par défaut pour laisser **plusieurs paragraphes par page** ; un chevron déplie toutes les commandes, et un bouton bascule pages à tourner / défilement continu sans quitter le livre.
+**Choisir en écoutant** — chaque proposition se pré-écoute d’un bouton (« Écouter ») sur un extrait du personnage, avec la voix réellement sélectionnée et nommée. En lecture, une **barre compacte** réunit le curseur, la voix, le minuteur, le signet, la vitesse, le sens de lecture et le plein écran, puis le transport chapitre/page/phrase et les compteurs page / pourcentage / temps. Le texte gagne la hauteur de l’ancienne carte ; l’apparence et la gestion du livre restent dans l’en-tête.
 
 **Place aux livres** — recherche visible, grandes couvertures, reprise compacte. L’en-tête de la bibliothèque règle **1, 2 ou 3 colonnes** sur téléphone et l’ordre d’affichage : dernier ajout, dernier ouvert, titre A–Z ou année (année de parution de l’EPUB, sinon année d’ajout). Dans le lecteur, les phrases s’enchaînent en vrais paragraphes ; la navigation entoure Lecture/Pause sur une seule ligne. Le bleu, le guide de découverte et les choix de voix restent inchangés.
 
-[Installation et guide Android](docs/ANDROID.md) · [APK de la version courante](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.88) (release `pk-<version>`, lien direct) · [Changelog Android](src/mobile/CHANGELOG.md)
+[Installation et guide Android](docs/ANDROID.md) · [APK de la version courante](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.89) (release `pk-<version>`, lien direct) · [Changelog Android](src/mobile/CHANGELOG.md)
 
 > Les APK vivent dans les releases `pk-<version>` (la plus récente en tête de la page des releases). Le badge **Latest** suit la dernière livraison publiée, Android ou macOS : il peut pointer sur le DMG sans que l'APK disparaisse — le lien direct ci-dessus reste valable.
 

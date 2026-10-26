@@ -253,13 +253,32 @@ function readingPages() {
 function playerHTML() {
   const book = current()!; const chapter = chapterAt(book);
   const isPlaying = audio.state.bookId === book.id && audio.state.playing;
-  const speaker = characterAt(book, book.position)?.name || '';
-  const focus = Boolean(settings.focus);
-  const status = audio.state.error || (audio.state.preparing?`Préparation ${audio.state.prepared ?? 0} / ${audio.state.total ?? 0} passages`:audio.state.loading?`${speaker?`${speaker} · `:''}La voix prépare le prochain passage…`:isPlaying?`${speaker?`${esc(speaker)} · `:''}${esc(chapter.title)} — laissez l’histoire vous emporter.`:'Touchez une phrase pour choisir le départ.');
-  return `<section class="player ${focus ? 'reduit' : ''}" aria-label="Lecteur audio"><div class="player-top"><button class="voice-chip" data-action="choose-voice">${icon('audio-lines')}<span>${esc(characterAt(book, book.position)?.name || voiceName())}</span>${icon('chevron-down')}</button><button class="speed-chip" data-action="speed" aria-label="Vitesse de ${esc(voiceName())}">${settings.rate.toLocaleString('fr')}<span>×</span></button><span class="mini-stats">${percent(book)} % · ${minutes(book)} min</span><button class="sleep-chip ${audio.state.sleepAt?'on':''}" data-action="sleep">${icon('moon')}${audio.state.sleepAt?`${Math.max(1,Math.ceil((audio.state.sleepAt-Date.now())/60000))} min`:'Minuteur'}</button><button class="icon-button" data-action="layout" aria-label="${settings.layout === 'pages' ? 'Passer en défilement continu' : 'Passer en lecture page à page'}">${icon(settings.layout === 'pages' ? 'align-justify' : 'book-open')}</button><button class="icon-button focus-button" data-action="focus" aria-label="${focus?'Afficher les commandes':'Réduire le lecteur'}">${icon(focus?'chevrons-up':'chevrons-down')}</button></div>
-    <label class="sr-only" for="progress">Position dans le livre</label><input class="progress-slider" id="progress" type="range" min="0" max="${book.segments.length-1}" value="${Math.min(book.position,book.segments.length-1)}" style="--progress:${progress(book)}" /><div class="time-row"><span>${percent(book)} % du livre</span><span>${book.completed?'Lecture terminée':`${minutes(book)} restantes`}</span></div>
-    ${readerNavigationView(book, settings.layout, isPlaying, audio.state.loading)}
-    <div class="transport"><button class="sentence-jump" data-action="previous" aria-label="Revenir d’une phrase">${icon('rotate-ccw')}<span>Phrase −1</span></button><button class="play-button ${audio.state.loading?'loading':''}" data-action="toggle" aria-label="${isPlaying?'Mettre en pause':'Lire à voix haute'}">${icon(audio.state.loading?'loader-circle':isPlaying?'pause':'play')}</button><button class="sentence-jump" data-action="next" aria-label="Avancer d’une phrase">${icon('rotate-cw')}<span>Phrase +1</span></button></div><p class="player-status" aria-live="polite">${esc(status)}</p><span class="player-mini-progress" style="width:${percent(book)}%" aria-hidden="true"></span></section>`;
+  const chargement = audio.state.bookId === book.id && audio.state.loading;
+  const speaker = characterAt(book, book.position)?.name || voiceName();
+  const position = Math.min(book.position, Math.max(0, book.segments.length - 1));
+  const signet = book.bookmarks.includes(position);
+  const sommeil = audio.state.sleepAt ? Math.max(1, Math.ceil((audio.state.sleepAt - Date.now()) / 60000)) : 0;
+  const meta = book.completed ? '100 % · lu' : `${percent(book)} % · ${minutes(book)}`;
+  const layout = settings.layout === 'pages' ? 'Passer en défilement continu' : 'Passer en lecture page à page';
+  return `<section class="player" aria-label="Lecteur audio">
+    ${audio.state.error ? `<p class="player-notice error" role="status">${esc(audio.state.error)}</p>` : ''}
+    <label class="sr-only" for="progress">Position dans le livre</label>
+    <input class="progress-slider" id="progress" type="range" min="0" max="${Math.max(0, book.segments.length - 1)}" value="${position}" style="--progress:${progress(book)}" aria-label="Position dans le livre" aria-valuetext="${percent(book)} % du livre, ${minutes(book)} restantes" />
+    <div class="player-options">
+      <button type="button" class="player-voice" data-action="choose-voice" aria-label="Changer de voix : ${esc(speaker)}" title="Changer de voix">${icon('audio-lines')}<span>${esc(speaker)}</span>${icon('chevron-down')}</button>
+      <button type="button" class="player-option ${sommeil ? 'on' : ''}" data-action="sleep" aria-label="${sommeil ? `Minuteur actif : ${sommeil} minutes` : 'Programmer le minuteur'}" title="Minuteur">${icon('moon')}</button>
+      <button type="button" class="player-option ${signet ? 'on' : ''}" data-action="bookmark" aria-label="${signet ? 'Retirer le signet de ce passage' : 'Ajouter ce passage aux signets'}" title="Signet">${icon('bookmark')}</button>
+      <button type="button" class="player-option speed" data-action="speed" aria-label="Vitesse de lecture : ${settings.rate.toLocaleString('fr')} fois" title="Vitesse">${settings.rate.toLocaleString('fr')}<span>×</span></button>
+      <button type="button" class="player-option" data-action="layout" aria-label="${layout}" title="${layout}">${icon(settings.layout === 'pages' ? 'align-justify' : 'book-open')}</button>
+      <button type="button" class="player-option ${settings.readerImmersive ? 'on' : ''}" data-action="immersive" aria-label="${settings.readerImmersive ? 'Afficher l’en-tête' : 'Masquer l’en-tête et agrandir le texte'}" title="${settings.readerImmersive ? 'Afficher l’en-tête' : 'Plein écran'}">${icon(settings.readerImmersive ? 'minimize-2' : 'maximize-2')}</button>
+    </div>
+    ${readerNavigationView(book, settings.layout, isPlaying, chargement)}
+    <div class="player-footer">
+      <button type="button" class="player-chapter" data-action="chapters" aria-label="Chapitres et signets">${esc(chapter.title)}${icon('chevron-up')}</button>
+      <span class="player-pages" id="page-footer" aria-live="off">${settings.layout === 'pages' ? 'Page …' : 'Défilement'}</span>
+      <span class="player-meta" aria-label="${percent(book)} % du livre, ${minutes(book)} restantes">${meta}</span>
+    </div>
+  </section>`;
 }
 function nowBar() {
   return `<aside class="now-bar" id="now-bar" hidden data-action="follow" role="button" tabindex="0" aria-label="Revenir à la phrase en cours"><span class="now-wave" aria-hidden="true"><b></b><b></b><b></b></span><div class="now-copy"><small>EN COURS · <span id="now-chapter"></span></small><p id="now-text"></p></div><span class="now-return">${icon('locate-fixed')}<i>Revenir</i></span></aside>`;
@@ -396,7 +415,7 @@ function replacePlayer() {
 function syncPageControls() {
   if (settings.layout !== 'pages') return;
   const label = document.querySelector('#page-footer');
-  if (label) label.innerHTML = `<b>${page + 1}</b> / ${pages.length || 1}`;
+  if (label) label.innerHTML = `Page <b>${page + 1}</b> / ${pages.length || 1}`;
   // Les boutons Page existent en double : navigation complète et mini-lecteur.
   document.querySelectorAll<HTMLButtonElement>('[data-action="page-prev"]').forEach(bouton => { bouton.disabled = page <= 0; });
   document.querySelectorAll<HTMLButtonElement>('[data-action="page-next"]').forEach(bouton => { bouton.disabled = page >= pages.length - 1; });
@@ -581,7 +600,7 @@ function settingsView() {
 function render() {
   savePrefs();
   app.dataset.screen = screen;
-  app.className = `app-shell ${screen==='reader'?'reader-mode':''} layout-${settings.layout} ${active()?'has-player':''}`;
+  app.className = `app-shell ${screen==='reader'?'reader-mode':''} ${screen==='reader'&&settings.readerImmersive?'reader-immersive':''} layout-${settings.layout} ${active()?'has-player':''}`;
   app.innerHTML = `${navigation()}<main id="main" class="main-content ${screen==='reader'?'reader-content':''}"><div id="notification-center">${backgroundActivities()}</div>${screen==='library'?libraryView():screen==='reader'?readerView():screen==='voices'?voicesView():screen==='book'?bookView():settingsView()}</main>${miniPlayer()}`;
   orchestrerFermeture();
   decorate();
@@ -1082,7 +1101,13 @@ async function handle(action: string, el: HTMLElement) {
       break;
     }
     case 'voice-langues': settings.voiceLangues = !settings.voiceLangues; savePrefs(); render(); break;
-    case 'focus': settings.focus = !settings.focus; savePrefs(); replacePlayer(); break;
+    case 'immersive': {
+      settings.readerImmersive = !settings.readerImmersive; savePrefs();
+      app.classList.toggle('reader-immersive', settings.readerImmersive);
+      replacePlayer();
+      if (settings.layout === 'pages') mountPages(true);
+      break;
+    }
     case 'interligne': settings.interligne = Number(id); savePrefs(); sheet.close(); render(); break;
     case 'marges': settings.marges = Number(id); savePrefs(); sheet.close(); render(); break;
     case 'bande': settings.bande = Number(id); savePrefs(); sheet.close(); render(); break;
@@ -1271,7 +1296,7 @@ window.addEventListener('touchmove', manualScroll, { passive: true });
 document.addEventListener('touchstart', e => {
   if (screen !== 'reader' || settings.layout !== 'pages') return;
   const touch = e.touches[0]; if (!touch) return;
-  if ((e.target as Element).closest('.player, .now-bar, .reader-header, .reader-subhead, .page-footer')) return;
+  if ((e.target as Element).closest('.player, .now-bar, .reader-header')) return;
   (window as unknown as { __pkTouch?: { x: number; y: number } }).__pkTouch = { x: touch.clientX, y: touch.clientY };
 }, { passive: true });
 document.addEventListener('touchend', e => {

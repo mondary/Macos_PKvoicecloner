@@ -118,56 +118,47 @@ try {
   await wait('document.querySelectorAll(".book-item").length === 1');
   await evaluate(`(() => {const search=document.querySelector('#search');search.value='';search.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   await click('.book-open[data-id="demo-controls"]');
-  await wait('!!document.querySelector(".reader-navigation") && document.querySelector("#page-footer")?.textContent.includes("/")');
+  await wait('!!document.querySelector(".player") && document.querySelector("#page-footer")?.textContent.includes("/")');
   await evaluate(`document.querySelector('.sentence[data-index="1"]').focus()`);
   await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
   await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
   await wait(`document.querySelector('#progress').value === '1'`);
   await click('.reader-nav-mini [data-action="previous"]');
   if (!await evaluate('document.querySelector("#page-heading").textContent === "Chapitre 1"')) throw new Error('Titre inconnu non réparé');
-  // Mini-lecteur par défaut : la page doit contenir plusieurs paragraphes.
-  if (!await evaluate('!!document.querySelector(".player.reduit")')) throw new Error('Lecteur non réduit par défaut');
-  await wait('getComputedStyle(document.querySelector(".progress-slider")).display !== "none"');
-  // Mini-lecteur : chapitre, page et phrase restent accessibles sur une ligne.
-  await wait('getComputedStyle(document.querySelector(".reader-nav-mini")).display !== "none"');
+  // Barre compacte : le texte garde la majorité de l'écran, les options restent visibles.
+  if (await evaluate('!!document.querySelector(".player.reduit")')) throw new Error('Ancien lecteur réduit encore présent');
+  const hauteurLecteur = await evaluate('parseInt(getComputedStyle(document.documentElement).getPropertyValue("--player-h"))');
+  if (hauteurLecteur > 240) throw new Error(`Barre de lecture trop haute : ${hauteurLecteur}px`);
+  if (await evaluate('document.querySelectorAll(".player-option").length') !== 5) throw new Error('Options de lecture incomplètes');
+  if (!await evaluate('!!document.querySelector(".player-voice") && !!document.querySelector("#page-footer") && !!document.querySelector(".player-chapter")')) throw new Error('Pied de lecteur incomplet');
   const miniBoutons = await evaluate('document.querySelectorAll(".reader-nav-mini button").length');
-  if (miniBoutons !== 7) throw new Error(`Navigation réduite incomplète : ${miniBoutons} boutons`);
+  if (miniBoutons !== 7) throw new Error(`Transport incomplet : ${miniBoutons} boutons`);
+  const premierePage = await evaluate('document.querySelector("#page-footer").textContent');
+  await click('.reader-nav-mini [data-action="page-next"]');
+  await wait(`document.querySelector('#page-footer').textContent !== ${JSON.stringify(premierePage)}`);
+  await click('.reader-nav-mini [data-action="page-prev"]');
+  await wait(`document.querySelector('#page-footer').textContent === ${JSON.stringify(premierePage)}`);
   await click('.reader-nav-mini [data-action="next"]');
   await wait('document.querySelector("#progress").value === "1"');
   await click('.reader-nav-mini [data-action="previous"]');
   await wait('document.querySelector("#progress").value === "0"');
-  const hauteurMini = await evaluate('parseInt(getComputedStyle(document.documentElement).getPropertyValue("--player-h"))');
-  const pagesMini = await evaluate('document.querySelector("#page-footer").textContent');
-  await click('[data-action="focus"]');
-  await wait(`parseInt(getComputedStyle(document.documentElement).getPropertyValue("--player-h")) > ${hauteurMini} + 60`);
-  if (!await evaluate('getComputedStyle(document.querySelector(".reader-nav-mini")).display === "none"')) throw new Error('Navigation réduite visible en mode étendu');
-  const pagesEtendues = await evaluate('document.querySelector("#page-footer").textContent');
-  const lireNombre = (texte) => parseInt((texte.match(/(\d+)\s*\/\s*(\d+)/) || [0, 0, 0])[2], 10);
-  if (!(lireNombre(pagesMini) < lireNombre(pagesEtendues))) {
-    throw new Error(`Le mini-lecteur doit afficher plus de texte par page (${pagesMini} vs ${pagesEtendues})`);
-  }
-  const first = await evaluate('document.querySelector("#page-footer").textContent');
-  await click('.reader-navigation [data-action="page-next"]');
-  await wait(`document.querySelector('#page-footer').textContent !== ${JSON.stringify(first)}`);
-  await click('[data-action="next"]');
-  await wait('document.querySelector("#progress").value === "1"');
-  await click('[data-action="previous"]');
-  await wait('document.querySelector("#progress").value === "0"');
-  await click('[data-action="chapter-step"][data-id="1"]');
-  await wait('document.querySelector(".reader-nav-location").textContent === "Chapitre 2"');
-  await click('[data-action="chapter-step"][data-id="-1"]');
-  await wait('document.querySelector(".reader-nav-location").textContent === "Chapitre 1"');
+  await click('.reader-nav-mini [data-action="chapter-step"][data-id="1"]');
+  await wait('document.querySelector(".player-chapter").textContent.includes("Chapitre 2")');
+  await click('.reader-nav-mini [data-action="chapter-step"][data-id="-1"]');
+  await wait('document.querySelector(".player-chapter").textContent.includes("Chapitre 1")');
+  // Plein écran de lecture : l'en-tête s'efface, la barre reste accessible.
+  await click('.player-option[data-action="immersive"]');
+  await wait('getComputedStyle(document.querySelector(".reader-header")).display === "none"');
+  if (!await evaluate('document.querySelector("#app").classList.contains("reader-immersive")')) throw new Error('Mode immersif non appliqué');
+  await click('.player-option[data-action="immersive"]');
+  await wait('getComputedStyle(document.querySelector(".reader-header")).display !== "none"');
   // Bascule défilement continu ↔ pages, sans quitter le lecteur.
-  await click('.player [data-action="layout"]');
+  await click('.player-option[data-action="layout"]');
   await wait('document.querySelector("#app").className.includes("layout-scroll") && !document.querySelector("#page-text")');
-  await click('[data-action="focus"]');
   await shot('reader-scroll');
   if (!await evaluate(`document.querySelector('.book-paragraph').querySelectorAll('.sentence').length === 3`)) throw new Error('Paragraphes non regroupés');
-  await click('[data-action="focus"]');
-  await click('.player [data-action="layout"]');
+  await click('.player-option[data-action="layout"]');
   await wait('document.querySelector("#app").className.includes("layout-pages") && !!document.querySelector("#page-text")');
-  await click('[data-action="focus"]');
-  await wait(`parseInt(getComputedStyle(document.documentElement).getPropertyValue("--player-h")) <= ${hauteurMini}`);
   await evaluate(`(async () => {
     const {analysisChip} = await import('/activity-view.ts');
     document.querySelector('#reader-analysis').innerHTML = analysisChip([{id:'demo-controls',title:'Le voyage de Camille',state:'running',source:'IA de démonstration',debut:Date.now(),progress:{done:28,total:141,chapter:'Chapitre 2'}}],'demo-controls');
@@ -195,7 +186,7 @@ try {
   await wait('!document.querySelector("dialog[open]")');
   // Suivi réel du lecteur après bascule, synthèse seule neutralisée. Le test
   // passe par les boutons, sans instance parallèle du module audio via HMR.
-  await click('.player [data-action="layout"]');
+  await click('.player-option[data-action="layout"]');
   await wait(`document.querySelector('#app').classList.contains('layout-scroll')`);
   await click('.sentence[data-index="12"]');
   await delay(1000);
@@ -206,10 +197,10 @@ try {
   await click('#now-bar');
   await wait(`document.querySelector('#now-bar').hidden`);
   await click('.sentence[data-index="0"]');
-  await click('.player [data-action="layout"]');
+  await click('.player-option[data-action="layout"]');
   await wait(`document.querySelector('#app').classList.contains('layout-pages')`);
   await click('[data-action="chapter-step"][data-id="1"]');
-  await wait('document.querySelector(".reader-nav-location").textContent === "Chapitre 2"');
+  await wait('document.querySelector(".player-chapter").textContent.includes("Chapitre 2")');
   if (await evaluate('!!document.querySelector("dialog[open]")')) throw new Error('Les voix connues sont redemandées');
   await click('[data-action="chapter-step"][data-id="1"]');
   await wait('!!document.querySelector("dialog[open] .chapter-review")');

@@ -1,6 +1,6 @@
 # Media-kit — captures de PK Reader
 
-## Références lecteur/bibliothèque (2026.10.88)
+## Références lecteur/bibliothèque (2026.10.89)
 
 Même harnais `capture-reader-controls.mjs`, désormais avec trois livres et des
 couvertures dessinées pour la démonstration (aucun livre de l’utilisateur). Il
@@ -9,8 +9,10 @@ l’activation d’une phrase au clavier, le suivi après bascule en défilement
 « Revenir » après un déplacement manuel. La navigation ne compte que deux
 entrées (Bibliothèque, Réglages) et la page des voix s’ouvre depuis Réglages :
 une ligne compacte par voix, hauteur contrôlée par le script. Il vérifie aussi le
-choix de **1, 2 ou 3 colonnes** (grille recomposée sans rechargement) et le **tri**
-alpha puis dernier ajout. Captures supplémentaires :
+choix de **1, 2 ou 3 colonnes** (grille recomposée sans rechargement), le **tri**
+alpha puis dernier ajout, la **barre de lecture compacte** (hauteur mesurée, cinq
+options, transport de sept boutons, pied chapitre/page/pourcentage/temps) et le
+**plein écran** qui masque l’en-tête. Captures supplémentaires :
 `library-redesign`, `library-3-columns`, `reader-scroll`, `reader-return`, `chapter-voice-review`, `voices`, variantes sombre et bureau.
 Le rendu de lecture est celui de `reading-text.ts`, également utilisé pour les
 mesures de pagination. Le script attend la disparition des toasts avant capture.
@@ -41,7 +43,7 @@ pnpm dev --port 5201
 PK_QA_URL=http://127.0.0.1:5201/ PK_QA_OUT=/chemin/captures node store/media-kit/capture-reader-controls.mjs
 ```
 
-Le script vérifie aussi le lecteur réduit par défaut, le redécoupage des pages entre mini-lecteur et commandes dépliées (moins de pages en mode réduit), la bascule pages/défilement depuis le lecteur et l’aperçu sonore avant validation. Il crée un livre fictif, vérifie chapitre/page/phrase et les titres de
+Le script vérifie aussi la **barre de lecture compacte** (hauteur mesurée, cinq options, transport de sept boutons, pied chapitre/page/pourcentage/temps), le **plein écran** qui masque l’en-tête, la bascule pages/défilement depuis la barre et l’aperçu sonore avant validation. Il crée un livre fictif, vérifie chapitre/page/phrase et les titres de
 repli, puis valide un chapitre avec voix système, passe au suivant sans
 redemander et vérifie l’arrêt sur un nouveau personnage. La synthèse est
 neutralisée dans le profil de test. Le compteur 28/141 du lecteur est simulé via

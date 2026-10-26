@@ -2,60 +2,34 @@
    Chargé après style.css : ce fichier affine le mode lecture. */
 
 .reader-mode .navigation, .reader-mode .mini-player { display: none; }
-.reader-mode .main-content { margin: 0 auto; max-width: 860px; padding: 0 36px calc(var(--player-h, 320px) + 48px); }
+.reader-mode .main-content { margin: 0 auto; max-width: 860px; padding: 0 36px calc(var(--player-h, 200px) + 48px); }
 
 /* ------------------------------------------------------------ en-tête */
 
-.reader-header { display: flex; align-items: center; gap: 14px; position: sticky; top: 0; background: var(--bg); padding: calc(18px + var(--safe-top)) 0 16px; z-index: 10; border-bottom: 1px solid var(--line); }
+.reader-header { display: flex; align-items: center; gap: 10px; position: sticky; top: 0; background: var(--bg); padding: calc(10px + var(--safe-top)) 0 8px; z-index: 10; }
 .reader-header > .reader-title { flex: 1; min-width: 0; text-align: left; }
-.reader-header .reader-title > span { display: block; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.reader-header > .reader-actions { flex: none; display: flex; align-items: center; gap: 6px; }
-.reader-actions .header-action { min-height: 44px; }
+.reader-header .reader-title > span { display: block; font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.reader-header .reader-title > small { display: block; font-size: 9.5px; color: var(--muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.reader-header > .icon-button:first-child { margin-left: -10px; }
+.reader-actions { flex: none; display: flex; align-items: center; gap: 2px; }
+.reader-actions .icon-button { width: 42px; height: 42px; }
 .reader-actions #reader-analysis:empty { display: none; }
-.reader-actions .player-analysis { min-height: 44px; }
-.app-shell.reader-mode.has-player #notification-center { bottom: calc(var(--player-h, 320px) + 12px); }
-.reader-navigation { margin-top: 8px; }
-.reader-nav-row { display: grid; grid-template-columns: 88px minmax(0, 1fr) 88px; align-items: center; gap: 4px; }
-.reader-nav-button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 40px; border-radius: 9px; font-size: 10px; color: var(--ink-soft); }
-.reader-nav-button svg { width: 16px; height: 16px; }
-.reader-nav-button:hover:not(:disabled) { background: var(--accent-soft); }
-.reader-nav-location { min-height: 40px; font-size: 11px; font-weight: 600; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.reader-nav-row .page-count { min-width: 0; font-size: 11px; }
-.sentence-jump { display: grid; justify-items: center; align-content: center; gap: 4px; min-height: 48px; min-width: 76px; border-radius: 10px; color: var(--ink-soft); }
-.sentence-jump svg { width: 22px; height: 22px; }
-.sentence-jump span { font-size: 10px; }
-.sentence-jump:hover { background: var(--accent-soft); }
-.player.reduit .reader-navigation { display: none; }
-.player.reduit .sentence-jump { display: none; }
-/* Navigation du mini-lecteur : chapitre, page et phrase sur une seule ligne. */
-.reader-nav-mini { display: none; grid-template-columns: repeat(3, minmax(0, 1fr)) 52px repeat(3, minmax(0, 1fr)); align-items: center; gap: 2px; margin-top: 8px; }
-.reader-nav-mini button { width: 100%; height: 44px; display: grid; place-items: center; border-radius: 10px; color: var(--ink-soft); }
-.reader-nav-mini button svg { width: 17px; height: 17px; }
-.reader-nav-mini button:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent); }
-.reader-nav-mini .nav-mini-sep { width: 1px; height: 18px; background: var(--line); margin: 0 6px; }
-.player.reduit .reader-nav-mini { display: grid; }
-.reader-nav-mini .play-button { justify-self: center; width: 48px; height: 48px; border-radius: 50%; color: white; box-shadow: none; }
-.player.reduit .reader-nav-mini .play-button { width: 48px; height: 48px; }
-.reader-nav-mini .play-button svg { width: 22px; height: 22px; }
-/* Mini-lecteur : fine ligne de progression à la place du curseur complet. */
-.player-mini-progress { display: none; position: absolute; left: 0; bottom: 0; height: 2px; background: var(--accent-fill); border-radius: 999px; transition: width 0.3s ease; }
-.player.reduit .player-mini-progress { display: block; }
-.reader-header small { display: block; font-size: 10px; color: var(--muted); margin-top: 5px; }
-.reader-subhead { display: flex; align-items: center; gap: 6px; padding: 10px 0; color: var(--muted); border-bottom: 1px solid var(--line-soft); }
-.chapter-step { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); flex: none; }
-.chapter-step:hover { background: var(--accent-soft); color: var(--accent); }
-.chapter-step svg { width: 18px; height: 18px; }
-.chapter-current { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; font-size: 11px; min-height: 42px; }
-.chapter-current svg:first-child { width: 16px; height: 16px; flex: none; }
-.chapter-current svg:last-child { width: 12px; height: 12px; flex: none; }
-.chapter-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.reader-actions .player-analysis { min-height: 36px; }
+.app-shell.reader-mode.has-player #notification-center { bottom: calc(var(--player-h, 200px) + 12px); }
+/* Le bandeau « Revenir » occupe le bas : la cloche monte au-dessus. */
+.app-shell.reader-mode:has(#now-bar:not([hidden])) #notification-center { bottom: calc(var(--player-h, 200px) + 104px); }
+
+/* Plein écran de lecture : l'en-tête s'efface, la barre de lecture reste. */
+.app-shell.reader-immersive .reader-header { display: none; }
+.app-shell.reader-immersive .main-content { padding-top: calc(12px + var(--safe-top)); }
+.app-shell.reader-immersive.layout-pages .main-content { height: calc(100dvh - var(--player-h, 200px)); }
+.app-shell.reader-immersive.layout-pages .reading-page { margin-top: 0; }
 
 /* ------------------------------------------------------------ page de lecture */
 
 .reading-page { max-width: 64ch; margin: 24px auto 0; }
 .page-title h1 { font-family: 'Literata', serif; font-weight: 400; letter-spacing: -0.5px; font-size: 24px; line-height: 1.35; margin: 8px 0 20px; text-wrap: balance; }
-.page-title .eyebrow { font-size: 9px; letter-spacing: 2px; }
-.page-title .eyebrow { display: none; }
+.page-title .eyebrow { font-size: 9px; letter-spacing: 2px; display: none; }
 .page-title { flex: none; }
 .reader-text { font-family: 'DM Sans', system-ui, sans-serif; font-size: var(--reader-size); line-height: var(--reader-leading, 1.7); letter-spacing: 0; padding-inline: var(--reader-margins, 0px); text-align: start; }
 .book-paragraph { margin: 0; padding: 0 0 0.9em; overflow-wrap: anywhere; }
@@ -82,15 +56,10 @@
 
 /* ------------------------------------------------------------ mode pages */
 
-.reader-mode.layout-pages .main-content { height: calc(100dvh - var(--player-h, 320px)); display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
+.reader-mode.layout-pages .main-content { height: calc(100dvh - var(--player-h, 200px)); display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
 .reader-mode.layout-pages .reader-header { position: static; }
 .reader-mode.layout-pages .reading-page { flex: 1; min-height: 0; display: flex; flex-direction: column; width: 100%; margin: 18px auto 0; padding-bottom: 14px; }
 .reader-mode.layout-pages #page-text { flex: 1; min-height: 0; overflow: hidden; }
-.page-footer { flex: none; display: flex; align-items: center; justify-content: center; gap: 16px; padding: 8px 0 14px; }
-.page-turn { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: var(--ink-soft); }
-.page-turn:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent); }
-.page-count { font-size: 11px; letter-spacing: 0.6px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 64px; text-align: center; }
-.page-count b { font-weight: 600; color: var(--ink); }
 .page-measure { position: absolute !important; display: flow-root; left: -10000px; top: 0; visibility: hidden; pointer-events: none; height: auto !important; overflow: visible !important; }
 @keyframes pageInNext { from { opacity: 0; transform: translateX(16px); } }
 @keyframes pageInPrev { from { opacity: 0; transform: translateX(-16px); } }
@@ -100,12 +69,12 @@
 /* ------------------------------------------------------------ barre « en cours » */
 
 .now-bar {
-  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--player-h, 320px) + 12px);
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--player-h, 200px) + 10px);
   width: min(100% - 20px, 680px); z-index: 21; cursor: pointer;
-  display: flex; align-items: center; gap: 12px; padding: 13px 14px 13px 16px;
-  border-radius: 18px; border: 1px solid var(--line);
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 16px;
+  border-radius: 16px; border: 1px solid var(--line);
   background: var(--glass-strong); backdrop-filter: blur(18px) saturate(1.4);
-  box-shadow: var(--shadow-2); text-align: left;
+  box-shadow: var(--shadow-1); text-align: left;
   animation: rise 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 .now-bar[hidden] { display: none; }
@@ -116,105 +85,100 @@
 .now-wave b:nth-child(3) { height: 7px; animation-delay: 0.32s; }
 @keyframes wave { 0%, 100% { transform: scaleY(0.55); } 50% { transform: scaleY(1.1); } }
 .now-copy { flex: 1; min-width: 0; }
-.now-copy small { display: block; font-size: 10px; font-weight: 700; letter-spacing: 1.3px; color: var(--accent); }
-.now-copy p { font-size: 13.5px; line-height: 1.5; margin-top: 3px; color: var(--ink); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.now-copy small { display: block; font-size: 9.5px; font-weight: 700; letter-spacing: 1.2px; color: var(--accent); }
+.now-copy p { font-size: 13px; line-height: 1.5; margin-top: 3px; color: var(--ink); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .now-return { flex: none; display: flex; align-items: center; gap: 5px; color: var(--accent); font-size: 11px; font-weight: 600; white-space: nowrap; padding: 8px 4px 8px 8px; }
 .now-return i { font-style: normal; }
 .now-return svg { width: 16px; height: 16px; }
 
-/* ------------------------------------------------------------ transport */
+/* ------------------------------------------------------------ transport compact */
 
 .player {
-  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: min(100%, 788px); z-index: 20;
-  background: var(--surface);
-  border: 1px solid var(--line); border-bottom: 0; border-radius: 16px 16px 0 0;
-  padding: 14px 26px calc(12px + var(--safe-bottom));
-  box-shadow: 0 -4px 18px -14px rgba(24, 38, 60, 0.16);
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 860px; z-index: 20;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+  padding: 6px 20px calc(6px + var(--safe-bottom));
 }
-.player-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
-.voice-chip { display: flex; align-items: center; gap: 7px; font-size: 11px; min-height: 36px; padding: 7px 11px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); max-width: 65%; font-weight: 600; }
-.voice-chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.voice-chip svg { width: 15px; height: 15px; }
-.voice-chip svg:last-child { width: 12px; }
-.sleep-chip { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--muted); min-height: 36px; white-space: nowrap; }
-/* Vitesse de la voix en cours, à côté de son nom : chaque timbre garde la sienne. */
-.speed-chip { display: flex; align-items: baseline; gap: 1px; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; min-height: 36px; padding: 7px 10px; border-radius: 9px; border: 1px solid var(--line); color: var(--ink); }
-.speed-chip span { font-size: 9px; font-weight: 600; color: var(--muted); }
-.player-top .sleep-chip { margin-left: auto; }
-.focus-button { width: 32px; height: 32px; color: var(--muted); }
-.focus-button svg { width: 16px; height: 16px; }
-/* Lecteur réduit : une seule ligne, le texte respire. */
-.player.reduit { padding-top: 10px; padding-bottom: calc(10px + var(--safe-bottom)); }
-.player.reduit .reader-jumps,
-.player.reduit .progress-slider,
-.player.reduit .time-row,
-.player.reduit .transport .icon-button,
-.player.reduit .player-status { display: none; }
-.player.reduit .play-button { width: 40px; height: 40px; }
-.player.reduit .player-top { margin-bottom: 0; }
-.player.reduit .sleep-chip { display: none; }
-.mini-stats { display: none; color: var(--muted); font-size: 10.5px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.player.reduit .mini-stats { display: inline-flex; }
-.player.reduit .transport { display: none; }
-.player.reduit .time-row { display: flex; font-size: 11px; margin-top: 3px; }
-.player.reduit .progress-slider { display: block; }
-.player.reduit .mini-stats { display: none; }
-.player.reduit .player-mini-progress { display: none; }
-/* Sauts page + paragraphe, dans les deux dispositions. */
-.reader-jumps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 10px 0 2px; }
-.jump { display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 38px; border-radius: 9px; border: 1px solid var(--line); font-size: 10px; font-weight: 600; color: var(--muted); }
-.jump svg { width: 13px; height: 13px; }
-.jump:hover { background: var(--accent-soft); color: var(--accent); }
-.sleep-chip svg { width: 15px; height: 15px; }
-.sleep-chip.on { color: var(--accent); }
-input.progress-slider { appearance: none; -webkit-appearance: none; padding: 0; border: 0; border-radius: 8px; width: 100%; height: 4px; min-height: 4px; background: linear-gradient(to right, var(--accent) var(--progress), var(--line) var(--progress)); display: block; cursor: pointer; margin: 10px 0 0; }
-.progress-slider::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--accent); }
-.progress-slider::-moz-range-thumb { width: 12px; height: 12px; border: 2px solid var(--surface); border-radius: 50%; background: var(--accent); }
-.time-row { display: flex; align-items: center; justify-content: space-between; font-size: 9px; color: var(--muted); margin-top: 11px; font-variant-numeric: tabular-nums; }
-.transport { display: flex; align-items: center; justify-content: center; gap: 30px; margin: 10px 0 0; }
-.play-button { width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-fill); color: #fff; box-shadow: 0 6px 16px -4px rgba(53, 94, 231, 0.45); flex-shrink: 0; }
-.play-button:hover { background: var(--accent-deep); }
-.play-button svg { width: 25px; height: 25px; fill: currentColor; stroke-width: 1.5; }
+.player-notice { margin: 2px 0 4px; text-align: center; font-size: 10px; line-height: 1.45; color: var(--danger); }
+.player > * { max-width: 680px; margin-left: auto; margin-right: auto; }
+.player-options { display: flex; align-items: center; gap: 3px; margin: 1px 0 0; }
+.player-voice { display: flex; align-items: center; gap: 5px; flex: 1 1 auto; min-width: 0; max-width: 150px; min-height: 38px; padding: 5px 9px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 600; }
+.player-voice span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.player-voice svg:first-child { width: 16px; height: 16px; flex: none; }
+.player-voice svg:last-child { width: 12px; height: 12px; flex: none; opacity: 0.75; }
+.player-option { flex: 0 0 38px; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 9px; color: var(--ink-soft); }
+.player-option:hover { background: var(--accent-soft); color: var(--accent); }
+.player-option svg { width: 19px; height: 19px; }
+.player-option.on { background: var(--accent-soft); color: var(--accent); }
+.player-option.speed { flex-basis: auto; width: auto; min-width: 38px; padding: 0 4px; display: inline-flex; align-items: baseline; justify-content: center; gap: 1px; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.player-option.speed span { font-size: 9px; font-weight: 600; color: var(--muted); }
+.player-option.speed.on span { color: var(--accent); }
+
+input.progress-slider {
+  appearance: none; -webkit-appearance: none; display: block; width: 100%; height: 22px; min-height: 22px;
+  margin: 0; padding: 0; border: 0; border-radius: 0; cursor: pointer;
+  background: linear-gradient(to right, var(--accent) var(--progress), var(--line) var(--progress)) center / 100% 4px no-repeat;
+}
+.progress-slider::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); box-shadow: 0 0 0 1px var(--accent); }
+.progress-slider::-moz-range-thumb { width: 14px; height: 14px; border: 2px solid var(--bg); border-radius: 50%; background: var(--accent); }
+
+.reader-nav-mini { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) 54px repeat(3, minmax(0, 1fr)); align-items: center; gap: 2px; margin: 0; }
+.reader-nav-mini button { width: 100%; height: 46px; display: grid; place-items: center; border-radius: 10px; color: var(--ink-soft); }
+.reader-nav-mini button svg { width: 18px; height: 18px; }
+.reader-nav-mini button:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent); }
+.reader-nav-mini button:disabled { opacity: 0.3; }
+.reader-nav-mini .play-button { justify-self: center; width: 52px; height: 52px; border-radius: 50%; color: #fff; background: var(--accent-fill); box-shadow: 0 4px 14px -5px rgba(53, 94, 231, 0.55); }
+.reader-nav-mini .play-button:hover { background: var(--accent-deep); }
+.reader-nav-mini .play-button svg { width: 23px; height: 23px; fill: currentColor; stroke-width: 1.5; }
 .play-button.loading svg { fill: none; animation: turn 1.2s linear infinite; }
 @keyframes turn { to { transform: rotate(360deg); } }
-.speed-button { min-width: 44px; min-height: 44px; font-size: 14px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.speed-button span { font-size: 11px; margin-left: 2px; font-weight: 500; color: var(--muted); }
-.transport > .icon-button { color: var(--ink-soft); }
-.transport > .icon-button:last-child { color: var(--muted); }
-.transport .icon-button svg { width: 21px; height: 21px; }
-.player-status { min-height: 16px; margin-top: 12px; text-align: center; font-size: 9px; color: var(--muted); line-height: 1.5; }
+
+.player-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.player-chapter { display: inline-flex; align-items: center; gap: 3px; min-width: 0; max-width: 42%; padding: 5px 0; color: var(--muted); font-size: 10px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.player-chapter:hover { color: var(--accent); }
+.player-chapter svg { width: 12px; height: 12px; flex: none; }
+.player-pages { white-space: nowrap; color: var(--ink-soft); }
+.player-pages b { color: var(--ink); font-weight: 600; }
+.player-meta { white-space: nowrap; }
 
 /* ------------------------------------------------------------ adaptations */
 
 @media (max-width: 720px) {
-  .reader-mode .main-content { padding: 0 24px calc(var(--player-h, 320px) + 40px); }
+  .reader-mode .main-content { padding: 0 22px calc(var(--player-h, 200px) + 38px); }
   .reader-mode.layout-pages .main-content { padding-bottom: 0; }
-  .reader-header { padding: calc(12px + var(--safe-top)) 0 12px; gap: 8px; }
-  .reader-header > .icon-button:first-child { margin-left: -10px; }
-  .reader-header > .icon-button:last-child { margin-right: -10px; }
-  .reader-header > div > span { font-size: 12px; }
-  .reader-header small { font-size: 9px; }
-  .reader-subhead { padding: 6px 0; }
-  .chapter-current { font-size: 10px; gap: 7px; }
+  .reader-header { padding: calc(8px + var(--safe-top)) 0 8px; gap: 6px; }
+  .reader-header > .icon-button:first-child { margin-left: -8px; }
+  .reader-actions .icon-button { width: 42px; height: 42px; }
   .reading-page { margin-top: 22px; }
-  .reader-mode.layout-pages .reading-page { margin-top: 14px; padding-bottom: 14px; }
+  .reader-mode.layout-pages .reading-page { margin-top: 14px; padding-bottom: 12px; }
+  .app-shell.reader-immersive.layout-pages .reading-page { margin-top: 0; }
   .page-title h1 { font-size: 23px; margin: 6px 0 18px; letter-spacing: -0.4px; }
-  .page-title .eyebrow { font-size: 8px; letter-spacing: 1.8px; }
-  .player { padding: 12px 18px calc(10px + var(--safe-bottom)); border-radius: 16px 16px 0 0; }
-  .player-top { margin-bottom: 8px; gap: 8px; }
-  .player-top .voice-chip { flex: 1; min-width: 0; }
-  .reader-header { flex-wrap: wrap; }
-  .reader-header > .reader-actions { margin-left: auto; }
-  .transport { gap: 19px; margin-top: 12px; }
-  .play-button { width: 61px; height: 61px; }
-  .transport > .icon-button { width: 38px; height: 42px; }
-  .player-status { font-size: 8px; margin-top: 9px; }
-  .now-bar { bottom: calc(var(--player-h, 320px) + 8px); padding: 9px 12px 9px 13px; border-radius: 16px; }
-  .now-copy p { -webkit-line-clamp: 2; }
-  #toast { bottom: calc(var(--player-h, 320px) + 30px); }
+  .player { padding: 4px 16px calc(4px + var(--safe-bottom)); }
+  .player-options { gap: 2px; }
+  .player-voice { min-height: 36px; padding: 4px 7px; font-size: 10.5px; }
+  .player-option { flex-basis: 34px; width: 34px; height: 36px; }
+  .player-option svg { width: 18px; height: 18px; }
+  .player-option.speed { min-width: 34px; }
+  .reader-nav-mini { grid-template-columns: repeat(3, minmax(0, 1fr)) 50px repeat(3, minmax(0, 1fr)); }
+  .reader-nav-mini button { height: 42px; }
+  .reader-nav-mini .play-button { width: 48px; height: 48px; }
+  .reader-nav-mini .play-button svg { width: 21px; height: 21px; }
+  .player-footer { min-height: 26px; font-size: 9.5px; }
+  .player-chapter { font-size: 9.5px; }
+  .now-bar { bottom: calc(var(--player-h, 200px) + 8px); padding: 9px 12px 9px 13px; border-radius: 14px; }
+  #toast { bottom: calc(var(--player-h, 200px) + 24px); }
 }
 @media (max-width: 365px) {
   .reader-mode .main-content { padding-left: 18px; padding-right: 18px; }
-  .reader-mode.layout-pages .main-content { padding-bottom: 0; }
   .page-title h1 { font-size: 26px; }
+  .player { padding-left: 18px; padding-right: 18px; }
+  .player-voice { max-width: 112px; font-size: 10px; }
+  .player-option { flex-basis: 31px; width: 31px; height: 34px; }
+  .player-option.speed { min-width: 32px; padding: 0 2px; }
+  .reader-nav-mini { grid-template-columns: repeat(3, minmax(0, 1fr)) 46px repeat(3, minmax(0, 1fr)); }
+  .reader-nav-mini button { height: 40px; }
+  .reader-nav-mini button svg { width: 17px; height: 17px; }
+  .reader-nav-mini .play-button { width: 44px; height: 44px; }
+  .player-chapter { max-width: 38%; }
 }

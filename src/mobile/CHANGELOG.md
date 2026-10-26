@@ -1,5 +1,16 @@
 # PK Reader Android
 
+## [2026.10.89] - 2026-10-26
+
+### Changed
+- **Lecteur compact et complet** : l’en-tête ne garde que le titre, l’apparence et la gestion du livre. La barre du bas réunit le curseur, la voix, le minuteur, le signet, la vitesse, le sens de lecture et le plein écran, puis le transport chapitre/page/phrase et une ligne d’état (chapitre, page, pourcentage, temps restant). L’ancienne carte de lecture disparaît : le texte gagne sa hauteur.
+- **Commandes à portée de pouce** : l’apparence (taille, thème, interligne, marges, mise en page, vitesse, surlignage, zone de suivi) s’ouvre depuis l’en-tête ; les chapitres et signets depuis le pied de la barre. Le plein écran masque l’en-tête et agrandit la page ; le choix est mémorisé.
+- **Transport unique** : chapitre, page et phrase sur une ligne autour de Lecture/Pause ; les sauts de page sont désactivés en défilement continu.
+- **Fin de l’ancien lecteur à deux étages** : le réglage `focus` et la carte réduite/étendue sont retirés ; la barre compacte est la disposition unique.
+
+### Fixed
+- Le bandeau « Revenir » et la cloche de notifications ne se chevauchent plus en lecture.
+
 ## [2026.10.88] - 2026-10-26
 
 ### Changed

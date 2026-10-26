@@ -19,7 +19,7 @@ Le téléphone peut exécuter lui-même l'analyse des personnages avec un fourni
 ### Téléchargements et commandes du lecteur
 
 - Les téléchargements de voix (manuels, depuis les personnages ou pendant la préparation) sont suivis dans la **cloche de notifications**, accessible sur tous les écrans. Le panneau latéral montre « Miro · 64 % » puis « Voix installée » ; une erreur y reste jusqu’à « Retirer ». 100 % de transfert seul ne vaut pas installation terminée. Faire défiler ou changer d’écran ne ferme ni ne masque le suivi.
-- En lecture, le lecteur se **réduit par défaut** (voix, vitesse, minuteur, lecture, fine ligne de progression) pour laisser plusieurs paragraphes par page. Le chevron du lecteur **déplie toutes les commandes** : **Chapitre** (précédent/suivant avec barre), **Page** (chevrons et compteur), **Phrase −1 / +1** (flèches circulaires). Déplier ou replier redécoupe les pages avec la hauteur réelle. Un bouton du lecteur bascule **pages à tourner / défilement continu** sans quitter le livre.
+- En lecture, une **barre compacte** remplace l’ancienne carte : curseur, voix, minuteur, signet, vitesse, sens de lecture et plein écran, puis **chapitre / page / phrase** autour de Lecture/Pause. Le pied de barre indique le chapitre (ouvre chapitres et signets), la page, le pourcentage et le temps restant. L’en-tête garde l’apparence et la gestion du livre. Le plein écran masque l’en-tête et redécoupe les pages avec la hauteur réelle ; le choix est mémorisé.
 - Le titre du chapitre ouvre **Chapitres et signets**, où l’on peut ajouter un signet. Le sélecteur de voix reste dans le lecteur ; les réglages de lecture et la préparation hors ligne sont dans **Gérer**. Les titres « Inconnu » deviennent « Chapitre 1 », « Chapitre 2 », y compris pour les livres déjà importés, sans invalider l’analyse.
 - **Réglages → À propos → Soutenir sur Ko-fi** ouvre `https://ko-fi.com/pouark` ; le bouton remplace le cœur sans texte.
 
@@ -35,7 +35,7 @@ La clé est **chiffrée dans Android Keystore** et n'est jamais réaffichée dan
 
 Le repérage local reste le repli hors ligne : incises, étiquettes corroborées et alternance des répliques, avec les passages ambigus laissés au narrateur. La génération des voix clonées reste sur le Mac (c'est le moteur de clonage) ; l'analyse, la distribution, la lecture Piper/Android et le karaoké sont autonomes sur le téléphone.
 
-## Présentation du lecteur et de la bibliothèque (2026.10.88)
+## Présentation du lecteur et de la bibliothèque (2026.10.89)
 
 Depuis **2026.10.87**, la barre principale ne compte plus que deux entrées : **Bibliothèque**
 et **Réglages**. La page des voix devient une sous-page de Réglages (Voix & analyse →
@@ -56,12 +56,16 @@ La recherche de livres est toujours visible. Les couvertures gardent leurs propo
 les titres sont centrés, et la reprise prend une bande compacte plutôt qu’une grande
 carte. Le livre de découverte garde sa présentation bleue.
 
+Depuis **2026.10.89**, la barre de lecture est unique et compacte : le texte gagne la
+hauteur de l’ancienne carte, et toutes les commandes restent visibles. L’en-tête de
+lecture ne garde que le titre, l’apparence et la gestion du livre.
+
 Dans le lecteur, plusieurs phrases composent un vrai paragraphe : le découpage audio
 n’impose plus les sauts de ligne. Les pages sont mesurées avec le même rendu que le
 texte affiché ; la taille du texte et l’interligne restent réglables (option « Livre »
-à 1,7). Le mini-lecteur regroupe chapitre/page/phrase autour du bouton Lecture/Pause.
-Le curseur, le pourcentage et le temps restant restent visibles ; le minuteur est dans
-le lecteur agrandi. La bascule pages/défilement garde la phrase courante en vue.
+à 1,7). La barre de lecture regroupe chapitre/page/phrase autour de Lecture/Pause,
+le curseur et les compteurs page / pourcentage / temps. L’en-tête garde l’apparence
+et la gestion du livre. La bascule pages/défilement garde la phrase courante en vue.
 Un déplacement manuel suspend le suivi ; « Revenir » le réactive si la phrase lue est
 hors champ. On peut toujours toucher une phrase ou l’activer avec Entrée/Espace.
 
@@ -85,7 +89,7 @@ Après compilation, l’APK récupéré localement se trouve dans `releases/andr
 | Piper Siwis · Siwis légère (13 Mo) · Tom · Gilles · UPMC (Jessica/Pierre) · Tjiho 1, 2, 3 · Miro — dix voix françaises, et Lessac en anglais | Réglages → Voix & analyse, 13–23 Mo par modèle (UPMC : un téléchargement pour deux timbres) | Aucune après installation |
 | Voix clonées PK Voice Studio | Connexion facultative au Mac | Mac requis pour les passages non encore générés ; passages préparés disponibles hors ligne |
 
-Les **voix du téléphone** se limitent par défaut au français (la voix active reste toujours visible) ; « Afficher les N voix dans d’autres langues » déplie le reste du système. La **vitesse est propre à chaque voix** : elle se règle dans la pastille du lecteur, à côté du nom, et chaque timbre retrouve la sienne.
+Les **voix du téléphone** se limitent par défaut au français (la voix active reste toujours visible) ; « Afficher les N voix dans d’autres langues » déplie le reste du système. La **vitesse est propre à chaque voix** : elle se règle dans la barre de lecture (bouton `1×`) ou dans l’apparence, et chaque timbre retrouve la sienne.
 
 Les modèles Piper tournent sur le CPU Android avec sherpa-onnx. Le runtime est inclus dans l’APK, les poids sont téléchargés explicitement. Les archives sont vérifiées par SHA-256 avant installation. Gardez l’application ouverte pendant le téléchargement d’un modèle ; une interruption se reprend en relançant le téléchargement.
 
@@ -143,16 +147,17 @@ Deux limites claires : l’attribution locale n’utilise que des voix du télé
 
 - **+** : importer plusieurs livres ou coller un texte.
 - Toucher une phrase : choisir le point de départ.
-- Lecture / pause, phrase précédente / suivante, vitesse 0,75×–3×.
-- **Chapitre précédent / suivant** dans l’en-tête, ou la liste complète des chapitres et les signets.
-- **Page et paragraphe** : quatre boutons dans le lecteur (¶ Préc. · ‹ Page · Page › · Suivi ¶) — une page se tourne en mode pages, un écran défile en mode continu ; les paragraphes viennent du fichier importé. Clavier : Page ↑/↓, ←/→ et Maj+←/→.
-- **Pages ou défilement** : par défaut le chapitre se tourne page à page — au doigt, avec les flèches en bas, ou au clavier — et le chapitre s’ouvre sur sa page de titre ; Réglages → Lecture propose le défilement continu.
-- **Barre « en cours »** : quand vous quittez la phrase lue en tournant les pages ou en défilant, la barre du bas montre la phrase en cours de lecture et y ramène d’un geste ; le suivi automatique reprend alors.
-- **Changer de voix sans quitter le lecteur** : la pastille de voix ouvre une feuille listant clones, voix Piper installées et voix du téléphone, appliquées aussitôt.
-- **Les voix de ce livre** : icône de l’en-tête → personnages détectés, voix proposées et téléchargements manquants ; les réglages et corrections de phrases sont facultatifs.
+- **Transport** : chapitre précédent/suivant, page précédente/suivante, phrase −1/+1 et Lecture/Pause, sur une seule ligne.
+- **Barre de lecture** : curseur, voix (nom du personnage), minuteur, signet, vitesse, sens de lecture (pages/défilement) et plein écran. L’apparence (taille, thème, interligne, marges, mise en page, vitesse, surlignage, zone de suivi) s’ouvre depuis l’icône de l’en-tête.
+- **Chapitres et signets** : le titre du chapitre, dans le pied de la barre, ouvre la liste complète et les signets.
+- **Page et phrase** : le mode pages se tourne au doigt, avec les flèches, ou au clavier (Page ↑/↓, ←/→) ; le mode défilement désactive les sauts de page. Les paragraphes viennent du fichier importé.
+- **Pages ou défilement** : bouton dans la barre, ou Réglages → Lecture ; le chapitre s’ouvre sur sa page de titre.
+- **Barre « en cours »** : quand vous quittez la phrase lue en tournant les pages ou en défilant, le bandeau « Revenir » montre la phrase en cours et y ramène d’un geste ; le suivi automatique reprend alors.
+- **Changer de voix sans quitter le lecteur** : le bouton voix ouvre une feuille listant clones, voix Piper installées et voix du téléphone, appliquées aussitôt.
+- **Les voix de ce livre** : depuis Gérer → Voix des personnages ; le compteur d’analyse de l’en-tête ouvre la fiche quand une analyse tourne.
 - Minuteur : arrêt après 5, 15, 30, 45 ou 60 minutes.
 - Thèmes clair, papier et nuit ; taille de texte, **interligne** (serré/normal/aéré), **marges** et **zone de suivi** ajustables dans Réglages → Lecture — ou depuis le lecteur avec le bouton Apparence, qui ouvre la même feuille.
-- **Mode focus** : un chevron réduit le lecteur à une ligne (voix, vitesse, lecture) — la page respire pendant l'écoute.
+- **Plein écran de lecture** : les flèches diagonales masquent l’en-tête et laissent toute la hauteur au texte ; le même bouton rétablit l’en-tête.
 - **Surlignage** : mots (karaoké), phrase seule ou aucun, au choix dans Réglages → Lecture ; le suivi de lecture reste actif.
 - La mise en forme du livre est conservée : les **italiques** et les **citations** de l'EPUB restent visibles.
 - Notifications et écran verrouillé : commandes du service audio Android.

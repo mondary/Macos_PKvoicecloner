@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.97** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
+version **2026.10.98** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
 
 📱 **Android** — [download the APK](https://github.com/mondary/Macos_PKvoicecloner/releases/latest/download/PK-Reader-latest.apk) (stable link following the latest version) · 🍎 **macOS** — [DMG 2026.10.66](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/v2026.10.66)
 
@@ -24,15 +24,15 @@ The **PK Reader** Android app reads EPUB, text PDFs and TXT using Android voices
 
 **Manage the book** — four steps (Paragraphs, Analysis, Voices, Current-chapter listening) show their percentage and details, and can be relaunched separately; “Relaunch everything” chains paragraphs, full analysis, voices and playback.
 
-**Grouped controls** — chapter, page and sentence navigation sit near Play/Pause, with distinct labels. The analysis count stays beside “Manage”. Analyses and downloads are tracked in the notification bell without cluttering the screen; About provides an explicit “Support on Ko-fi” button. Navigation keeps only **Library** and **Settings**; the compact voice list opens from Settings → Voices & analysis.
+**Grouped controls** — chapter, page and sentence navigation sit on one line around Play/Pause, with chapter, page, percentage and remaining time in the bar footer. The analysis count stays beside “Manage”. Analyses and downloads are tracked in the notification bell without cluttering the screen; About provides an explicit “Support on Ko-fi” button. Navigation keeps only **Library** and **Settings**; the compact voice list opens from Settings → Voices & analysis.
 
 **Confirm a chapter, not the whole book** — before playback, a summary proposes voices for this chapter’s characters, distinguishing installed voices from downloads. It opens **even during analysis**: choose, confirm, and playback starts right away with that provisional casting, which analysis then refines. Those choices carry over to later chapters; only new characters ask for confirmation again. If everything is already confirmed, playback continues without a dialog.
 
-**Choose by listening** — every proposal has a preview button playing an excerpt in the actually selected, named voice. While reading, the player collapses by default so **several paragraphs fit on a page**; a chevron expands all controls, and a button toggles paged / continuous scrolling without leaving the book.
+**Choose by listening** — every proposal has a preview button playing an excerpt in the actually selected, named voice. While reading, a **compact bar** gathers the slider, voice, sleep timer, bookmark, speed, reading mode and full screen, then chapter/page/sentence transport and page / percentage / time counters. The text gains the height of the old card; appearance and book management stay in the header.
 
 **Room for books** — visible search, large covers and a compact resume strip. The library header sets **1, 2 or 3 columns** on phones and the display order: last added, last opened, title A–Z or year (EPUB publication year, falling back to the year added). Sentences flow into real paragraphs in the reader, with navigation arranged around Play/Pause on one line. The blue identity, discovery guide and voice choices are unchanged.
 
-[Android installation and guide (French)](docs/ANDROID.md) · [Current APK](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.88) (`pk-<version>` release, direct link) · [Android changelog](src/mobile/CHANGELOG.md)
+[Android installation and guide (French)](docs/ANDROID.md) · [Current APK](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.89) (`pk-<version>` release, direct link) · [Android changelog](src/mobile/CHANGELOG.md)
 
 > APKs live in `pk-<version>` releases (newest first on the releases page). The **Latest** badge follows the last published release, Android or macOS: it may point at the DMG without the APK disappearing — the direct link above stays valid.
 

@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.98] - 2026-10-26
+
+### Changed
+- **PK Reader Android 2026.10.89** : lecteur compact en une seule barre (curseur, voix, minuteur, signet, vitesse, mise en page, plein écran, transport chapitre/page/phrase, compteurs page/pourcentage/temps), en-tête allégé et apparence dans une feuille. L’ancien lecteur à deux étages est retiré.
+
 ## [2026.10.97] - 2026-10-26
 
 ### Changed

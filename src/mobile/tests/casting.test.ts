@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { appliquerAnalyse, ensureCasting, characterAt, speechProfile, suggestCasting, voixParGenreParDefaut, preparerDistributionLocale, proposerVoix, besoinsVoix, relancerAnalyse } from '../casting';
+import { appliquerAnalyse, attribuerVoixAutomatiquement, ensureCasting, characterAt, speechProfile, suggestCasting, voixParGenreParDefaut, preparerDistributionLocale, proposerVoix, besoinsVoix, relancerAnalyse } from '../casting';
 import { analyserLivre } from '../casting-analysis';
 import { defaults, type Book, type Voice } from '../types';
 
@@ -231,26 +231,47 @@ describe('préparation automatique du livre', () => {
     expect(cast.characters.some(c => c.voice === 'neural:lessac')).toBe(false);
   });
 
-  it('compte les voix manquantes et regroupe les deux timbres UPMC en un téléchargement', () => {
+  it('propose les timbres à installer sans bloquer sur une voix générique', () => {
     const cast = ensureCasting(fixture());
     for (let i = 0; i < 6; i++) cast.characters.push({ id: `p${i}`, name: `P${i}`, voice: '', gender: i % 2 ? 'femme' : 'homme', pitch: 1, rate: 1, autoRole: false });
     const plan = proposerVoix(cast, catalog, defaults.voice, 'fr');
-    expect(plan.missing).toHaveLength(6);
+    expect(plan.missing).toHaveLength(0);
+    expect(plan.aCompleter.length).toBeGreaterThan(0);
     expect(plan.downloads).toHaveLength(4);
     expect(plan.downloads.flatMap(d => d.voices)).toHaveLength(5);
     expect(plan.downloads.find(d => d.voices.length === 2)?.roles).toHaveLength(2);
     const installed = catalog.map(v => ({ ...v, installed: true }));
     proposerVoix(cast, installed, defaults.voice, 'fr');
-    expect(besoinsVoix(cast, installed, 'fr').missing).toHaveLength(1);
+    expect(besoinsVoix(cast, installed, 'fr').missing).toHaveLength(0);
   });
 
-  it('ne présente pas le genre inconnu des voix Android comme une correspondance vérifiée', () => {
+  it('garde la voix générique utilisable mais propose un timbre genré', () => {
     const cast = ensureCasting(fixture());
     cast.characters.push({ id: 'alice', name: 'Alice', gender: 'femme', voice: '', pitch: 1, rate: 1, autoRole: false });
     const voices: Voice[] = [...catalog, { id: 'system:unknown', name: 'Voix Android', language: 'fr', kind: 'system', installed: true }];
     const plan = proposerVoix(cast, voices, defaults.voice, 'fr');
-    expect(plan.missing.some(c => c.id === 'alice')).toBe(true);
+    expect(plan.missing.some(c => c.id === 'alice')).toBe(false);
     expect(plan.downloads.flatMap(d => d.voices).some(v => v.id === 'neural:siwis')).toBe(true);
+  });
+
+  it('attribue en un geste les voix installées, par genre et sans doublon', () => {
+    const cast = ensureCasting(fixture());
+    cast.characters[0].voice = 'system:default'; cast.characters[0].automaticVoice = false;
+    cast.characters.push(
+      { id: 'pierre', name: 'Pierre', gender: 'homme', voice: 'system:unknown', pitch: 1, rate: 1, autoRole: false, automaticVoice: true },
+      { id: 'alice', name: 'Alice', gender: 'femme', voice: '', pitch: 1, rate: 1, autoRole: false, automaticVoice: true });
+    const installed = catalog.map(v => ({ ...v, installed: true })).concat(
+      { id: 'system:unknown', name: 'Voix Android', language: 'fr', kind: 'system' as const, installed: true });
+    const resultat = attribuerVoixAutomatiquement(cast, installed, 'fr');
+    expect(resultat.sansVoix).toBe(0);
+    expect(resultat.attribues).toBe(2);
+    expect(cast.characters.every(c => c.automaticVoice === false)).toBe(true);
+    expect(cast.characters.find(c => c.id === 'pierre')?.voice).not.toBe('system:unknown');
+    expect(['neural:tom', 'neural:gilles', 'neural:upmc_pierre']).toContain(cast.characters.find(c => c.id === 'pierre')?.voice);
+    expect(cast.characters.find(c => c.id === 'alice')?.voice).not.toBe('system:default');
+    const encore = attribuerVoixAutomatiquement(cast, installed, 'fr');
+    expect(encore.attribues).toBe(0);
+    expect(encore.partages).toBe(0);
   });
 });
 

@@ -1,6 +1,6 @@
 # Media-kit — captures de PK Reader
 
-## Références lecteur/bibliothèque (2026.10.89)
+## Références lecteur/bibliothèque (2026.10.90)
 
 Même harnais `capture-reader-controls.mjs`, désormais avec trois livres et des
 couvertures dessinées pour la démonstration (aucun livre de l’utilisateur). Il
@@ -8,7 +8,8 @@ vérifie la recherche, le groupement réel des phrases dans leurs paragraphes,
 l’activation d’une phrase au clavier, le suivi après bascule en défilement, puis
 « Revenir » après un déplacement manuel. La navigation ne compte que deux
 entrées (Bibliothèque, Réglages) et la page des voix s’ouvre depuis Réglages :
-une ligne compacte par voix, hauteur contrôlée par le script. Il vérifie aussi le
+une ligne compacte par voix, hauteur contrôlée par le script, avec l’onglet « Voix de
+l’app » et le résumé des voix installées. Il vérifie aussi le
 choix de **1, 2 ou 3 colonnes** (grille recomposée sans rechargement), le **tri**
 alpha puis dernier ajout, la **barre de lecture compacte** (hauteur mesurée, cinq
 options, transport de sept boutons, pied chapitre/page/pourcentage/temps) et le

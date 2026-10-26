@@ -87,7 +87,7 @@ export function etapesLivre(book: Book, available: Voice[], contexte: ContexteEt
   // 3. Voix : chaque rôle visible doit avoir un timbre distinct et adapté.
   let voixPct = 0, voixEtat: EtatEtape = 'todo', voixDetail = 'En attente de l’analyse';
   if (book.casting) {
-    const { missing } = besoinsVoix(book.casting, available, book.language);
+    const { missing, partagees, fallbacks } = besoinsVoix(book.casting, available, book.language);
     const utilises = new Set(Object.values(book.casting.assignments));
     const roles = book.casting.characters.filter(c => c.id === 'narrator' || utilises.has(c.id) || !roleAuto(c));
     const ok = Math.max(0, roles.length - missing.length);
@@ -95,6 +95,8 @@ export function etapesLivre(book: Book, available: Voice[], contexte: ContexteEt
     voixEtat = missing.length ? 'todo' : 'done';
     voixDetail = !roles.length ? 'Aucun personnage à doubler'
       : missing.length ? `${ok}/${roles.length} personnages · ${missing.length} voix à compléter`
+      : partagees.length ? `${roles.length} personnages · ${partagees.length} timbre${partagees.length > 1 ? 's' : ''} partagé${partagees.length > 1 ? 's' : ''}`
+      : fallbacks.length ? `${roles.length} personnages · ${fallbacks.length} voix générique${fallbacks.length > 1 ? 's' : ''}`
       : `${roles.length} personnages avec une voix`;
   }
   const etapeVoix: EtapeLivre = {

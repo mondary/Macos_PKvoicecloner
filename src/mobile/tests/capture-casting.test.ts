@@ -82,6 +82,6 @@ html,body{height:844px}body{margin:0;background:var(--bg)}dialog[open]{display:b
 ${style}${reader}</style></head>
 <body><div class="app-shell"></div>${sheet.outerHTML}</body></html>`;
     mkdirSync(resolve(ici, 'store/media-kit'), { recursive: true });
-    writeFileSync(resolve(ici, 'store/media-kit/casting-preview.html'), html);
+    writeFileSync(resolve(ici, 'store/media-kit/casting-preview.html'), html.replace(/[ \t]+$/gm, ''));
   });
 });

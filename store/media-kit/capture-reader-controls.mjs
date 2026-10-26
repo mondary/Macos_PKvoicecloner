@@ -216,6 +216,8 @@ try {
   await click('[data-action="settings-tab"][data-id="voix"]');
   await click('[data-action="nav"][data-id="voices"]');
   await wait('document.querySelectorAll(".voice-row").length > 0');
+  if (!await evaluate('document.querySelector(".voice-tabs .active")?.textContent.includes("Voix de l’app")')) throw new Error('Onglet Voix de l’app attendu');
+  if (!await evaluate('document.querySelector(".voice-summary")?.textContent.includes("installée")')) throw new Error('Résumé des voix installées absent');
   const hauteurVoix = await evaluate('document.querySelector(".voice-row").getBoundingClientRect().height');
   if (hauteurVoix > 64) throw new Error(`Ligne de voix trop haute : ${hauteurVoix}px`);
   // Capture propre : les pastilles flottantes et le mini-lecteur ne font pas

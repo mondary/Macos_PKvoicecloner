@@ -35,6 +35,25 @@ La clé est **chiffrée dans Android Keystore** et n'est jamais réaffichée dan
 
 Le repérage local reste le repli hors ligne : incises, étiquettes corroborées et alternance des répliques, avec les passages ambigus laissés au narrateur. La génération des voix clonées reste sur le Mac (c'est le moteur de clonage) ; l'analyse, la distribution, la lecture Piper/Android et le karaoké sont autonomes sur le téléphone.
 
+## Voix : listes courtes et attribution automatique (2026.10.90)
+
+Les menus de personnages ne proposent plus toutes les voix Android : on y trouve la voix
+générique du téléphone, les voix de l'app installées et la voix actuelle du rôle. Les
+autres voix du téléphone restent consultables et sélectionnables comme voix générale dans
+**Réglages → Voix & analyse → Mon téléphone**. La feuille « Changer de voix » limite aussi
+la liste du téléphone à trois propositions.
+
+La fiche **Les voix de ce livre** propose **Attribuer automatiquement** : les voix
+installées sont réparties par genre, sans doublon quand c'est possible, et la distribution
+est enregistrée. Après un téléchargement, les voix installées sont attribuées et
+enregistrées immédiatement, avec un message visible. Un rôle qui partage une voix ou
+utilise la voix générique n'est plus compté comme « voix à compléter » ; seuls les rôles
+sans aucune voix installée le sont. Les timbres supplémentaires restent proposés en option.
+
+La page **Voix** (Réglages → Voix & analyse) place les voix installées en tête de l'onglet
+**Voix de l'app**, affiche un résumé des installations et la progression de chaque
+téléchargement ; la page **Gérer** du livre propose aussi **Voix et téléchargements**.
+
 ## Présentation du lecteur et de la bibliothèque (2026.10.89)
 
 Depuis **2026.10.87**, la barre principale ne compte plus que deux entrées : **Bibliothèque**
@@ -110,7 +129,7 @@ Chaque livre a un bouton **Gérer** visible sur sa fiche dans la bibliothèque, 
 
 - **Paragraphes** — 100 % quand la navigation par paragraphe est prête ; sinon **Reconstruire** (le texte n’est jamais modifié).
 - **Analyse des personnages** — nombre de chapitres terminés et de lots traités (`1/2 chapitres · 1/2 lots`), phase en cours pendant le travail, erreur affichée telle quelle. Sans clé ni IA locale, le repérage local est l’état final assumé (100 %). **Relancer** recalcule les attributions automatiques sans toucher aux corrections manuelles ni aux voix.
-- **Voix des personnages** — rôles avec un timbre adapté et nombre de voix à compléter ; **Choisir** ouvre la fiche des voix.
+- **Voix des personnages** — rôles avec un timbre adapté ; **Choisir** ouvre la fiche des voix et son bouton **Attribuer automatiquement**. Les timbres partagés ou génériques sont signalés sans bloquer ; seuls les rôles sans aucune voix installée restent à compléter.
 - **Écoute · chapitre en cours** — 100 % quand le chapitre où vous en êtes a tous ses lots analysés ; **Préparer** lance la séquence (analyse prioritaire, voix, lecture immédiate, suite en arrière-plan). La lecture n’attend pas cette analyse : seule une voix non confirmée arrête le service.
 
 **Tout relancer** enchaîne les quatre étapes : paragraphes reconstitués, analyse repartant de zéro, voix manquantes téléchargées, préparation et lecture. En dessous : **Effacer les audios préparés** et **Supprimer ce livre** (le fichier d’origine reste intact).

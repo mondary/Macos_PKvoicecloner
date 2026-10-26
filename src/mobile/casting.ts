@@ -131,7 +131,8 @@ export function voixLocales(available: Voice[]): Voice[] {
 /** Une proposition par rôle, de préférence un timbre distinct de la bonne
  * langue et du bon genre. Une association choisie par l'utilisateur reste fixe. */
 export function proposerVoix(casting: Casting, available: Voice[], fallback: string, language: string) {
-  const installed = voixLocales(available).filter(v => v.installed && memeLangue(v, language));
+  const installed = voixLocales(available).filter(v => v.installed && memeLangue(v, language) &&
+    (v.kind !== 'system' || v.id === 'system:default'));
   // Le défaut système est un alias, pas un timbre supplémentaire au catalogue Android.
   const pool = installed.filter(v => v.id !== 'system:default' || !installed.some(other => other.kind === 'system' && other.id !== v.id));
   // Une mention sans réplique n'a pas besoin d'une voix : seuls le narrateur,
@@ -163,19 +164,24 @@ export function besoinsVoix(casting: Casting, available: Voice[], language: stri
   const voices = voixLocales(available);
   const used = new Set<string>();
   const missing: Character[] = [];
+  const partagees: Character[] = [];
+  const fallbacks: Character[] = [];
+  const aCompleter: Character[] = [];
   const utilises = new Set(Object.values(casting.assignments));
   for (const role of casting.characters) {
     if (role.id !== 'narrator' && !utilises.has(role.id) && roleAuto(role)) continue;
     const v = voices.find(v => v.id === role.voice && v.installed && memeLangue(v, language));
-    // Une voix Android au genre inconnu reste un repli lisible, mais ne prouve
-    // pas qu'une demande de timbre masculin/féminin est satisfaite.
-    const genreAdapte = v && (!role.gender || role.gender === 'indetermine' || genreVoix(v) === role.gender);
-    if (!v || !genreAdapte || used.has(v.id)) missing.push(role);
+    // Une voix générique (souvent celle du téléphone) reste utilisable : elle
+    // ne bloque plus la lecture, mais on propose un timbre genré en option.
+    const generique = v && genreVoix(v) === 'indetermine' && !!role.gender && role.gender !== 'indetermine';
+    if (!v) { missing.push(role); aCompleter.push(role); }
+    else if (used.has(v.id)) { partagees.push(role); aCompleter.push(role); }
+    else if (generique) { fallbacks.push(role); aCompleter.push(role); }
     if (v) used.add(v.id);
   }
   const downloads: { voice: Voice; roles: Character[]; voices: Voice[] }[] = [];
   const proposed = new Set<string>();
-  for (const role of missing) {
+  for (const role of aCompleter) {
     const v = voices.filter(v => v.kind === 'neural' && !v.installed && !proposed.has(v.id) && memeLangue(v, language) && compatible(role, v))
       .sort((a, b) => (a.size ?? 999) - (b.size ?? 999))[0];
     if (!v) continue;
@@ -184,13 +190,55 @@ export function besoinsVoix(casting: Casting, available: Voice[], language: stri
     if (existing) { existing.roles.push(role); existing.voices.push(v); }
     else downloads.push({ voice: v, roles: [role], voices: [v] });
   }
-  return { missing, downloads };
+  return { missing, partagees, fallbacks, aCompleter, downloads };
 }
 
-/* -------------------------------- repérage local prudent (sur le téléphone) */
+/** Attribution en un geste : les voix installées de l'app d'abord, réparties
+ *  par genre et sans doublon quand le catalogue le permet ; la voix du
+ *  téléphone reste le dernier recours. Les choix valides sont conservés. */
+export function attribuerVoixAutomatiquement(casting: Casting, available: Voice[], language: string) {
+  const installed = voixLocales(available).filter(v => v.installed && memeLangue(v, language) &&
+    (v.kind !== 'system' || v.id === 'system:default'));
+  const utilises = new Set(Object.values(casting.assignments));
+  const visible = (c: Character) => c.id === 'narrator' || utilises.has(c.id) || !roleAuto(c);
+  const roles = casting.characters.filter(visible);
+  const used = new Set<string>();
+  const handled = new Set<string>();
+  let attribues = 0, partages = 0, sansVoix = 0;
+  const choisir = (role: Character, distinct: boolean) => installed
+    .filter(v => compatible(role, v) && (!distinct || !used.has(v.id)))
+    .sort((a, b) =>
+      Number(b.kind === 'neural') - Number(a.kind === 'neural') ||
+      Number(genreVoix(b) === role.gender) - Number(genreVoix(a) === role.gender) ||
+      Number(b.id === role.voice) - Number(a.id === role.voice) ||
+      Number(b.id === 'system:default') - Number(a.id === 'system:default') ||
+      Number(a.size ?? 999) - Number(b.size ?? 999))[0];
 
-export const LOCAL_CASTING_REVISION = 2;
-export const analyseLocalePerimee = (book: Book) => book.casting?.analysis?.localRevision !== LOCAL_CASTING_REVISION;
+  // Conserver les voix déjà choisies, si elles sont installées, adaptées et
+  // encore libres. Cela évite de casser un travail manuel valide.
+  for (const role of roles) {
+    const actuelle = installed.find(v => v.id === role.voice && compatible(role, v));
+    if (!actuelle || used.has(actuelle.id)) continue;
+    used.add(actuelle.id); handled.add(role.id);
+    if (role.automaticVoice !== false) { role.automaticVoice = false; attribues++; }
+  }
+  // Compléter les autres rôles avec un timbre distinct, puis partagé.
+  for (const role of roles) {
+    if (handled.has(role.id)) continue;
+    let voix = choisir(role, true);
+    if (voix) {
+      role.voice = voix.id; role.automaticVoice = false; used.add(voix.id); attribues++;
+      continue;
+    }
+    voix = choisir(role, false);
+    if (voix) {
+      role.voice = voix.id; role.automaticVoice = false; partages++;
+      continue;
+    }
+    sansVoix++;
+  }
+  return { roles: roles.length, attribues, partages, sansVoix };
+}
 
 /** Relance une analyse complète : efface les attributions automatiques et les
  *  rôles auto devenus inutiles, conserve corrections manuelles, voix choisies et
@@ -205,6 +253,9 @@ export function relancerAnalyse(book: Book): void {
     c.id === 'narrator' || !roleAuto(c) || !c.automaticVoice || utilises.has(c.id));
   cast.analysis = undefined;
 }
+
+export const LOCAL_CASTING_REVISION = 2;
+export const analyseLocalePerimee = (book: Book) => book.casting?.analysis?.localRevision !== LOCAL_CASTING_REVISION;
 
 /** Recalcule les anciennes attributions locales, pas les choix manuels ni les
  * lots déjà validés par le studio. Les indices ambigus restent au narrateur. */

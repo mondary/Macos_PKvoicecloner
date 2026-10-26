@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.99] - 2026-10-26
+
+### Changed
+- **PK Reader Android 2026.10.90** : menus de voix raccourcis (voix générique, timbres de l’app installés et voix actuelle), bouton « Attribuer automatiquement », attribution automatique après téléchargement, liste des voix avec installation en tête et progression, accès direct depuis la page Gérer du livre.
+
 ## [2026.10.98] - 2026-10-26
 
 ### Changed

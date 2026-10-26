@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.98** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
+version **2026.10.99** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
 
 📱 **Android** — [télécharger l’APK](https://github.com/mondary/Macos_PKvoicecloner/releases/latest/download/PK-Reader-latest.apk) (lien stable qui suit la dernière version) · 🍎 **macOS** — [DMG 2026.10.66](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/v2026.10.66)
 
@@ -18,6 +18,8 @@ L’application Android **PK Reader** lit vos EPUB, PDF texte et TXT avec les vo
 
 **Personnages et voix, sans Mac** — deux modes autonomes sur le téléphone. **Avec l'IA du téléphone** (Réglages → Analyse IA du téléphone : adresse, modèle, clé API — ou **IA locale** Ollama/LM Studio/llama.cpp, sans clé), le modèle identifie les personnages qui parlent, attribue chaque phrase puis relit les passages incertains — la même qualité que le studio, sans passerelle. **Sans configuration**, le repérage local s'appuie sur les incises et les étiquettes corroborées et laisse au narrateur tout ce qui est ambigu. Dans les deux cas, vérifiez le nom et **Voir un passage attribué**, puis validez les voix. La clé IA reste chiffrée sur le téléphone (Android Keystore) ; le texte analysé est envoyé au fournisseur choisi. Les voix clonées restent générées par le Mac — c'est le moteur de clonage — mais l'analyse, la distribution et la lecture Piper/Android sont autonomes.
 
+**Des voix sans embouteillage** — les menus de personnages ne listent plus toutes les voix Android : voix générique du téléphone, voix de l'app installées (Piper/Kokoro) et voix actuelle du rôle. Les autres voix restent dans Réglages → Voix & analyse → Mon téléphone. Un bouton **Attribuer automatiquement** répartit les voix installées par genre et évite les doublons quand c'est possible ; après chaque téléchargement, les voix sont attribuées et enregistrées, avec un retour visible. La liste des voix affiche d'abord les timbres installés, leur progression et « Réessayer » en cas d'échec.
+
 **Mise à jour depuis l'app (Android 2026.10.61)** — Réglages → **Mises à jour** : PK Reader vérifie les releases GitHub, télécharge l'APK, contrôle son empreinte et sa signature, puis ouvre l'installateur Android. Plus besoin de passer par le navigateur ni par le dossier Téléchargements. La clé de signature est désormais **permanente** : après une dernière réinstallation pour les versions ≤ 2026.10.60, les mises à jour s'installent par-dessus l'app et conservent la bibliothèque.
 
 **Suivi discret** — une cloche en bas à droite avec une pastille (nombre de tâches en cours, rouge en cas d’erreur) remplace les tuiles. Un toucher ouvre un panneau latéral groupé : analyses et téléchargements y montrent leur avancement, une action vers le livre ou les voix, et « Retirer » pour les résultats. Les tâches terminées s’effacent seules ; les erreurs restent. Dans le lecteur, une puce près de « Gérer » garde l’analyse à portée sans masquer le texte.
@@ -32,7 +34,7 @@ L’application Android **PK Reader** lit vos EPUB, PDF texte et TXT avec les vo
 
 **Place aux livres** — recherche visible, grandes couvertures, reprise compacte. L’en-tête de la bibliothèque règle **1, 2 ou 3 colonnes** sur téléphone et l’ordre d’affichage : dernier ajout, dernier ouvert, titre A–Z ou année (année de parution de l’EPUB, sinon année d’ajout). Dans le lecteur, les phrases s’enchaînent en vrais paragraphes ; la navigation entoure Lecture/Pause sur une seule ligne. Le bleu, le guide de découverte et les choix de voix restent inchangés.
 
-[Installation et guide Android](docs/ANDROID.md) · [APK de la version courante](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.89) (release `pk-<version>`, lien direct) · [Changelog Android](src/mobile/CHANGELOG.md)
+[Installation et guide Android](docs/ANDROID.md) · [APK de la version courante](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.90) (release `pk-<version>`, lien direct) · [Changelog Android](src/mobile/CHANGELOG.md)
 
 > Les APK vivent dans les releases `pk-<version>` (la plus récente en tête de la page des releases). Le badge **Latest** suit la dernière livraison publiée, Android ou macOS : il peut pointer sur le DMG sans que l'APK disparaisse — le lien direct ci-dessus reste valable.
 

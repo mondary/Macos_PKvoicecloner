@@ -318,6 +318,7 @@ function bookView() {
     <button class="setting-row" data-action="relancer-tout" data-id="${book.id}"><span>${icon('refresh-cw')} Tout relancer</span><strong>Paragraphes, analyse, voix, lecture ${icon('chevron-right')}</strong></button>
   </section>
   <section class="settings-section"><h2>Réglages du livre</h2>
+    ${actionRow('nav', 'voices', 'audio-lines', 'Voix et téléchargements', 'Gérer les voix Piper/Kokoro, celles du téléphone et vos clones ; suivre les téléchargements.')}
     ${actionRow('appearance', book.id, 'text-cursor-input', 'Réglages de lecture', 'Taille du texte, thème, marges, mise en page et surlignage.')}
     ${actionRow('prepare', book.id, 'download', 'Emporter le chapitre en cours', 'Prépare les passages audio pour l’écoute hors ligne.')}
     ${actionRow('clear-audio', book.id, 'hard-drive', 'Effacer les audios préparés', 'Libère l’espace des passages déjà générés. Les chapitres se réécoutent en direct ou se préparent à nouveau.')}
@@ -507,13 +508,19 @@ async function seekTo(index: number) {
 
 function voiceCard(v: Voice) {
   const selected = settings.voice === v.id;
-  const meta = v.installed ? (v.network ? 'en ligne' : 'sur l’appareil') : `${v.size ?? '?'} Mo`;
-  return `<article class="voice-row ${selected ? 'chosen' : ''}">
-    <span class="voice-row-icon">${icon(v.kind === 'clone' ? 'mic' : v.installed ? 'check' : 'download')}</span>
+  const suivi = voiceDownloads().find(d => d.id === v.id);
+  const enCours = suivi?.state === 'running';
+  const enEchec = suivi?.state === 'error';
+  const meta = enCours ? `${Math.round(suivi.progress)} % téléchargé`
+    : enEchec ? 'échec du téléchargement'
+    : v.installed ? (v.network ? 'en ligne' : 'sur l’appareil') : `${v.size ?? '?'} Mo`;
+  return `<article class="voice-row ${selected ? 'chosen' : ''} ${enCours ? 'downloading' : enEchec ? 'error' : ''}">
+    <span class="voice-row-icon ${enCours ? 'loading' : enEchec ? 'error' : ''}">${icon(enCours ? 'loader-circle' : v.kind === 'clone' ? 'mic' : v.installed ? 'check' : 'download')}</span>
     <span class="voice-row-copy"><strong>${esc(v.name)}${selected ? ' · choisie' : ''}</strong><small>${esc(v.detail ?? v.language)} · ${esc(meta)}</small></span>
     <span class="voice-row-actions">${v.installed
       ? `<button class="text-button" data-action="preview" data-id="${esc(v.id)}" aria-label="Écouter ${esc(v.name)}">${icon('play')}</button><button class="small-button ${selected ? 'selected' : ''}" data-action="select-voice" data-id="${esc(v.id)}">${selected ? 'Choisie' : 'Choisir'}</button>${v.kind === 'neural' ? `<button class="text-button" data-action="remove-model" data-id="${esc(v.id)}" aria-label="Supprimer ${esc(v.name)}">${icon('trash-2')}</button>` : ''}`
-      : `<button class="small-button" data-action="install" data-id="${esc(v.id)}">Télécharger</button>`}</span>
+      : enCours ? `<span class="voice-row-progress" role="status">${Math.round(suivi.progress)} %</span>`
+      : `<button class="small-button" data-action="install" data-id="${esc(v.id)}">${enEchec ? 'Réessayer' : 'Télécharger'}</button>`}</span>
   </article>`;
 }
 function voiceOption(v: Voice) {
@@ -530,12 +537,18 @@ function quickVoiceBody() {
   const installed = models.filter(m => m.installed);
   const section = (title: string, list: Voice[], limit = 8) => !list.length ? '' : `<h3 class="sheet-group">${title}</h3><div class="voice-options" role="menu">${list.slice(0, limit).map(voiceOption).join('')}</div>`;
   const muettes = autresLangues();
-  return `<p class="sheet-description">La voix choisie s’applique tout de suite à cette écoute.</p>${section('Mes clones', clones)}${section('Voix téléchargées', installed)}${section('Voix du téléphone', voixTelephone())}${muettes ? `<button class="setting-row" data-action="voice-langues"><span>${icon('languages')} ${settings.voiceLangues ? 'Masquer' : 'Afficher'} les ${muettes} voix des autres langues</span>${icon('chevron-right')}</button>` : ''}<button class="setting-row" data-action="nav" data-id="voices"><span>${icon('sliders-horizontal')} Télécharger ou gérer les voix</span>${icon('chevron-right')}</button>`;
+  const telephone = [...voixTelephone()].sort((a, b) => Number(b.id === settings.voice) - Number(a.id === settings.voice));
+  return `<p class="sheet-description">La voix choisie s’applique tout de suite à cette écoute.</p>${section('Mes clones', clones)}${section('Voix téléchargées', installed)}${section('Voix du téléphone', telephone, 3)}${muettes ? `<button class="setting-row" data-action="voice-langues"><span>${icon('languages')} ${settings.voiceLangues ? 'Masquer' : 'Afficher'} les ${muettes} voix des autres langues</span>${icon('chevron-right')}</button>` : ''}<button class="setting-row" data-action="nav" data-id="voices"><span>${icon('sliders-horizontal')} Télécharger ou gérer les voix</span>${icon('chevron-right')}</button>`;
 }
 function voicesView() {
-  const list = voiceTab === 'neural' ? models : voiceTab === 'clone' ? clones : voixTelephone();
+  const list = voiceTab === 'neural'
+    ? [...models].sort((a, b) => Number(b.installed) - Number(a.installed) || a.name.localeCompare(b.name, 'fr'))
+    : voiceTab === 'clone' ? clones : voixTelephone();
   const masquees = voiceTab === 'system' ? autresLangues() : 0;
-  return `<header class="voice-page-head">${iconButton('arrow-left','Retour aux réglages','back-settings')}<div><p class="eyebrow">RÉGLAGES</p><h1>Voix</h1></div></header><div class="segmented voice-tabs" role="group" aria-label="Types de voix">${[['neural','À télécharger'],['system','Mon téléphone'],['clone','Mes clones']].map(([id,label])=>`<button data-action="voice-tab" data-id="${id}" class="${voiceTab===id?'active':''}" aria-pressed="${voiceTab===id}">${label}</button>`).join('')}</div><div class="voice-list">${list.map(voiceCard).join('')}</div><p id="download-status" role="status"></p>${voiceTab==='clone'&&!clones.length?`<div class="empty-card">${icon('mic')}<h2>Votre propre voix, dans vos livres.</h2><p>Connectez PK Voice Studio sur votre Mac pour retrouver vos voix clonées et générer les passages à écouter.</p><button class="primary" data-action="nav" data-id="settings">Connecter mon studio ${icon('arrow-right')}</button></div>`:''}${voiceTab==='system'?`${masquees?`<button class="setting-row" data-action="voice-langues"><span>${icon('languages')} ${settings.voiceLangues ? 'Masquer' : 'Afficher'} ${masquees} voix dans d’autres langues</span>${icon('chevron-right')}</button>`:''}<button class="setting-row" data-action="voice-settings"><span>${icon('settings-2')} Installer ou régler les voix Android</span>${icon('arrow-up-right')}</button>`:''}<div class="privacy-note">${icon('wifi-off')}<p>${voiceTab==='neural'?'Un téléchargement, puis la liberté.':'Vous gardez le choix.'}<br><span>${voiceTab==='neural'?'Les voix Piper lisent directement sur votre téléphone.':'Les voix clonées sont générées par votre studio, puis mises en cache.'}</span></p></div>${!native?'<p class="web-note">Aperçu web : les voix du navigateur sont utilisables ici. Les modèles Piper et les voix du studio fonctionnent dans l’app Android.</p>':''}`;
+  const installees = models.filter(m => m.installed).length;
+  const enCours = voiceDownloads().filter(d => d.state === 'running').length;
+  const resume = `${installees} voix installée${installees > 1 ? 's' : ''} sur cet appareil${enCours ? ` · ${enCours} téléchargement${enCours > 1 ? 's' : ''} en cours` : ''}`;
+  return `<header class="voice-page-head">${iconButton('arrow-left','Retour aux réglages','back-settings')}<div><p class="eyebrow">RÉGLAGES</p><h1>Voix</h1></div></header><div class="segmented voice-tabs" role="group" aria-label="Types de voix">${[['neural','Voix de l’app'],['system','Mon téléphone'],['clone','Mes clones']].map(([id,label])=>`<button data-action="voice-tab" data-id="${id}" class="${voiceTab===id?'active':''}" aria-pressed="${voiceTab===id}">${label}</button>`).join('')}</div><p class="voice-summary" role="status">${resume}</p><div class="voice-list">${list.map(voiceCard).join('')}</div><p id="download-status" role="status"></p>${voiceTab==='clone'&&!clones.length?`<div class="empty-card">${icon('mic')}<h2>Votre propre voix, dans vos livres.</h2><p>Connectez PK Voice Studio sur votre Mac pour retrouver vos voix clonées et générer les passages à écouter.</p><button class="primary" data-action="nav" data-id="settings">Connecter mon studio ${icon('arrow-right')}</button></div>`:''}${voiceTab==='system'?`${masquees?`<button class="setting-row" data-action="voice-langues"><span>${icon('languages')} ${settings.voiceLangues ? 'Masquer' : 'Afficher'} ${masquees} voix dans d’autres langues</span>${icon('chevron-right')}</button>`:''}<button class="setting-row" data-action="voice-settings"><span>${icon('settings-2')} Installer ou régler les voix Android</span>${icon('arrow-up-right')}</button>`:''}<div class="privacy-note">${icon('wifi-off')}<p>${voiceTab==='neural'?'Un téléchargement, puis la liberté.':'Vous gardez le choix.'}<br><span>${voiceTab==='neural'?'Les voix Piper lisent directement sur votre téléphone.':'Les voix clonées sont générées par votre studio, puis mises en cache.'}</span></p></div>${!native?'<p class="web-note">Aperçu web : les voix du navigateur sont utilisables ici. Les modèles Piper et les voix du studio fonctionnent dans l’app Android.</p>':''}`;
 }
 
 /* ------------------------------------------------------------------ réglages */

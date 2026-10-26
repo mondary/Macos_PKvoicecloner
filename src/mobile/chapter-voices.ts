@@ -20,14 +20,16 @@ export function chapterCharacters(book: Book, start = chapterAt(book).start): Ch
 export interface ChapterVoiceChoice { role: Character; voice: string; confirmed: boolean }
 export function proposeChapterVoices(book: Book, available: Voice[], start = chapterAt(book).start): ChapterVoiceChoice[] {
   const roles = chapterCharacters(book, start);
-  const pool = voixLocales(available).filter(v => v.id === 'system:default' || v.language.split(/[-_]/)[0] === book.language.split(/[-_]/)[0]);
+  const pool = voixLocales(available).filter(v => (v.id === 'system:default' || v.kind !== 'system') &&
+    v.language.split(/[-_]/)[0] === book.language.split(/[-_]/)[0]);
   const used = new Set(book.casting?.characters.filter(c => c.voice && c.automaticVoice === false).map(c => c.voice));
   return roles.map(role => {
     if (role.voice && role.automaticVoice === false) return { role, voice: role.voice, confirmed: true };
     const candidates = pool.filter(v => !role.gender || role.gender === 'indetermine' || genreVoix(v) === 'indetermine' || genreVoix(v) === role.gender)
       .sort((a, b) => Number(used.has(a.id)) - Number(used.has(b.id)) ||
         Number(!!role.gender && role.gender !== 'indetermine' && genreVoix(b) === role.gender) - Number(!!role.gender && role.gender !== 'indetermine' && genreVoix(a) === role.gender) ||
-        Number(b.installed) - Number(a.installed) || Number(b.id === role.voice) - Number(a.id === role.voice));
+        Number(b.installed) - Number(a.installed) || Number(b.id === role.voice) - Number(a.id === role.voice) ||
+        Number(b.id === 'system:default') - Number(a.id === 'system:default'));
     const voice = candidates[0]?.id ?? role.voice ?? 'system:default';
     used.add(voice);
     return { role, voice, confirmed: false };
@@ -60,16 +62,21 @@ export function chapterReviewView(book: Book, choices: ChapterVoiceChoice[], ava
   const done = lots.filter(l => completed.has(l.key)).length;
   const known = choices.filter(c => c.confirmed).length;
   const installed = choices.filter(c => c.voice === 'system:default' || available.some(v => v.id === c.voice && v.installed)).length;
-  const pool = [...voixLocales(available), ...available.filter(v => v.kind === 'clone')]
+  const toutes = [...voixLocales(available), ...available.filter(v => v.kind === 'clone')]
     .filter(v => v.id === 'system:default' || v.language.split(/[-_]/)[0] === book.language.split(/[-_]/)[0]);
+  const poolPour = (choice: ChapterVoiceChoice) => toutes.filter(v =>
+    v.kind !== 'system' || v.id === 'system:default' || v.id === choice.voice);
   return `<div class="chapter-review"><p class="sheet-description"><strong>${esc(chapter.title)}</strong><br>${ready ? `${choices.length} rôle${choices.length > 1 ? 's' : ''} · ${installed}/${choices.length} voix installées, ${choices.length - installed} à télécharger.` : `Analyse en cours : ${done}/${lots.length} lots de ce chapitre. Le reste du livre continue en arrière-plan.`}</p>
     <p class="chapter-review-status" role="status">${ready ? `Déjà validées : ${known} · Nouvelles : ${choices.length - known}. Vos choix sont conservés pour tout le livre.` : esc(book.casting?.analysis?.error ?? 'Analyse en cours : distribution provisoire. Choisissez dès maintenant, elle s’affinera automatiquement.')}</p>
     <fieldset class="chapter-voice-choices" ${working ? 'disabled' : ''}><legend class="sr-only">Voix du chapitre</legend>
-    ${choices.map((choice, i) => `<div class="chapter-voice-choice"><div class="chapter-voice-head"><strong>${esc(choice.role.name)}</strong><small>${choice.confirmed ? 'Mémorisée' : 'Nouvelle proposition'}</small></div>
+    ${choices.map((choice, i) => {
+      const pool = poolPour(choice);
+      return `<div class="chapter-voice-choice"><div class="chapter-voice-head"><strong>${esc(choice.role.name)}</strong><small>${choice.confirmed ? 'Mémorisée' : 'Nouvelle proposition'}</small></div>
       <div class="chapter-voice-row"><select id="chapter-voice-${i}" data-download-voice data-role-id="${esc(choice.role.id)}" aria-label="Voix de ${esc(choice.role.name)}">
       ${!pool.some(v => v.id === choice.voice) ? `<option value="${esc(choice.voice)}">${esc(choice.voice)} · indisponible</option>` : ''}
       ${pool.map(v => `<option value="${esc(v.id)}" ${v.id === choice.voice ? 'selected' : ''}>${esc(v.name)} · ${v.installed ? 'installée' : `à télécharger${v.size ? ` (${v.size} Mo)` : ''}`}</option>`).join('')}</select>
-      <button type="button" class="small-button" data-action="chapter-voice-preview" data-id="${esc(choice.role.id)}" aria-label="Écouter un extrait avec la voix choisie pour ${esc(choice.role.name)}">${icon('play')} Écouter</button></div></div>`).join('')}
+      <button type="button" class="small-button" data-action="chapter-voice-preview" data-id="${esc(choice.role.id)}" aria-label="Écouter un extrait avec la voix choisie pour ${esc(choice.role.name)}">${icon('play')} Écouter</button></div></div>`;
+    }).join('')}
     </fieldset><button class="primary" data-action="chapter-voices-confirm" ${working || !choices.length ? 'disabled' : ''}>${working ? 'Installation des voix…' : ready ? 'Valider et écouter ce chapitre' : 'Écouter avec ces voix'}</button>
     <p class="update-note">Les voix à télécharger sont installées après validation. ${ready ? 'Au prochain chapitre, seuls les nouveaux personnages demandent une confirmation.' : 'L’analyse complète du chapitre continue en arrière-plan et affinera la distribution.'}</p></div>`;
 }

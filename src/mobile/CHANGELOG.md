@@ -1,5 +1,14 @@
 # PK Reader Android
 
+## [2026.10.90] - 2026-10-26
+
+### Changed
+- **Moins de voix dans les menus** : les sélecteurs de personnages ne listent plus toutes les voix Android. On y trouve la voix générique du téléphone, les voix de l’app installées (Piper/Kokoro) et la voix actuelle du rôle ; les autres voix du téléphone restent dans Réglages → Voix & analyse → Mon téléphone. La feuille de changement de voix est limitée à trois voix du téléphone.
+- **Attribution automatique** : un bouton « Attribuer automatiquement » dans la fiche des voix répartit les voix installées par genre, évite les doublons quand c’est possible et enregistre la distribution. Après chaque téléchargement, les voix installées sont attribuées et enregistrées, avec un retour visible.
+- **Voix téléchargées visibles** : l’onglet « À télécharger » devient « Voix de l’app », les voix installées passent en tête, un résumé indique le nombre installé et les téléchargements en cours, et chaque ligne montre sa progression (ou « Réessayer » en cas d’échec).
+- **Accès direct** : la page Gérer du livre propose « Voix et téléchargements » ; la fiche des voix contient « Télécharger ou gérer les voix ». L’onglet Réglages place la gestion des voix en tête.
+- **Bilan plus juste** : un rôle qui partage une voix ou utilise la voix générique n’est plus compté comme « voix à compléter » ; seuls les rôles sans aucune voix installée le sont. Les timbres supplémentaires restent proposés en option.
+
 ## [2026.10.89] - 2026-10-26
 
 ### Changed

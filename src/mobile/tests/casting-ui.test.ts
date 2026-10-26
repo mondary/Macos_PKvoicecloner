@@ -50,6 +50,17 @@ describe('parcours personnages → voix', () => {
     expect(mocks.load).toHaveBeenCalledWith(book, expect.anything());
   });
 
+  it('attribue toutes les voix en un geste et enregistre la distribution', async () => {
+    const book = bookFixture();
+    await openCasting(book, available, { ...defaults, server: 'http://studio', token: 'code-test' }, show, () => {});
+    await vi.waitFor(() => expect(document.querySelector('[data-cast="auto"]')).not.toBeNull());
+    document.querySelector<HTMLButtonElement>('[data-cast="auto"]')!.click();
+    await vi.waitFor(() => expect(document.querySelector('.casting-auto-note')?.textContent).toContain('voix attribuées'));
+    expect(book.casting!.characters.every(c => !!c.voice && c.automaticVoice === false)).toBe(true);
+    expect(mocks.save).toHaveBeenCalled();
+    document.querySelector<HTMLDialogElement>('#sheet')!.close();
+  });
+
   it('signale une analyse interrompue et laisse les corrections facultatives repliées', async () => {
     mocks.analyser.mockRejectedValue(new Error('Le fournisseur IA a atteint sa limite d’usage.'));
     const book = bookFixture();
@@ -102,7 +113,7 @@ describe('parcours personnages → voix', () => {
     const book = bookFixture();
     await openCasting(book, inventory, { ...defaults, server: 'http://studio', token: 'code-test' }, show, () => {});
     await vi.waitFor(() => expect(document.querySelector<HTMLFieldSetElement>('.casting-controls')?.disabled).toBe(false));
-    expect(document.querySelector('#casting-needs')?.textContent).toContain('2 voix');
+    expect(document.querySelector('#casting-needs')?.textContent).toContain('2 timbres supplémentaires');
     document.querySelector<HTMLButtonElement>('[data-cast="download"]')!.click();
     await vi.waitFor(() => expect(document.querySelector('#casting-status')?.textContent).toContain('Voix installées'));
     expect(mocks.installModel).toHaveBeenCalledTimes(2);

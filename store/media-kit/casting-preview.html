@@ -915,6 +915,35 @@ body:has(.mini-player) .main-content { padding-bottom: 140px; }
 .voice-row-icon.loading svg { animation: voiceTurn 1.2s linear infinite; }
 .voice-row-icon.error { color: var(--danger); background: var(--danger-soft); }
 @keyframes voiceTurn { to { transform: rotate(360deg); } }
+
+/* Fiche des voix : lecture d'essai compacte, listes repliables. */
+.casting-help { margin: -4px 0 12px; font-size: 11px; line-height: 1.6; }
+.casting-help summary { min-height: 32px; padding: 6px 0; }
+.casting-help p { margin: 6px 0 0; color: var(--muted); }
+.casting-summary-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
+.casting-summary-line strong { font-size: 14px; }
+.casting-summary-line span { color: var(--muted); font-size: 11px; }
+.casting-analysis-detail { margin-top: 2px; font-size: 11px; line-height: 1.55; }
+.casting-analysis-detail summary { min-height: 30px; padding: 4px 0; }
+.casting-analysis-detail p { margin: 4px 0 0; color: var(--muted); }
+.casting-manage-link { display: inline-flex; align-items: center; gap: 5px; min-height: 38px; padding: 4px 2px; color: var(--muted); font-size: 11px; font-weight: 600; }
+.casting-manage-link:hover { color: var(--accent); }
+.casting-manage-link svg { width: 14px; height: 14px; }
+.casting-role-list { border: 0; margin: 4px 0 0; }
+.casting-role-list > summary { display: flex; align-items: center; min-height: 40px; padding: 8px 0; color: var(--ink-soft); font-size: 12px; font-weight: 600; cursor: pointer; }
+.casting-role-list > summary::marker { color: var(--muted); }
+.casting-role-list .casting-roles { margin-top: 2px; }
+.casting-listen { display: grid; place-items: center; width: 38px; height: 38px; min-height: 38px; padding: 0; border-radius: 9px; flex: none; }
+.casting-listen svg { width: 17px; height: 17px; }
+.casting-needs-list { margin: 8px 0; font-size: 11px; }
+.casting-needs-list summary { min-height: 34px; padding: 6px 0; color: var(--ink-soft); font-weight: 600; }
+.casting-needs-list ul { margin: 4px 0 0; }
+.chapter-voice-preview { width: 44px; min-width: 44px; padding: 0; }
+.casting-listen.loading { color: var(--accent); }
+.casting-listen.loading svg { display: none; }
+.casting-listen.loading::after { content: ''; width: 16px; height: 16px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: castSpin .8s linear infinite; }
+@keyframes castSpin { to { transform: rotate(360deg); } }
+.casting-manage-link { color: var(--accent); }
 /* PK Reader — lecteur : en-tête, texte suivi, mode pages, barre « en cours », transport.
    Chargé après style.css : ce fichier affine le mode lecture. */
 
@@ -1101,21 +1130,26 @@ input.progress-slider {
 }
 </style></head>
 <body><div class="app-shell"></div><dialog id="sheet" aria-labelledby="sheet-title" open=""><div class="sheet-handle"></div><header><h2 id="sheet-title">Les voix de ce livre</h2><button class="icon-button" aria-label="Fermer" title="Fermer" data-action="close"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="x" class="lucide lucide-x" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button></header><div class="casting-editor">
-      <p class="sheet-description">Le téléphone repère les locuteurs à partir des indices de dialogue. Vérifiez les noms proposés et leurs passages associés, puis choisissez leurs voix. Une majuscule ou un mot suivi de deux-points ne suffit pas à identifier un personnage. Pour tout recalculer : menu du livre (⋯) → Relancer l’analyse des personnages.</p>
-      <section class="casting-summary" aria-label="Analyse du livre"><strong>3 rôles proposés, narrateur compris</strong><p role="status">Repérage local · 1 chapitre parcouru · 5 phrases attribuées automatiquement à un personnage. Les passages incertains restent au narrateur.</p>
+      <p class="sheet-description">Vérifiez les noms, attribuez les voix, puis validez. Les voix installées restent sur l’appareil.</p>
+      <details class="casting-help"><summary>Comment les personnages sont-ils trouvés ?</summary><p>Le téléphone repère les locuteurs à partir des indices de dialogue. Une majuscule ou un mot suivi de deux-points ne suffit pas à identifier un personnage. Pour tout recalculer : menu du livre (⋯) → Relancer l’analyse des personnages.</p></details>
+      <section class="casting-summary" aria-label="Analyse du livre">
+        <div class="casting-summary-line"><strong>3 rôles</strong><span>Repérage local · 5 phrases attribuées</span></div>
+        <details class="casting-analysis-detail"><summary>Détails de l’analyse</summary><p role="status">Repérage local · 1 chapitre parcouru · 5 phrases attribuées automatiquement à un personnage. Les passages incertains restent au narrateur.</p></details>
 
         <div class="casting-summary-actions">
           <button type="button" class="casting-auto" data-cast="auto"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="sparkles" aria-hidden="true" class="lucide lucide-sparkles"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"></path><path d="M20 2v4"></path><path d="M22 4h-4"></path><circle cx="4" cy="20" r="2"></circle></svg> Attribuer automatiquement</button>
 
+          <button type="button" class="casting-manage-link" data-action="nav" data-id="voices"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="audio-lines" aria-hidden="true" class="lucide lucide-audio-lines"><path d="M2 10v3"></path><path d="M6 6v11"></path><path d="M10 3v18"></path><path d="M14 8v7"></path><path d="M18 5v13"></path><path d="M22 10v3"></path></svg> Gérer les voix</button>
         </div>
-        <button type="button" class="setting-row casting-manage" data-action="nav" data-id="voices"><span><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="audio-lines" aria-hidden="true" class="lucide lucide-audio-lines"><path d="M2 10v3"></path><path d="M6 6v11"></path><path d="M10 3v18"></path><path d="M14 8v7"></path><path d="M18 5v13"></path><path d="M22 10v3"></path></svg> Télécharger ou gérer les voix</span><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="chevron-right" aria-hidden="true" class="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6"></path></svg></button>
       </section>
       <fieldset class="casting-controls" aria-busy="false">
+      <details class="casting-role-list" open="">
+      <summary>Voix des personnages</summary>
       <div class="casting-roles"><fieldset data-character="0" class="casting-role"><legend class="sr-only">Narrateur</legend>
         <div class="casting-role-head"><strong>Narrateur</strong><small>Genre non déterminé · 3 phrases · proposée</small></div>
         <div class="casting-role-main">
           <label class="sr-only" for="cast-voice-0">Voix de Narrateur</label><select id="cast-voice-0" name="voice" data-download-voice=""><option value="">Voix du lecteur</option><option value="system:default" selected="">Voix du téléphone</option><option value="system:default" selected="">Voix du téléphone</option><option value="neural:tom">Tom · Voix masculine</option><option value="neural:siwis">Siwis · Voix féminine</option><option value="neural:gilles">Gilles · Voix masculine</option></select>
-          <button type="button" class="casting-listen" data-cast="preview" data-id="0" aria-label="Écouter la voix de Narrateur">Écouter</button>
+          <button type="button" class="casting-listen" data-cast="preview" data-id="0" aria-label="Écouter la voix de Narrateur" title="Écouter"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="play" aria-hidden="true" class="lucide lucide-play"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"></path></svg></button>
         </div>
         <details class="casting-role-options"><summary aria-label="Réglages et passage de Narrateur">Réglages et passage</summary>
 
@@ -1127,7 +1161,7 @@ input.progress-slider {
         <div class="casting-role-head"><strong>Schaltzmann</strong><small>Genre non déterminé · 3 phrases · proposée</small></div>
         <div class="casting-role-main">
           <label class="sr-only" for="cast-voice-1">Voix de Schaltzmann</label><select id="cast-voice-1" name="voice" data-download-voice=""><option value="">Voix du lecteur</option><option value="system:default">Voix du téléphone</option><option value="system:default">Voix du téléphone</option><option value="neural:tom" selected="">Tom · Voix masculine</option><option value="neural:siwis">Siwis · Voix féminine</option><option value="neural:gilles">Gilles · Voix masculine</option></select>
-          <button type="button" class="casting-listen" data-cast="preview" data-id="1" aria-label="Écouter la voix de Schaltzmann">Écouter</button>
+          <button type="button" class="casting-listen" data-cast="preview" data-id="1" aria-label="Écouter la voix de Schaltzmann" title="Écouter"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="play" aria-hidden="true" class="lucide lucide-play"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"></path></svg></button>
         </div>
         <details class="casting-role-options"><summary aria-label="Réglages et passage de Schaltzmann">Réglages et passage</summary>
           <p class="casting-evidence" open="">— Entrez, dit Schaltzmann.</p>
@@ -1139,7 +1173,7 @@ input.progress-slider {
         <div class="casting-role-head"><strong>Élodie</strong><small>Voix féminine · 2 phrases · proposée</small></div>
         <div class="casting-role-main">
           <label class="sr-only" for="cast-voice-2">Voix de Élodie</label><select id="cast-voice-2" name="voice" data-download-voice=""><option value="">Voix du lecteur</option><option value="system:default">Voix du téléphone</option><option value="system:default">Voix du téléphone</option><option value="neural:tom">Tom · Voix masculine</option><option value="neural:siwis" selected="">Siwis · Voix féminine</option><option value="neural:gilles">Gilles · Voix masculine</option></select>
-          <button type="button" class="casting-listen" data-cast="preview" data-id="2" aria-label="Écouter la voix de Élodie">Écouter</button>
+          <button type="button" class="casting-listen" data-cast="preview" data-id="2" aria-label="Écouter la voix de Élodie" title="Écouter"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="play" aria-hidden="true" class="lucide lucide-play"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"></path></svg></button>
         </div>
         <details class="casting-role-options"><summary aria-label="Réglages et passage de Élodie">Réglages et passage</summary>
           <p class="casting-evidence">— Merci, répondit Élodie.</p>
@@ -1147,13 +1181,13 @@ input.progress-slider {
           <label for="cast-pitch-2">Hauteur · grave ↔ aigu <output>1×</output></label><input id="cast-pitch-2" name="pitch" type="range" min="0.5" max="2" step="0.01" value="1">
           <label for="cast-rate-2">Vitesse du personnage <output>1×</output></label><input id="cast-rate-2" name="rate" type="range" min="0.75" max="1.5" step="0.05" value="1">
           <div class="casting-role-actions"><button type="button" data-cast="reset" data-id="2">Réinitialiser hauteur et vitesse</button><button type="button" data-cast="remove" data-id="2">Retirer ce personnage</button></div></details>
-        </fieldset></div>
+        </fieldset></div></details>
       <details id="casting-advanced"><summary>Corriger les locuteurs (facultatif)</summary>
         <p class="sheet-description">L’attribution se fait automatiquement. Ces contrôles servent uniquement à corriger une erreur ponctuelle.</p>
         <label class="casting-enable"><input type="checkbox" id="casting-enabled" checked=""> Lire avec les voix des personnages</label>
         <button type="button" class="setting-row" data-cast="add">+ Ajouter un personnage manquant</button>
         <label for="cast-chapter">Chapitre à vérifier</label><select id="cast-chapter"><option value="0" selected="">Chapitre premier</option></select>
-        <div class="casting-passages"><div class="casting-passage"><p>Voilà : la situation était tendue.</p><label for="cast-segment-0">Locuteur de la phrase 1</label><select id="cast-segment-0" data-segment="0"><option value="narrator" selected="">Narrateur</option><option value="d5812b4b-ea67-4aaf-8483-bfcc96c40a01">Schaltzmann</option><option value="e18cd667-9c17-4dd3-9d14-df92935bfede">Élodie</option></select></div><div class="casting-passage"><p>Exemple : aucun mot suivi de deux-points ne devient un personnage.</p><label for="cast-segment-1">Locuteur de la phrase 2</label><select id="cast-segment-1" data-segment="1"><option value="narrator" selected="">Narrateur</option><option value="d5812b4b-ea67-4aaf-8483-bfcc96c40a01">Schaltzmann</option><option value="e18cd667-9c17-4dd3-9d14-df92935bfede">Élodie</option></select></div><div class="casting-passage"><p>— Entrez, dit Schaltzmann.</p><label for="cast-segment-2">Locuteur de la phrase 3</label><select id="cast-segment-2" data-segment="2"><option value="narrator">Narrateur</option><option value="d5812b4b-ea67-4aaf-8483-bfcc96c40a01" selected="">Schaltzmann</option><option value="e18cd667-9c17-4dd3-9d14-df92935bfede">Élodie</option></select></div><div class="casting-passage"><p>— Merci, répondit Élodie.</p><label for="cast-segment-3">Locuteur de la phrase 4</label><select id="cast-segment-3" data-segment="3"><option value="narrator">Narrateur</option><option value="d5812b4b-ea67-4aaf-8483-bfcc96c40a01">Schaltzmann</option><option value="e18cd667-9c17-4dd3-9d14-df92935bfede" selected="">Élodie</option></select></div><div class="casting-passage"><p>Élodie contempla la pièce, silencieuse.</p><label for="cast-segment-4">Locuteur de la phrase 5</label><select id="cast-segment-4" data-segment="4"><option value="narrator" selected="">Narrateur</option><option value="d5812b4b-ea67-4aaf-8483-bfcc96c40a01">Schaltzmann</option><option value="e18cd667-9c17-4dd3-9d14-df92935bfede">Élodie</option></select></div><div class="casting-passage"><p>— Vous êtes prêt ?</p><label for="cast-segment-5">Locuteur de la phrase 6</label><select id="cast-segment-5" data-segment="5"><option value="narrator">Narrateur</option><option value="d5812b4b-ea67-4aaf-8483-bfcc96c40a01" selected="">Schaltzmann</option><option value="e18cd667-9c17-4dd3-9d14-df92935bfede">Élodie</option></select></div><div class="casting-passage"><p>demanda Schaltzmann.</p><label for="cast-segment-6">Locuteur de la phrase 7</label><select id="cast-segment-6" data-segment="6"><option value="narrator">Narrateur</option><option value="d5812b4b-ea67-4aaf-8483-bfcc96c40a01" selected="">Schaltzmann</option><option value="e18cd667-9c17-4dd3-9d14-df92935bfede">Élodie</option></select></div><div class="casting-passage"><p>— Tout à fait, répondit Élodie.</p><label for="cast-segment-7">Locuteur de la phrase 8</label><select id="cast-segment-7" data-segment="7"><option value="narrator">Narrateur</option><option value="d5812b4b-ea67-4aaf-8483-bfcc96c40a01">Schaltzmann</option><option value="e18cd667-9c17-4dd3-9d14-df92935bfede" selected="">Élodie</option></select></div></div>
+        <div class="casting-passages"><div class="casting-passage"><p>Voilà : la situation était tendue.</p><label for="cast-segment-0">Locuteur de la phrase 1</label><select id="cast-segment-0" data-segment="0"><option value="narrator" selected="">Narrateur</option><option value="67bfe8e3-4c3a-4e7c-bde5-9d17d1e215d1">Schaltzmann</option><option value="6a221757-9bbf-4dcc-b9c7-102765c1ba58">Élodie</option></select></div><div class="casting-passage"><p>Exemple : aucun mot suivi de deux-points ne devient un personnage.</p><label for="cast-segment-1">Locuteur de la phrase 2</label><select id="cast-segment-1" data-segment="1"><option value="narrator" selected="">Narrateur</option><option value="67bfe8e3-4c3a-4e7c-bde5-9d17d1e215d1">Schaltzmann</option><option value="6a221757-9bbf-4dcc-b9c7-102765c1ba58">Élodie</option></select></div><div class="casting-passage"><p>— Entrez, dit Schaltzmann.</p><label for="cast-segment-2">Locuteur de la phrase 3</label><select id="cast-segment-2" data-segment="2"><option value="narrator">Narrateur</option><option value="67bfe8e3-4c3a-4e7c-bde5-9d17d1e215d1" selected="">Schaltzmann</option><option value="6a221757-9bbf-4dcc-b9c7-102765c1ba58">Élodie</option></select></div><div class="casting-passage"><p>— Merci, répondit Élodie.</p><label for="cast-segment-3">Locuteur de la phrase 4</label><select id="cast-segment-3" data-segment="3"><option value="narrator">Narrateur</option><option value="67bfe8e3-4c3a-4e7c-bde5-9d17d1e215d1">Schaltzmann</option><option value="6a221757-9bbf-4dcc-b9c7-102765c1ba58" selected="">Élodie</option></select></div><div class="casting-passage"><p>Élodie contempla la pièce, silencieuse.</p><label for="cast-segment-4">Locuteur de la phrase 5</label><select id="cast-segment-4" data-segment="4"><option value="narrator" selected="">Narrateur</option><option value="67bfe8e3-4c3a-4e7c-bde5-9d17d1e215d1">Schaltzmann</option><option value="6a221757-9bbf-4dcc-b9c7-102765c1ba58">Élodie</option></select></div><div class="casting-passage"><p>— Vous êtes prêt ?</p><label for="cast-segment-5">Locuteur de la phrase 6</label><select id="cast-segment-5" data-segment="5"><option value="narrator">Narrateur</option><option value="67bfe8e3-4c3a-4e7c-bde5-9d17d1e215d1" selected="">Schaltzmann</option><option value="6a221757-9bbf-4dcc-b9c7-102765c1ba58">Élodie</option></select></div><div class="casting-passage"><p>demanda Schaltzmann.</p><label for="cast-segment-6">Locuteur de la phrase 7</label><select id="cast-segment-6" data-segment="6"><option value="narrator">Narrateur</option><option value="67bfe8e3-4c3a-4e7c-bde5-9d17d1e215d1" selected="">Schaltzmann</option><option value="6a221757-9bbf-4dcc-b9c7-102765c1ba58">Élodie</option></select></div><div class="casting-passage"><p>— Tout à fait, répondit Élodie.</p><label for="cast-segment-7">Locuteur de la phrase 8</label><select id="cast-segment-7" data-segment="7"><option value="narrator">Narrateur</option><option value="67bfe8e3-4c3a-4e7c-bde5-9d17d1e215d1">Schaltzmann</option><option value="6a221757-9bbf-4dcc-b9c7-102765c1ba58" selected="">Élodie</option></select></div></div>
         <div class="casting-pagination"><button type="button" data-cast="prev" disabled="">Précédents</button><span>1–8 / 8</span><button type="button" data-cast="next" disabled="">Suivants</button></div></details>
       <button type="button" class="primary casting-save" data-cast="save">Valider les voix</button></fieldset>
       <p id="casting-status" class="" role="status" aria-live="polite"></p></div></dialog></body></html>

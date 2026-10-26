@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.100] - 2026-10-26
+
+### Changed
+- **PK Reader Android 2026.10.91** : fiche des voix allégée (aide, résumé et longues listes repliés, boutons play), et correction de l’aperçu sonore qui restait bloqué par le garde-fou de validation de chapitre.
+
 ## [2026.10.99] - 2026-10-26
 
 ### Changed

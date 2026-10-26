@@ -43,7 +43,7 @@ autres voix du téléphone restent consultables et sélectionnables comme voix g
 **Réglages → Voix & analyse → Mon téléphone**. La feuille « Changer de voix » limite aussi
 la liste du téléphone à trois propositions.
 
-La fiche **Les voix de ce livre** propose **Attribuer automatiquement** : les voix
+La fiche **Les voix de ce livre** est volontairement courte : l’aide, les détails d’analyse et la liste des personnages (au-delà de huit rôles) se replient, et chaque rôle dispose d’un bouton play pour l’extrait. Elle propose **Attribuer automatiquement** : les voix
 installées sont réparties par genre, sans doublon quand c'est possible, et la distribution
 est enregistrée. Après un téléchargement, les voix installées sont attribuées et
 enregistrées immédiatement, avec un message visible. Un rôle qui partage une voix ou
@@ -138,7 +138,7 @@ Chaque livre a un bouton **Gérer** visible sur sa fiche dans la bibliothèque, 
 
 ### Bilan automatique du chapitre avant l’écoute
 
-L’import démarre l’analyse. Au clic sur **Écouter — même si l’analyse est encore en cours —**, le bilan du chapitre montre les personnages déjà repérés, les voix proposées, celles déjà installées et celles à télécharger. Chaque ligne propose **« Écouter »** : un extrait du personnage dans ce chapitre, lu avec la voix sélectionnée dans la liste. Choisir une voix non installée déclenche son téléchargement immédiat ; l’aperçu attend la fin de l’installation. Modifiez, écoutez, puis **Validez et écoutez ce chapitre** ; seules les voix sélectionnées non installées sont alors téléchargées.
+L’import démarre l’analyse. Au clic sur **Écouter — même si l’analyse est encore en cours —**, le bilan du chapitre montre les personnages déjà repérés, les voix proposées, celles déjà installées et celles à télécharger. Chaque ligne propose un **bouton play** : un extrait du personnage dans ce chapitre, lu avec la voix sélectionnée dans la liste. Choisir une voix non installée déclenche son téléchargement immédiat ; l’aperçu attend la fin de l’installation. Modifiez, écoutez, puis **Validez et écoutez ce chapitre** ; seules les voix sélectionnées non installées sont alors téléchargées.
 
 Une validation fixe l’association personnage → voix dans le livre. Au chapitre suivant, les personnages connus la conservent ; si le chapitre est analysé et toutes ses voix validées/installées, il continue sans confirmation. En cas de nouveau personnage sans voix confirmée, le lecteur s’arrête avant de prononcer le chapitre et affiche le bilan. Une analyse encore en cours ne bloque plus : la distribution provisoire est affinée en arrière-plan, et le chapitre suivant repart de la version à jour. Le service Android respecte aussi cet arrêt écran verrouillé ; revenez dans l’app pour valider si nécessaire. Les choix restent mémorisés après fermeture de l’app. Le guide de découverte n’exige pas de validation.
 

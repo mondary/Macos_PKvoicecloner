@@ -120,31 +120,41 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
     const analysisText = analysing ? (progress ? `${sourceAnalyse} · ${phaseLabel(progress.phase)} · ${progress.done} / ${progress.total} blocs. Vous pouvez fermer cet écran ; gardez l’app ouverte.` : `${sourceAnalyse} en attente…`)
       : draft.analysis?.error ? `${draft.analysis.error} L’analyse du téléphone reste appliquée.`
       : `${draft.analysis?.state === 'ready' ? 'Analyse affinée' : 'Repérage local'} · ${book.chapters.length} chapitre${book.chapters.length > 1 ? 's' : ''} parcouru${book.chapters.length > 1 ? 's' : ''} · ${phrases} phrases attribuées automatiquement à un personnage. Les passages incertains restent au narrateur.`;
+    const analyseCourte = analysing
+      ? (progress ? `${sourceAnalyse} · ${progress.done}/${progress.total} blocs` : `${sourceAnalyse} en attente…`)
+      : draft.analysis?.error ? 'Analyse interrompue'
+      : `${draft.analysis?.state === 'ready' ? 'Analyse affinée' : 'Repérage local'} · ${phrases} phrases attribuées`;
     const manqueTitre = missing.length ? `${missing.length} rôle${missing.length > 1 ? 's' : ''} sans voix installée`
       : downloads.length ? `${downloads.length} timbre${downloads.length > 1 ? 's' : ''} supplémentaire${downloads.length > 1 ? 's' : ''}`
       : partagees.length ? `${partagees.length} timbre${partagees.length > 1 ? 's' : ''} partagé${partagees.length > 1 ? 's' : ''}`
       : `${fallbacks.length} voix générique${fallbacks.length > 1 ? 's' : ''}`;
+    const listeOuverte = sheet.querySelector<HTMLDetailsElement>('.casting-role-list')?.open ?? roles.length <= 8;
     const needsHTML = (missing.length || partagees.length || fallbacks.length || downloads.length) ? `<section class="casting-needs" id="casting-needs"><h3>${manqueTitre}</h3>
       <p>${missing.length
         ? `Ces rôles n’ont pas encore de voix installée adaptée : ${missing.map(c => `${esc(c.name)} (${genderLabel(c.gender).toLocaleLowerCase()})`).join(', ')}.`
         : `Tous les rôles ont une voix. Installer d’autres timbres permet d’éviter de partager la même voix entre plusieurs personnages.`} ${analysing ? 'Ce bilan peut encore évoluer pendant l’analyse fine.' : ''}</p>
-      ${downloads.length ? `<ul>${downloads.map(d => `<li>${d.voices.map(v => esc(v.name)).join(' + ')} → ${d.roles.map(r => esc(r.name)).join(', ')} · ${d.voice.size ?? '?'} Mo</li>`).join('')}</ul><button type="button" class="primary" data-cast="download">Télécharger les timbres proposés · ${downloads.reduce((n, d) => n + (d.voice.size || 0), 0).toLocaleString('fr', { maximumFractionDigits: 1 })} Mo</button>` : '<p>Aucun timbre supplémentaire adapté dans le catalogue actuel. Une même voix peut lire plusieurs rôles ; sa hauteur reste réglable.</p>'}</section>` : '';
+      ${downloads.length ? `<details class="casting-needs-list"><summary>Voir les ${downloads.length} timbre${downloads.length > 1 ? 's' : ''} proposé${downloads.length > 1 ? 's' : ''}</summary><ul>${downloads.map(d => `<li>${d.voices.map(v => esc(v.name)).join(' + ')} → ${d.roles.map(r => esc(r.name)).join(', ')} · ${d.voice.size ?? '?'} Mo</li>`).join('')}</ul></details><button type="button" class="primary" data-cast="download">Télécharger les timbres proposés · ${downloads.reduce((n, d) => n + (d.voice.size || 0), 0).toLocaleString('fr', { maximumFractionDigits: 1 })} Mo</button>` : '<p>Aucun timbre supplémentaire adapté dans le catalogue actuel. Une même voix peut lire plusieurs rôles ; sa hauteur reste réglable.</p>'}</section>` : '';
     show('Les voix de ce livre', `<div class="casting-editor">
-      <p class="sheet-description">Le téléphone repère les locuteurs à partir des indices de dialogue. Vérifiez les noms proposés et leurs passages associés, puis choisissez leurs voix. Une majuscule ou un mot suivi de deux-points ne suffit pas à identifier un personnage. Pour tout recalculer : menu du livre (⋯) → Relancer l’analyse des personnages.</p>
-      <section class="casting-summary" aria-label="Analyse du livre"><strong>${roles.length} rôle${roles.length > 1 ? 's' : ''} proposé${roles.length > 1 ? 's' : ''}, narrateur compris</strong><p role="status">${esc(analysisText)}</p>
+      <p class="sheet-description">Vérifiez les noms, attribuez les voix, puis validez. Les voix installées restent sur l’appareil.</p>
+      <details class="casting-help"><summary>Comment les personnages sont-ils trouvés ?</summary><p>Le téléphone repère les locuteurs à partir des indices de dialogue. Une majuscule ou un mot suivi de deux-points ne suffit pas à identifier un personnage. Pour tout recalculer : menu du livre (⋯) → Relancer l’analyse des personnages.</p></details>
+      <section class="casting-summary" aria-label="Analyse du livre">
+        <div class="casting-summary-line"><strong>${roles.length} rôle${roles.length > 1 ? 's' : ''}</strong><span>${esc(analyseCourte)}</span></div>
+        <details class="casting-analysis-detail"><summary>Détails de l’analyse</summary><p role="status">${esc(analysisText)}</p></details>
         ${autoNote ? `<p class="casting-auto-note" role="status">${esc(autoNote)}</p>` : ''}
         <div class="casting-summary-actions">
           <button type="button" class="casting-auto" data-cast="auto">${icon('sparkles')} Attribuer automatiquement</button>
           ${missing.length ? `<button type="button" class="casting-preview" data-cast="needs">${missing.length} rôle${missing.length > 1 ? 's' : ''} sans voix installée · voir ↓</button>` : partagees.length ? `<button type="button" class="casting-preview" data-cast="needs">${partagees.length} timbre${partagees.length > 1 ? 's' : ''} partagé${partagees.length > 1 ? 's' : ''} · voir ↓</button>` : fallbacks.length ? `<button type="button" class="casting-preview" data-cast="needs">${fallbacks.length} voix générique${fallbacks.length > 1 ? 's' : ''} · voir ↓</button>` : ''}
+          <button type="button" class="casting-manage-link" data-action="nav" data-id="voices">${icon('audio-lines')} Gérer les voix</button>
         </div>
-        <button type="button" class="setting-row casting-manage" data-action="nav" data-id="voices"><span>${icon('audio-lines')} Télécharger ou gérer les voix</span>${icon('chevron-right')}</button>
       </section>
       <fieldset class="casting-controls" ${busy ? 'disabled' : ''} aria-busy="${working()}">
+      <details class="casting-role-list" ${listeOuverte ? 'open' : ''}>
+      <summary>${roles.length <= 8 ? 'Voix des personnages' : `Voir les ${roles.length} personnages et leurs voix`}</summary>
       <div class="casting-roles">${roles.map(({ role, i }) => `<fieldset data-character="${i}" class="casting-role"><legend class="sr-only">${esc(role.name)}</legend>
         <div class="casting-role-head"><strong>${esc(role.name)}</strong><small>${genderLabel(role.gender)} · ${counts.get(role.id) || 0} phrases${role.automaticVoice ? missing.includes(role) ? ' · provisoire' : ' · proposée' : ''}</small></div>
         <div class="casting-role-main">
           <label class="sr-only" for="cast-voice-${i}">Voix de ${esc(role.name)}</label><select id="cast-voice-${i}" name="voice" data-download-voice><option value="">Voix du lecteur</option>${role.voice && !options(role).some(v => v.id === role.voice) ? `<option value="${esc(role.voice)}" selected>Voix indisponible — à remplacer</option>` : ''}${options(role).map(v => `<option value="${esc(v.id)}" ${v.id === role.voice ? 'selected' : ''}>${esc(v.name)}${genreVoix(v) === 'indetermine' ? '' : ` · ${genderLabel(genreVoix(v))}`}${v.network ? ' · réseau' : ''}</option>`).join('')}</select>
-          <button type="button" class="casting-listen" data-cast="preview" data-id="${i}" aria-label="Écouter la voix de ${esc(role.name)}">Écouter</button>
+          <button type="button" class="casting-listen" data-cast="preview" data-id="${i}" aria-label="Écouter la voix de ${esc(role.name)}" title="Écouter">${icon('play')}</button>
         </div>
         <details class="casting-role-options"><summary aria-label="Réglages et passage de ${esc(role.name)}">Réglages et passage</summary>
           ${role.id !== 'narrator' && exemples.has(role.id) ? `<p class="casting-evidence">${esc(exemples.get(role.id)!.slice(0, 300))}${exemples.get(role.id)!.length > 300 ? '…' : ''}</p>` : ''}
@@ -152,7 +162,7 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
           <label for="cast-pitch-${i}">Hauteur · grave ↔ aigu <output>${factor(role.pitch)}</output></label><input id="cast-pitch-${i}" name="pitch" type="range" min="0.5" max="2" step="0.01" value="${role.pitch}">
           <label for="cast-rate-${i}">Vitesse du personnage <output>${factor(role.rate)}</output></label><input id="cast-rate-${i}" name="rate" type="range" min="0.75" max="1.5" step="0.05" value="${role.rate}">
           <div class="casting-role-actions"><button type="button" data-cast="reset" data-id="${i}">Réinitialiser hauteur et vitesse</button>${role.id !== 'narrator' ? `<button type="button" data-cast="remove" data-id="${i}">Retirer ce personnage</button>` : ''}</div></details>
-        </fieldset>`).join('')}</div>
+        </fieldset>`).join('')}</div></details>
       ${needsHTML}<details id="casting-advanced" ${advanced ? 'open' : ''}><summary>Corriger les locuteurs (facultatif)</summary>
         <p class="sheet-description">L’attribution se fait automatiquement. Ces contrôles servent uniquement à corriger une erreur ponctuelle.</p>
         <label class="casting-enable"><input type="checkbox" id="casting-enabled" ${draft.enabled ? 'checked' : ''}> Lire avec les voix des personnages</label>
@@ -207,17 +217,23 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
         // d'abord, au lieu de rejouer silencieusement la voix du lecteur.
         const modele = catalog.find(v => v.id === choisie);
         if (modele?.kind === 'neural' && !modele.installed) {
+          button.classList.add('loading'); button.disabled = true;
+          button.setAttribute('aria-label', `Téléchargement de ${timbre}…`);
           message(`Téléchargement de ${timbre} avant l’aperçu…`);
-          await installVoice(choisie, timbre);
-          while (!catalog.find(v => v.id === choisie)?.installed) {
-            const result = await Reader.models();
-            catalog = [...catalog.filter(v => v.kind !== 'neural'), ...result.voices];
-            modelsChanged(result.voices);
-            if (result.downloads[choisie]?.error) { message(result.downloads[choisie].error!, true); return; }
-            await new Promise(resolve => setTimeout(resolve, 800));
+          try {
+            await installVoice(choisie, timbre);
+            while (!catalog.find(v => v.id === choisie)?.installed) {
+              const result = await Reader.models();
+              catalog = [...catalog.filter(v => v.kind !== 'neural'), ...result.voices];
+              modelsChanged(result.voices);
+              if (result.downloads[choisie]?.error) { message(result.downloads[choisie].error!, true); return; }
+              await new Promise(resolve => setTimeout(resolve, 800));
+            }
+          } finally {
+            button.classList.remove('loading'); button.disabled = false; draw();
           }
         }
-        const demo: Book = { ...book, id: 'casting-preview', position: 0, segments: [`Bonjour, voici la voix de ${role.name} dans cette histoire.`], casting: { enabled: true, characters: [{ ...role, voice: choisie }], assignments: { '0': role.id } } };
+        const demo: Book = { ...book, id: 'casting-preview', position: 0, segments: [`Bonjour, voici la voix de ${role.name} dans cette histoire.`], casting: { enabled: true, characters: [{ ...role, voice: choisie, automaticVoice: false }], assignments: { '0': role.id } } };
         preview = true;
         await audio.load(demo, { ...settings, voice: choisie.startsWith('clone:') ? 'system:default' : choisie });
         await audio.play(); message(`Exemple avec ${timbre}.`); break;

@@ -61,6 +61,36 @@ describe('parcours personnages → voix', () => {
     document.querySelector<HTMLDialogElement>('#sheet')!.close();
   });
 
+  it('replie la longue liste de personnages et garde un bouton de lecture compact', async () => {
+    const book = bookFixture();
+    const cast = ensureCasting(book);
+    for (let i = 0; i < 10; i++) {
+      const id = `role-${i}`;
+      cast.characters.push({ id, name: `Personnage ${i}`, gender: i % 2 ? 'homme' : 'femme', voice: 'system:default', pitch: 1, rate: 1, autoRole: false, automaticVoice: true });
+      cast.assignments[String(i % book.segments.length)] = id;
+    }
+    await openCasting(book, available, { ...defaults, server: 'http://studio', token: 'code-test' }, show, () => {});
+    await vi.waitFor(() => expect(document.querySelector('.casting-role-list')).not.toBeNull());
+    expect(document.querySelector<HTMLDetailsElement>('.casting-role-list')?.open).toBe(false);
+    expect(document.querySelector('.casting-role-list > summary')?.textContent).toContain('Voir les');
+    const play = document.querySelector<HTMLButtonElement>('[data-cast="preview"]')!;
+    expect(play.textContent?.trim()).toBe('');
+    expect(play.querySelector('[data-lucide="play"]')).not.toBeNull();
+    document.querySelector<HTMLDialogElement>('#sheet')!.close();
+  });
+
+  it('prépare un aperçu non bloqué par la validation du chapitre', async () => {
+    const book = bookFixture();
+    await openCasting(book, available, { ...defaults, server: 'http://studio', token: 'code-test' }, show, () => {});
+    await vi.waitFor(() => expect(document.querySelector('[data-cast="preview"]')).not.toBeNull());
+    const play = document.querySelector<HTMLButtonElement>('[data-cast="preview"]')!;
+    play.click();
+    await vi.waitFor(() => expect(mocks.load).toHaveBeenCalled());
+    const demo = (mocks.load.mock.calls.at(-1) as unknown[])[0] as Book;
+    expect(demo.casting!.characters[0]).toMatchObject({ automaticVoice: false });
+    document.querySelector<HTMLDialogElement>('#sheet')!.close();
+  });
+
   it('signale une analyse interrompue et laisse les corrections facultatives repliées', async () => {
     mocks.analyser.mockRejectedValue(new Error('Le fournisseur IA a atteint sa limite d’usage.'));
     const book = bookFixture();

@@ -1,6 +1,6 @@
 # Media-kit — captures de PK Reader
 
-## Références lecteur/bibliothèque (2026.10.90)
+## Références lecteur/bibliothèque (2026.10.91)
 
 Même harnais `capture-reader-controls.mjs`, désormais avec trois livres et des
 couvertures dessinées pour la démonstration (aucun livre de l’utilisateur). Il

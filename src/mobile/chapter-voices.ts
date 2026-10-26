@@ -75,7 +75,7 @@ export function chapterReviewView(book: Book, choices: ChapterVoiceChoice[], ava
       <div class="chapter-voice-row"><select id="chapter-voice-${i}" data-download-voice data-role-id="${esc(choice.role.id)}" aria-label="Voix de ${esc(choice.role.name)}">
       ${!pool.some(v => v.id === choice.voice) ? `<option value="${esc(choice.voice)}">${esc(choice.voice)} · indisponible</option>` : ''}
       ${pool.map(v => `<option value="${esc(v.id)}" ${v.id === choice.voice ? 'selected' : ''}>${esc(v.name)} · ${v.installed ? 'installée' : `à télécharger${v.size ? ` (${v.size} Mo)` : ''}`}</option>`).join('')}</select>
-      <button type="button" class="small-button" data-action="chapter-voice-preview" data-id="${esc(choice.role.id)}" aria-label="Écouter un extrait avec la voix choisie pour ${esc(choice.role.name)}">${icon('play')} Écouter</button></div></div>`;
+      <button type="button" class="small-button chapter-voice-preview" data-action="chapter-voice-preview" data-id="${esc(choice.role.id)}" aria-label="Écouter un extrait avec la voix choisie pour ${esc(choice.role.name)}" title="Écouter">${icon('play')}</button></div></div>`;
     }).join('')}
     </fieldset><button class="primary" data-action="chapter-voices-confirm" ${working || !choices.length ? 'disabled' : ''}>${working ? 'Installation des voix…' : ready ? 'Valider et écouter ce chapitre' : 'Écouter avec ces voix'}</button>
     <p class="update-note">Les voix à télécharger sont installées après validation. ${ready ? 'Au prochain chapitre, seuls les nouveaux personnages demandent une confirmation.' : 'L’analyse complète du chapitre continue en arrière-plan et affinera la distribution.'}</p></div>`;

@@ -1,5 +1,13 @@
 # PK Reader Android
 
+## [2026.10.91] - 2026-10-26
+
+### Changed
+- **Fiche des voix allégée** : introduction courte avec aide repliée, résumé compact, liste des personnages repliée au-delà de huit rôles, propositions de timbres et détails d’analyse également repliés. Les boutons « Écouter » deviennent des boutons play compacts dans la fiche et dans le bilan de chapitre.
+
+### Fixed
+- **L’aperçu d’une voix depuis la fiche joue vraiment** : le livre de démonstration de l’extrait est marqué comme validé, donc le garde-fou de chapitre ne bloque plus la lecture. C’était la cause du silence après « Écouter » pour les rôles encore automatiques.
+
 ## [2026.10.90] - 2026-10-26
 
 ### Changed

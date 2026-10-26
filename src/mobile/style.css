@@ -912,3 +912,32 @@ body:has(.mini-player) .main-content { padding-bottom: 140px; }
 .voice-row-icon.loading svg { animation: voiceTurn 1.2s linear infinite; }
 .voice-row-icon.error { color: var(--danger); background: var(--danger-soft); }
 @keyframes voiceTurn { to { transform: rotate(360deg); } }
+
+/* Fiche des voix : lecture d'essai compacte, listes repliables. */
+.casting-help { margin: -4px 0 12px; font-size: 11px; line-height: 1.6; }
+.casting-help summary { min-height: 32px; padding: 6px 0; }
+.casting-help p { margin: 6px 0 0; color: var(--muted); }
+.casting-summary-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
+.casting-summary-line strong { font-size: 14px; }
+.casting-summary-line span { color: var(--muted); font-size: 11px; }
+.casting-analysis-detail { margin-top: 2px; font-size: 11px; line-height: 1.55; }
+.casting-analysis-detail summary { min-height: 30px; padding: 4px 0; }
+.casting-analysis-detail p { margin: 4px 0 0; color: var(--muted); }
+.casting-manage-link { display: inline-flex; align-items: center; gap: 5px; min-height: 38px; padding: 4px 2px; color: var(--muted); font-size: 11px; font-weight: 600; }
+.casting-manage-link:hover { color: var(--accent); }
+.casting-manage-link svg { width: 14px; height: 14px; }
+.casting-role-list { border: 0; margin: 4px 0 0; }
+.casting-role-list > summary { display: flex; align-items: center; min-height: 40px; padding: 8px 0; color: var(--ink-soft); font-size: 12px; font-weight: 600; cursor: pointer; }
+.casting-role-list > summary::marker { color: var(--muted); }
+.casting-role-list .casting-roles { margin-top: 2px; }
+.casting-listen { display: grid; place-items: center; width: 38px; height: 38px; min-height: 38px; padding: 0; border-radius: 9px; flex: none; }
+.casting-listen svg { width: 17px; height: 17px; }
+.casting-needs-list { margin: 8px 0; font-size: 11px; }
+.casting-needs-list summary { min-height: 34px; padding: 6px 0; color: var(--ink-soft); font-weight: 600; }
+.casting-needs-list ul { margin: 4px 0 0; }
+.chapter-voice-preview { width: 44px; min-width: 44px; padding: 0; }
+.casting-listen.loading { color: var(--accent); }
+.casting-listen.loading svg { display: none; }
+.casting-listen.loading::after { content: ''; width: 16px; height: 16px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: castSpin .8s linear infinite; }
+@keyframes castSpin { to { transform: rotate(360deg); } }
+.casting-manage-link { color: var(--accent); }

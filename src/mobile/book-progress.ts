@@ -105,11 +105,13 @@ export function etapesLivre(book: Book, available: Voice[], contexte: ContexteEt
 
   // 4. Écoute : le chapitre où l'on en est doit être analysé pour démarrer.
   const chapitrePret = !contexte.ia || lotsChapitre.length === 0 ? 100 : pourcent(faitsChapitre, lotsChapitre.length);
+  const titreChapitre = /^(?:inconnu(?:e)?|unknown|untitled|sans titre)$/i.test(chapitre.title.trim())
+    ? `Chapitre ${book.chapters.indexOf(chapitre) + 1}` : chapitre.title;
   const etapeEcoute: EtapeLivre = {
-    id: 'ecoute', titre: `Écoute · ${chapitre.title}`,
+    id: 'ecoute', titre: 'Écoute',
     detail: contexte.setup ? contexte.setup
-      : chapitrePret === 100 ? 'Prêt à écouter'
-      : `${faitsChapitre}/${lotsChapitre.length} blocs du chapitre`,
+      : chapitrePret === 100 ? `${titreChapitre} · prêt à écouter`
+      : `${titreChapitre} · ${faitsChapitre}/${lotsChapitre.length} blocs`,
     pct: contexte.setup ? pourcent(faitsChapitre, lotsChapitre.length) : chapitrePret,
     etat: contexte.setup ? 'running' : chapitrePret === 100 ? 'done' : 'todo',
     action: 'prepare-book', libelle: 'Préparer',

@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.92] - 2026-10-26
+
+### Changed
+- **PK Reader Android 2026.10.84** : sélection des voix compacte (une ligne par rôle, réglages repliés, deux colonnes sur grand écran), étape « Écoute » clarifiée et confirmation avant d’effacer les audios préparés.
+
 ## [2026.10.91] - 2026-10-25
 
 ### Fixed

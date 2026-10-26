@@ -1,5 +1,12 @@
 # PK Reader Android
 
+## [2026.10.84] - 2026-10-26
+
+### Changed
+- **Choix des voix compact** : une ligne par personnage (nom, liste de voix, bouton Écouter), réglages et passage attribué repliés derrière « Réglages et passage » ; deux colonnes sur grand écran. Fini le défilement interminable.
+- **Étape « Écoute » lisible** : plus de « Écoute · inconnu ». Le titre est « Écoute », et le détail nomme le chapitre (« Chapitre 1 · prêt à écouter »).
+- **Effacer les audios préparés demande confirmation** : plus de suppression immédiate.
+
 ## [2026.10.83] - 2026-10-25
 
 ### Fixed

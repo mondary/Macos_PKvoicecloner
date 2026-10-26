@@ -52,7 +52,7 @@ describe('progression du livre en quatre étapes', () => {
     expect(analyse.detail).toBe('1/2 chapitres · 1/2 blocs');
     // On écoute le chapitre 1 : il est prêt, le second non.
     expect(ecoute).toMatchObject({ pct: 100, etat: 'done' });
-    expect(ecoute.detail).toBe('Prêt à écouter');
+    expect(ecoute.detail).toBe('Un · prêt à écouter');
     book.position = 3;
     expect(etapesLivre(book, voix, { ia: true })[3].pct).toBe(0);
   });

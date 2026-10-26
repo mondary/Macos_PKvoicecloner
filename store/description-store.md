@@ -23,7 +23,7 @@ pas autonomes et nécessitent encore le dépôt et son environnement Python.
 
 ## Assets
 
-### PK Reader Android — 2026.10.83
+### PK Reader Android — 2026.10.84
 
 **FR — Lecture simplifiée** : commandes chapitre/page/phrase regroupées près du lecteur, compteur d’analyse près de Gérer, téléchargements de voix suivis par des notifications fixes jusqu’à fermeture du résultat. Bouton « Soutenir sur Ko-fi » explicite dans À propos.
 

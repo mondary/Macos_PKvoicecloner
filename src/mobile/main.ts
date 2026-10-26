@@ -1112,7 +1112,8 @@ async function handle(action: string, el: HTMLElement) {
       sheet.close();
       break;
     }
-    case 'clear-audio': if (native) { await audio.pause(); await Reader.clearAudio({ bookId: id }); toast('Audios de ce livre effacés.'); } else toast('Aucun audio conservé dans cet aperçu web.'); sheet.close(); break;
+    case 'clear-audio': if (native) modal('Effacer les audios préparés ?', '<p class="sheet-description">Les passages déjà générés pour ce livre seront supprimés du téléphone. Le texte, les voix choisies et la distribution restent intacts ; les chapitres se réécouteront en direct ou se prépareront à nouveau.</p><button class="primary danger-button" data-action="clear-audio-confirm" data-id="' + id + '">Effacer les audios</button>'); else toast('Aucun audio conservé dans cet aperçu web.'); break;
+    case 'clear-audio-confirm': await audio.pause(); await Reader.clearAudio({ bookId: id }); sheet.close(); toast('Audios de ce livre effacés.'); break;
     case 'reanalyser': {
       const b = books.find(b => b.id === id); if (!b) break;
       if (castingBusy(b)) { toast('Attendez la fin de l’analyse en cours.'); break; }

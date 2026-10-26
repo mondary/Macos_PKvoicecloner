@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.97] - 2026-10-26
+
+### Changed
+- Site : la présentation du lecteur garde quatre atouts ; les colonnes et le tri de la bibliothèque restent annoncés dans l’introduction.
+
 ## [2026.10.96] - 2026-10-26
 
 ### Changed

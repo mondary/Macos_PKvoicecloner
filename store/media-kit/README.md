@@ -1,6 +1,6 @@
 # Media-kit — captures de PK Reader
 
-## Références lecteur/bibliothèque (2026.10.91)
+## Références lecteur/bibliothèque (2026.10.92)
 
 Même harnais `capture-reader-controls.mjs`, désormais avec trois livres et des
 couvertures dessinées pour la démonstration (aucun livre de l’utilisateur). Il
@@ -14,7 +14,7 @@ choix de **1, 2 ou 3 colonnes** (grille recomposée sans rechargement), le **tri
 alpha puis dernier ajout, la **barre de lecture compacte** (hauteur mesurée, cinq
 options, transport de sept boutons, pied chapitre/page/pourcentage/temps) et le
 **plein écran** qui masque l’en-tête. Captures supplémentaires :
-`library-redesign`, `library-3-columns`, `reader-scroll`, `reader-return`, `chapter-voice-review`, `voices`, variantes sombre et bureau.
+`library-redesign`, `library-3-columns`, `book-search`, `reader-scroll`, `reader-return`, `chapter-voice-review`, `voices`, variantes sombre et bureau.
 Le rendu de lecture est celui de `reading-text.ts`, également utilisé pour les
 mesures de pagination. Le script attend la disparition des toasts avant capture.
 
@@ -52,7 +52,7 @@ le composant de production, pas par une analyse réelle ; le bouton Ko-fi est
 vérifié sans ouvrir de page de paiement. Captures 390/320 px et bureau 1280 px, @2x.
 
 Exports : `reader.png`, `chapter-voices.png`, `about-support.png`, `voices.png`,
-`notifications.png`, `library-3-columns.png` dans `store/screenshots/android-reader/`. Le test natif `CastingTest` vérifie que les
+`notifications.png`, `library-3-columns.png`, `book-search.png` dans `store/screenshots/android-reader/`. Le test natif `CastingTest` vérifie que les
 limites de chapitre empêchent aussi un saut au milieu d’un chapitre non validé.
 
 ## Suivi des analyses (2026.10.78)

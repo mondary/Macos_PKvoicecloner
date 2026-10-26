@@ -168,14 +168,14 @@ export function notificationDrawer(items: TaskNotification[]): string {
 }
 
 /** Puce du lecteur : juste un point qui pulse et le décompte des lots. */
-export function analysisChip(items: CastingActivity[], bookId: string): string {
+export function analysisChip(items: CastingActivity[], bookId: string, compact = false): string {
   const item = items.find(a => a.id === bookId);
   if (!item) return '';
   const etat = resume(item);
   const court = item.state === 'running'
     ? (item.progress ? `${item.progress.done}/${item.progress.total}` : 'Analyse…')
     : item.state === 'done' ? 'Terminée' : item.state === 'error' ? 'Interrompue' : 'En attente';
-  return `<button type="button" class="player-analysis ${item.state}" data-action="casting" data-id="${esc(bookId)}"
+  return `<button type="button" class="player-analysis ${item.state} ${compact ? 'compact' : ''}" data-action="casting" data-id="${esc(bookId)}"
     aria-label="${esc(etat.texte)} — ${esc(etat.detail)}. Ouvrir les voix du livre.">
-    <span class="bubble-dot" aria-hidden="true"></span>${esc(court)}</button>`;
+    <span class="bubble-dot" aria-hidden="true"></span>${compact ? '' : esc(court)}</button>`;
 }

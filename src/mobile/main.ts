@@ -27,6 +27,7 @@ import { lectureBody, settingsViewHTML, type SettingsTab } from './settings-view
 import { adresseLocale, fournisseurParId, fournisseurParUrl, optionsModeles } from './ia-providers';
 import { decouperMots, motPourPlage, motPourProgression, rendreMots } from './karaoke';
 import { colonnesBibliotheque, trierLivres } from './library-order';
+import { rechercherDansLivre } from './book-search';
 
 /* ------------------------------------------------------------------ état */
 
@@ -47,6 +48,7 @@ let screen: 'library' | 'reader' | 'voices' | 'settings' | 'book' = 'library';
 let currentId = '';
 let filter = 'all';
 let voiceTab = 'neural';
+let voiceSearch = '';
 let settingsTab: SettingsTab = 'lecture';
 let search = '';
 let importing = false;
@@ -217,7 +219,7 @@ function libraryView() {
     <button class="hero-book" data-action="open" data-id="${resume.id}" aria-label="Ouvrir ${esc(resume.title.replace(/\n/g,' '))}">${cover(resume,'hero-cover')}</button></section>` : ''}
   <section class="library-section"><div class="section-heading"><h2>Vos livres <span class="count">${books.length}</span></h2><div class="library-columns" role="group" aria-label="Colonnes de la bibliothèque">${[1,2,3].map(n => `<button data-action="library-columns" data-id="${n}" class="${colonnes===n?'active':''}" aria-pressed="${colonnes===n}" aria-label="${n} colonne${n>1?'s':''}" title="${n} colonne${n>1?'s':''}">${icon(n===1?'rectangle-vertical':n===2?'columns-2':'columns-3')}</button>`).join('')}</div></div>
   <div class="library-tools"><div class="segmented" role="group" aria-label="Filtrer les livres">${[['all','Tous'],['reading','En cours'],['finished','Terminés']].map(([id,label]) => `<button data-action="filter" data-id="${id}" class="${filter===id?'active':''}" aria-pressed="${filter===id}">${label}</button>`).join('')}</div><div class="library-tools-end"><label class="library-sort">${icon('arrow-up-down')}<span class="sr-only">Trier les livres</span><select id="library-sort" aria-label="Trier les livres">${[['recent','Dernier ajout'],['opened','Dernier ouvert'],['alpha','Titre A–Z'],['year','Année']].map(([value,label]) => `<option value="${value}" ${ordre===value?'selected':''}>${label}</option>`).join('')}</select>${icon('chevron-down')}</label><span class="library-count">${real.length ? `${real.length} livre${real.length>1?'s':''}${enCours ? ` · ${enCours} en cours` : ''}` : 'Votre étagère vous attend'}</span></div></div>
-  <div class="books-grid" data-cols="${colonnes}" style="--library-cols:${colonnes}">${filtered.map((b, i) => `<article class="book-item" style="--i:${Math.min(i, 12)}">${b.completed && !b.cover?`<span class="book-flag">Terminé</span>`:''}<button class="book-open" data-action="open" data-id="${b.id}">${cover(b)}<strong>${esc(b.title.replace(/\n/g,' '))}</strong><span>${esc(b.author)}</span></button><div class="book-bottom"><span>${b.completed?'Lu en entier':b.position>0?`${percent(b)} % · ${minutes(b)} restantes`:b.sample?'GUIDE DE DÉCOUVERTE':b.format}</span><button class="book-manage" data-action="book-settings" data-id="${b.id}" aria-label="Gérer ${esc(b.title.replace(/\n/g,' '))}">Gérer</button></div>${b.position>0 && !b.completed?`<div class="book-progress"><span style="width:${percent(b)}%"></span></div>`:''}</article>`).join('')}${filter==='all'&&!search?`<button class="import-tile" data-action="import"><span>${icon('plus')}</span><strong>La suite vous appartient.</strong><small>Importez votre prochain livre<br>EPUB, PDF ou texte</small></button>`:''}</div>
+  <div class="books-grid" data-cols="${colonnes}" style="--library-cols:${colonnes}">${filtered.map((b, i) => `<article class="book-item" style="--i:${Math.min(i, 12)}">${b.completed && !b.cover?`<span class="book-flag">Terminé</span>`:''}<button class="book-open" data-action="open" data-id="${b.id}">${cover(b)}<strong>${esc(b.title.replace(/\n/g,' '))}</strong><span>${esc(b.author)}${b.year ? ` · ${b.year}` : ''}</span></button><div class="book-bottom"><span>${b.completed?'Lu en entier':b.position>0?`${percent(b)} % · ${minutes(b)} restantes`:b.sample?'GUIDE DE DÉCOUVERTE':b.format}</span><button class="book-manage" data-action="book-settings" data-id="${b.id}" aria-label="Gérer ${esc(b.title.replace(/\n/g,' '))}">Gérer</button></div>${b.position>0 && !b.completed?`<div class="book-progress"><span style="width:${percent(b)}%"></span></div>`:''}</article>`).join('')}${filter==='all'&&!search?`<button class="import-tile" data-action="import"><span>${icon('plus')}</span><strong>La suite vous appartient.</strong><small>Importez votre prochain livre<br>EPUB, PDF ou texte</small></button>`:''}</div>
   ${!filtered.length && (search || filter !== 'all') ? `<div class="empty-state">${icon('library-big')}<strong>${search ? 'Aucun livre ne correspond.' : 'Rien sur cette étagère.'}</strong><span>${search ? 'Essayez un autre titre ou le nom de l’auteur.' : 'Changez de filtre pour retrouver vos livres.'}</span></div>` : ''}</section>
   <div class="privacy-note">${icon('lock-keyhole')}<p>Votre bibliothèque, sur votre appareil.<br><span>Sans compte. Sans publicité. Juste vos livres.</span></p></div>
   <p class="build-line">PK Reader <b>${version}</b></p>`;
@@ -241,7 +243,7 @@ const pageOf = (index: number) => Math.max(0, pages.findIndex(p => p.some(r => r
 
 function readerHeader() {
   const book = current()!;
-  return readerHeaderView(book, analysisChip(castingActivities(), book.id));
+  return readerHeaderView(book, analysisChip(castingActivities(), book.id, true));
 }
 function readingScroll() {
   const book = current()!; const chapter = chapterAt(book);
@@ -288,6 +290,26 @@ function readerView() {
   return `${readerHeader()}${settings.layout === 'pages' ? readingPages() : readingScroll()}${nowBar()}${playerHTML()}`;
 }
 
+function renderBookSearchResults(value: string) {
+  const host = document.querySelector<HTMLElement>('#book-search-results');
+  const book = current();
+  if (!host || !book) return;
+  const requete = value.trim();
+  if (requete.length < 2) {
+    host.innerHTML = '<p class="book-search-hint">Tapez au moins deux lettres.</p>';
+    return;
+  }
+  const hits = rechercherDansLivre(book, requete);
+  host.innerHTML = hits.length
+    ? `<div class="book-search-list">${hits.map(hit => `<button type="button" class="book-search-hit" data-action="book-search-go" data-index="${hit.index}"><span class="book-search-chapter">${esc(hit.chapter)}</span><span class="book-search-excerpt">${esc(hit.before)}<mark>${esc(hit.match)}</mark>${esc(hit.after)}</span></button>`).join('')}</div>`
+    : '<p class="book-search-hint">Aucun passage ne correspond.</p>';
+}
+function ouvrirRechercheLivre() {
+  if (!current()) return;
+  modal('Rechercher dans le livre', `<div class="book-search"><label class="sr-only" for="book-search-input">Rechercher dans le livre</label><div class="book-search-field">${icon('search')}<input id="book-search-input" type="search" placeholder="Un mot, un personnage…" autocomplete="off" /></div><div id="book-search-results"><p class="book-search-hint">Tapez au moins deux lettres.</p></div></div>`);
+  document.querySelector<HTMLInputElement>('#book-search-input')?.focus();
+}
+
 /* ---------------------------------------------------- gérer un livre (page) */
 
 /** Une page de réglages lisible plutôt qu'un menu caché : chaque action est
@@ -306,7 +328,7 @@ function bookView() {
   });
   const pretes = etapes.filter(e => e.etat === 'done').length;
   const icone = (etat: string) => etat === 'done' ? 'check' : etat === 'running' ? 'loader' : etat === 'error' ? 'alert-triangle' : 'circle';
-  return `<header class="book-page-head">${iconButton('arrow-left','Retour à la bibliothèque','back')}<div><p class="eyebrow">VOTRE LIVRE</p><h1>${esc(book.title.replace(/\n/g,' '))}</h1><p>${esc(book.author)} · ${book.format}${book.completed ? ' · lu en entier' : book.position > 0 ? ` · ${percent(book)} %` : ''}</p></div></header>
+  return `<header class="book-page-head">${iconButton('arrow-left','Retour à la bibliothèque','back')}<div><p class="eyebrow">VOTRE LIVRE</p><h1>${esc(book.title.replace(/\n/g,' '))}</h1><p>${esc(book.author)}${book.year ? ` · ${book.year}` : ''} · ${book.format}${book.completed ? ' · lu en entier' : book.position > 0 ? ` · ${percent(book)} %` : ''}</p></div></header>
   <section class="book-hero"><div class="book-detail-cover">${cover(book)}</div><div class="book-hero-copy"><p class="section-description">${book.position > 0 ? `${percent(book)} % lu${book.completed ? '' : ` · ${minutes(book)} restantes`}` : 'Pas encore commencé'}</p><button class="primary" data-action="listen" data-id="${book.id}">${icon('play')} ${book.completed ? 'Réécouter' : book.position > 0 ? 'Reprendre l’écoute' : 'Écouter'}</button></div></section>
   <section class="settings-section"><div class="section-heading"><h2>Progression</h2><span class="pill">${pretes}/4 PRÊTES</span></div>
     <ol class="book-steps">${etapes.map(e => `<li class="book-step ${e.etat}">
@@ -318,6 +340,7 @@ function bookView() {
     <button class="setting-row" data-action="relancer-tout" data-id="${book.id}"><span>${icon('refresh-cw')} Tout relancer</span><strong>Paragraphes, analyse, voix, lecture ${icon('chevron-right')}</strong></button>
   </section>
   <section class="settings-section"><h2>Réglages du livre</h2>
+    ${actionRow('edit-book', book.id, 'pencil', 'Modifier les informations', 'Titre, auteur et année de parution.')}
     ${actionRow('nav', 'voices', 'audio-lines', 'Voix et téléchargements', 'Gérer les voix Piper/Kokoro, celles du téléphone et vos clones ; suivre les téléchargements.')}
     ${actionRow('appearance', book.id, 'text-cursor-input', 'Réglages de lecture', 'Taille du texte, thème, marges, mise en page et surlignage.')}
     ${actionRow('prepare', book.id, 'download', 'Emporter le chapitre en cours', 'Prépare les passages audio pour l’écoute hors ligne.')}
@@ -541,14 +564,16 @@ function quickVoiceBody() {
   return `<p class="sheet-description">La voix choisie s’applique tout de suite à cette écoute.</p>${section('Mes clones', clones)}${section('Voix téléchargées', installed)}${section('Voix du téléphone', telephone, 3)}${muettes ? `<button class="setting-row" data-action="voice-langues"><span>${icon('languages')} ${settings.voiceLangues ? 'Masquer' : 'Afficher'} les ${muettes} voix des autres langues</span>${icon('chevron-right')}</button>` : ''}<button class="setting-row" data-action="nav" data-id="voices"><span>${icon('sliders-horizontal')} Télécharger ou gérer les voix</span>${icon('chevron-right')}</button>`;
 }
 function voicesView() {
-  const list = voiceTab === 'neural'
+  const base = voiceTab === 'neural'
     ? [...models].sort((a, b) => Number(b.installed) - Number(a.installed) || a.name.localeCompare(b.name, 'fr'))
     : voiceTab === 'clone' ? clones : voixTelephone();
+  const filtre = voiceSearch.trim().toLocaleLowerCase();
+  const list = filtre ? base.filter(v => `${v.name} ${v.detail ?? ''} ${v.language}`.toLocaleLowerCase().includes(filtre)) : base;
   const masquees = voiceTab === 'system' ? autresLangues() : 0;
   const installees = models.filter(m => m.installed).length;
   const enCours = voiceDownloads().filter(d => d.state === 'running').length;
   const resume = `${installees} voix installée${installees > 1 ? 's' : ''} sur cet appareil${enCours ? ` · ${enCours} téléchargement${enCours > 1 ? 's' : ''} en cours` : ''}`;
-  return `<header class="voice-page-head">${iconButton('arrow-left','Retour aux réglages','back-settings')}<div><p class="eyebrow">RÉGLAGES</p><h1>Voix</h1></div></header><div class="segmented voice-tabs" role="group" aria-label="Types de voix">${[['neural','Voix de l’app'],['system','Mon téléphone'],['clone','Mes clones']].map(([id,label])=>`<button data-action="voice-tab" data-id="${id}" class="${voiceTab===id?'active':''}" aria-pressed="${voiceTab===id}">${label}</button>`).join('')}</div><p class="voice-summary" role="status">${resume}</p><div class="voice-list">${list.map(voiceCard).join('')}</div><p id="download-status" role="status"></p>${voiceTab==='clone'&&!clones.length?`<div class="empty-card">${icon('mic')}<h2>Votre propre voix, dans vos livres.</h2><p>Connectez PK Voice Studio sur votre Mac pour retrouver vos voix clonées et générer les passages à écouter.</p><button class="primary" data-action="nav" data-id="settings">Connecter mon studio ${icon('arrow-right')}</button></div>`:''}${voiceTab==='system'?`${masquees?`<button class="setting-row" data-action="voice-langues"><span>${icon('languages')} ${settings.voiceLangues ? 'Masquer' : 'Afficher'} ${masquees} voix dans d’autres langues</span>${icon('chevron-right')}</button>`:''}<button class="setting-row" data-action="voice-settings"><span>${icon('settings-2')} Installer ou régler les voix Android</span>${icon('arrow-up-right')}</button>`:''}<div class="privacy-note">${icon('wifi-off')}<p>${voiceTab==='neural'?'Un téléchargement, puis la liberté.':'Vous gardez le choix.'}<br><span>${voiceTab==='neural'?'Les voix Piper lisent directement sur votre téléphone.':'Les voix clonées sont générées par votre studio, puis mises en cache.'}</span></p></div>${!native?'<p class="web-note">Aperçu web : les voix du navigateur sont utilisables ici. Les modèles Piper et les voix du studio fonctionnent dans l’app Android.</p>':''}`;
+  return `<header class="voice-page-head">${iconButton('arrow-left','Retour aux réglages','back-settings')}<div><p class="eyebrow">RÉGLAGES</p><h1>Voix</h1></div></header><div class="segmented voice-tabs" role="group" aria-label="Types de voix">${[['neural','Voix de l’app'],['system','Mon téléphone'],['clone','Mes clones']].map(([id,label])=>`<button data-action="voice-tab" data-id="${id}" class="${voiceTab===id?'active':''}" aria-pressed="${voiceTab===id}">${label}</button>`).join('')}</div><div class="search-row expanded voice-search-row"><label class="sr-only" for="voice-search">Rechercher une voix</label>${icon('search')}<input id="voice-search" type="search" placeholder="Rechercher une voix…" value="${esc(voiceSearch)}" autocomplete="off" /></div><p class="voice-summary" role="status">${resume}</p>${list.length ? `<div class="voice-list">${list.map(voiceCard).join('')}</div>` : `<div class="empty-state">${icon('search')}<strong>Aucune voix ne correspond.</strong><span>Essayez un autre nom ou effacez la recherche.</span></div>`}<p id="download-status" role="status"></p>${voiceTab==='clone'&&!clones.length?`<div class="empty-card">${icon('mic')}<h2>Votre propre voix, dans vos livres.</h2><p>Connectez PK Voice Studio sur votre Mac pour retrouver vos voix clonées et générer les passages à écouter.</p><button class="primary" data-action="nav" data-id="settings">Connecter mon studio ${icon('arrow-right')}</button></div>`:''}${voiceTab==='system'?`${masquees?`<button class="setting-row" data-action="voice-langues"><span>${icon('languages')} ${settings.voiceLangues ? 'Masquer' : 'Afficher'} ${masquees} voix dans d’autres langues</span>${icon('chevron-right')}</button>`:''}<button class="setting-row" data-action="voice-settings"><span>${icon('settings-2')} Installer ou régler les voix Android</span>${icon('arrow-up-right')}</button>`:''}<div class="privacy-note">${icon('wifi-off')}<p>${voiceTab==='neural'?'Un téléchargement, puis la liberté.':'Vous gardez le choix.'}<br><span>${voiceTab==='neural'?'Les voix Piper lisent directement sur votre téléphone.':'Les voix clonées sont générées par votre studio, puis mises en cache.'}</span></p></div>${!native?'<p class="web-note">Aperçu web : les voix du navigateur sont utilisables ici. Les modèles Piper et les voix du studio fonctionnent dans l’app Android.</p>':''}`;
 }
 
 /* ------------------------------------------------------------------ réglages */
@@ -1135,6 +1160,18 @@ async function handle(action: string, el: HTMLElement) {
     case 'chapters': if (book) modal('Chapitres et signets',`<button class="setting-row" data-action="bookmark"><span>${icon('bookmark')}${book.bookmarks.includes(book.position) ? 'Retirer le signet de ce passage' : 'Ajouter ce passage aux signets'}</span></button><div class="chapter-list">${book.chapters.map((c,i)=>`<button data-action="chapter" data-index="${c.start}" class="${chapterAt(book)===c?'active':''}"><span>${String(i+1).padStart(2,'0')}</span><strong>${esc(c.title)}</strong>${icon(chapterAt(book)===c?'audio-lines':'chevron-right')}</button>`).join('')}</div>${book.bookmarks.length?`<h3 class="bookmarks-heading">Vos signets</h3><div class="chapter-list">${book.bookmarks.map(i=>`<button data-action="chapter" data-index="${i}">${icon('bookmark')}<strong>${esc(book.segments[i]?.slice(0,90))}…</strong></button>`).join('')}</div>`:''}`); break;
     case 'chapter': follow = true; page = 0; await audio.seek(Number(el.dataset.index)); sheet.close(); render(); window.scrollTo(0, 0); break;
     case 'chapter-next': if (book) { const next = chapterAt(book).end; if (next < book.segments.length) { follow = true; page = 0; await audio.seek(next); render(); window.scrollTo(0, 0); } else { screen = 'library'; render(); } } break;
+    case 'book-search': ouvrirRechercheLivre(); break;
+    case 'book-search-go': {
+      const index = Number(el.dataset.index);
+      sheet.close(); follow = true;
+      await seekTo(index);
+      break;
+    }
+    case 'edit-book': {
+      const cible = books.find(b => b.id === id); if (!cible) break;
+      modal('Modifier les informations', `<form id="edit-book-form" data-id="${esc(cible.id)}"><label for="edit-title">Titre</label><input id="edit-title" name="title" value="${esc(cible.title.replace(/\n/g, ' '))}" required maxlength="160" /><label for="edit-author">Auteur</label><input id="edit-author" name="author" value="${esc(cible.author)}" maxlength="120" /><label for="edit-year">Année de parution</label><input id="edit-year" name="year" type="number" min="1000" max="${new Date().getFullYear() + 1}" inputmode="numeric" value="${cible.year ?? ''}" placeholder="facultatif" /><button class="primary" type="submit">${icon('check')} Enregistrer</button></form>`);
+      break;
+    }
     case 'bookmark': if (book) { const pos = Math.min(book.position, book.segments.length - 1); book.bookmarks = book.bookmarks.includes(pos) ? book.bookmarks.filter(i => i !== pos) : [...book.bookmarks, pos].sort((a, b) => a - b); await library.save(book); render(); toast(book.bookmarks.includes(pos)?'Passage ajouté aux signets.':'Signet retiré.'); } break;
     case 'voice-tab': voiceTab = id; render(); break;
     case 'casting': { const target = id ? books.find(b => b.id === id) : book; if (target) await castingSheet(target); break; }
@@ -1269,6 +1306,17 @@ document.addEventListener('input', e => {
     search = input.value; render();
     const next = document.querySelector<HTMLInputElement>('#search'); next?.focus();
     try { next?.setSelectionRange(position, position); } catch { /* champ masqué */ }
+    return;
+  }
+  if ((e.target as HTMLElement).id === 'voice-search') {
+    const input = e.target as HTMLInputElement; const position = input.selectionStart;
+    voiceSearch = input.value; render();
+    const next = document.querySelector<HTMLInputElement>('#voice-search'); next?.focus();
+    try { next?.setSelectionRange(position, position); } catch { /* champ masqué */ }
+    return;
+  }
+  if ((e.target as HTMLElement).id === 'book-search-input') {
+    renderBookSearchResults((e.target as HTMLInputElement).value);
   }
 });
 document.addEventListener('change', e => { if ((e.target as HTMLElement).id === 'progress') void audio.seek(Number((e.target as HTMLInputElement).value)).catch(e => toast(String(e))); });
@@ -1329,6 +1377,15 @@ sheet.addEventListener('click', e => { if (e.target === sheet) { const r = sheet
 document.addEventListener('submit', e => {
   const form = e.target as HTMLFormElement; e.preventDefault();
   if (form.id === 'paste-form') { const data = new FormData(form); void importFiles([new File([String(data.get('text'))], `${data.get('title')}.txt`, { type: 'text/plain' })]); }
+  if (form.id === 'edit-book-form') {
+    const cible = books.find(b => b.id === form.dataset.id); if (!cible) return;
+    const data = new FormData(form);
+    const annee = Number(data.get('year'));
+    cible.title = String(data.get('title') ?? '').trim() || cible.title;
+    cible.author = String(data.get('author') ?? '').trim() || 'Auteur non renseigné';
+    if (annee >= 1000 && annee <= new Date().getFullYear() + 1) cible.year = annee; else delete cible.year;
+    void library.save(cible).then(() => { sheet.close(); render(); toast('Informations du livre mises à jour.'); }).catch(error => toast(String(error)));
+  }
   if (form.id === 'studio-form') {
     const data = new FormData(form); settings.server = String(data.get('server')).replace(/\/+$/,''); settings.token = String(data.get('token')).trim();
     if (!native) { toast('La connexion au studio se fait dans l’APK Android.'); return; }

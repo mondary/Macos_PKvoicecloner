@@ -13,7 +13,8 @@ describe('lecteur regroupé', () => {
     expect(document.querySelector('.reader-actions [data-action="casting"]')?.textContent).toContain('28/141');
     expect(document.querySelector('[data-action="book-settings"]')?.getAttribute('aria-label')).toBe('Gérer le livre');
     expect(document.querySelector('[data-action="appearance"]')?.getAttribute('aria-label')).toContain('Apparence');
-    expect(document.querySelectorAll('.reader-actions button')).toHaveLength(3);
+    expect(document.querySelectorAll('.reader-actions button')).toHaveLength(4);
+    expect(document.querySelector('[data-action="book-search"]')?.getAttribute('aria-label')).toContain('Rechercher');
     // Les libellés « Gérer » ne prennent plus la place du titre.
     expect(document.querySelector('[data-action="book-settings"]')?.textContent).not.toContain('Gérer');
   });

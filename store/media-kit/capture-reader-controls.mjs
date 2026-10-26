@@ -119,6 +119,14 @@ try {
   await evaluate(`(() => {const search=document.querySelector('#search');search.value='';search.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   await click('.book-open[data-id="demo-controls"]');
   await wait('!!document.querySelector(".player") && document.querySelector("#page-footer")?.textContent.includes("/")');
+  // Recherche dans le livre : le résultat mène à la phrase.
+  await click('[data-action="book-search"]');
+  await wait('!!document.querySelector("#book-search-input")');
+  await evaluate(`(() => { const input=document.querySelector('#book-search-input'); input.value='Camille'; input.dispatchEvent(new Event('input',{bubbles:true})); })()`);
+  await wait('document.querySelectorAll(".book-search-hit").length > 0');
+  await shot('book-search');
+  await click('.book-search-hit');
+  await wait('!document.querySelector("dialog[open]")');
   await evaluate(`document.querySelector('.sentence[data-index="1"]').focus()`);
   await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
   await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
@@ -161,7 +169,7 @@ try {
   await wait('document.querySelector("#app").className.includes("layout-pages") && !!document.querySelector("#page-text")');
   await evaluate(`(async () => {
     const {analysisChip} = await import('/activity-view.ts');
-    document.querySelector('#reader-analysis').innerHTML = analysisChip([{id:'demo-controls',title:'Le voyage de Camille',state:'running',source:'IA de démonstration',debut:Date.now(),progress:{done:28,total:141,chapter:'Chapitre 2'}}],'demo-controls');
+    document.querySelector('#reader-analysis').innerHTML = analysisChip([{id:'demo-controls',title:'Le voyage de Camille',state:'running',source:'IA de démonstration',debut:Date.now(),progress:{done:28,total:141,chapter:'Chapitre 2'}}],'demo-controls', true);
   })()`);
   await shot('reader-controls');
   await evaluate(`document.documentElement.dataset.theme='dark'`); await shot('reader-controls-dark');
@@ -207,6 +215,11 @@ try {
   if (!await evaluate('document.querySelector(".chapter-review").textContent.includes("Pierre")')) throw new Error('Nouveau personnage non proposé');
   await click('dialog [data-action="close"]');
   await click('[data-action="book-settings"][data-id="demo-controls"]');
+  await click('[data-action="edit-book"]');
+  await wait('!!document.querySelector("#edit-book-form")');
+  await evaluate(`(() => { const year=document.querySelector('#edit-year'); year.value='2019'; document.querySelector('#edit-book-form').requestSubmit(); })()`);
+  await wait('!document.querySelector("dialog[open]")');
+  await wait('document.querySelector(".book-page-head > div > p:not(.eyebrow)")?.textContent.includes("2019")');
   await click('[data-action="appearance"]');
   await wait('!!document.querySelector("dialog[open]")');
   await click('dialog [data-action="close"]');
@@ -217,6 +230,12 @@ try {
   await click('[data-action="nav"][data-id="voices"]');
   await wait('document.querySelectorAll(".voice-row").length > 0');
   if (!await evaluate('document.querySelector(".voice-tabs .active")?.textContent.includes("Voix de l’app")')) throw new Error('Onglet Voix de l’app attendu');
+  // Filtre des voix.
+  await evaluate(`(() => { const input=document.querySelector('#voice-search'); input.value='siwis'; input.dispatchEvent(new Event('input',{bubbles:true})); })()`);
+  await wait('document.querySelector("#voice-search")?.value === "siwis" && document.querySelectorAll(".voice-row").length > 0');
+  if (!await evaluate('[...document.querySelectorAll(".voice-row strong")].every(el => el.textContent.toLowerCase().includes("siwis"))')) throw new Error('Filtre des voix incorrect');
+  await evaluate(`(() => { const input=document.querySelector('#voice-search'); input.value=''; input.dispatchEvent(new Event('input',{bubbles:true})); })()`);
+  await wait('document.querySelectorAll(".voice-row").length > 5');
   if (!await evaluate('document.querySelector(".voice-summary")?.textContent.includes("installée")')) throw new Error('Résumé des voix installées absent');
   const hauteurVoix = await evaluate('document.querySelector(".voice-row").getBoundingClientRect().height');
   if (hauteurVoix > 64) throw new Error(`Ligne de voix trop haute : ${hauteurVoix}px`);

@@ -14,7 +14,7 @@ Le téléphone peut exécuter lui-même l'analyse des personnages avec un fourni
 
 1. **Réglages → Analyse IA du téléphone** : deux chemins. **Sans clé**, le repérage local (immédiat, plus approximatif) suffit. **Avec une clé** — ou une **IA locale** (Ollama, LM Studio, llama.cpp sur votre Mac ou votre réseau privé, clé facultative) — choisissez le fournisseur (GLM/Z.ai, BigModel, DeepSeek, OpenAI, Mistral, Groq, OpenRouter, OpenCode Zen/Go) ; l’adresse et le lien vers la page des clés se remplissent seuls. Collez la clé, appuyez sur **Charger les modèles**, choisissez le modèle dans la liste (ou saisissez son identifiant), puis **Tester et enregistrer**. Un appel de vérification est effectué avant d’enregistrer ; une configuration qui échoue n’écrase pas la précédente.
 2. **Ouvrir un livre** : la préparation enchaîne, par sous-lots de 60 phrases, une distribution **étayée** (chaque nouveau personnage doit citer une ligne où il parle réellement), une attribution indexée, puis une **relecture critique** — cette dernière uniquement quand une attribution n’est pas sûre, ce qui économise environ un tiers des appels. Les passages dont la confiance n’est pas haute restent au narrateur. Le casting envoyé est plafonné à 80 rôles (narrateur et rôles corrigés toujours inclus) pour ne pas gonfler les prompts des grands romans. Comptez de quelques minutes à plusieurs heures par livre selon le modèle ; une IA locale peut demander une nuit entière.
-3. **Progression et reprise** : une **cloche discrète** en bas à droite porte une pastille avec le nombre de tâches en cours. Dans le lecteur, le compteur (`28/141`) reste près de **Gérer**, en haut. Un toucher sur la cloche ouvre le panneau des notifications ; le détail complet et les voix s’y trouvent. Un résultat se ferme seul après quelques secondes ; une erreur reste jusqu’à ce qu’on la retire. Chaque lot validé est sauvegardé ; une coupure reprend sans refaire le travail déjà fait. Gardez l’application ouverte pendant l’analyse.
+3. **Progression et reprise** : une **cloche discrète** en bas à droite porte une pastille avec le nombre de tâches en cours. Dans le lecteur, une **pastille d’analyse** dans l’en-tête ouvre le détail (lots, source, voix). Un toucher sur la cloche ouvre le panneau des notifications ; le détail complet et les voix s’y trouvent. Un résultat se ferme seul après quelques secondes ; une erreur reste jusqu’à ce qu’on la retire. Chaque lot validé est sauvegardé ; une coupure reprend sans refaire le travail déjà fait. Gardez l’application ouverte pendant l’analyse.
 
 ### Téléchargements et commandes du lecteur
 
@@ -53,6 +53,14 @@ sans aucune voix installée le sont. Les timbres supplémentaires restent propos
 La page **Voix** (Réglages → Voix & analyse) place les voix installées en tête de l'onglet
 **Voix de l'app**, affiche un résumé des installations et la progression de chaque
 téléchargement ; la page **Gérer** du livre propose aussi **Voix et téléchargements**.
+
+## Recherche, informations et filtre (2026.10.92)
+
+La loupe de l’en-tête du lecteur ouvre une recherche dans tout le livre : accents et casse
+sont ignorés, chaque résultat affiche son chapitre et son extrait, et un toucher amène à la
+phrase. Les extraits identiques ne sont affichés qu’une fois. La page Voix possède aussi un
+filtre par nom ; la page **Gérer** du livre permet de modifier le titre, l’auteur et l’année,
+affichée ensuite sur la fiche et dans la bibliothèque.
 
 ## Présentation du lecteur et de la bibliothèque (2026.10.89)
 
@@ -142,7 +150,7 @@ L’import démarre l’analyse. Au clic sur **Écouter — même si l’analyse
 
 Une validation fixe l’association personnage → voix dans le livre. Au chapitre suivant, les personnages connus la conservent ; si le chapitre est analysé et toutes ses voix validées/installées, il continue sans confirmation. En cas de nouveau personnage sans voix confirmée, le lecteur s’arrête avant de prononcer le chapitre et affiche le bilan. Une analyse encore en cours ne bloque plus : la distribution provisoire est affinée en arrière-plan, et le chapitre suivant repart de la version à jour. Le service Android respecte aussi cet arrêt écran verrouillé ; revenez dans l’app pour valider si nécessaire. Les choix restent mémorisés après fermeture de l’app. Le guide de découverte n’exige pas de validation.
 
-Le parcours **Les voix de ce livre** s’ouvre après l’import, depuis **Gérer → Voix des personnages** ou depuis le compteur d’analyse près de **Gérer**. L’analyse des personnages peut tourner de deux façons, sans Mac dans les deux cas :
+Le parcours **Les voix de ce livre** s’ouvre après l’import, depuis **Gérer → Voix des personnages** ou depuis la pastille d’analyse de l’en-tête. L’analyse des personnages peut tourner de deux façons, sans Mac dans les deux cas :
 
 - **avec l'IA du téléphone** (Réglages → Analyse IA du téléphone) : distribution étayée, attribution puis relecture par le modèle choisi ;
 - **sans configuration** : repérage local par indices de dialogue, plus prudent, qui laisse les passages ambigus au narrateur.
@@ -173,7 +181,7 @@ Deux limites claires : l’attribution locale n’utilise que des voix du télé
 - **Pages ou défilement** : bouton dans la barre, ou Réglages → Lecture ; le chapitre s’ouvre sur sa page de titre.
 - **Barre « en cours »** : quand vous quittez la phrase lue en tournant les pages ou en défilant, le bandeau « Revenir » montre la phrase en cours et y ramène d’un geste ; le suivi automatique reprend alors.
 - **Changer de voix sans quitter le lecteur** : le bouton voix ouvre une feuille listant clones, voix Piper installées et voix du téléphone, appliquées aussitôt.
-- **Les voix de ce livre** : depuis Gérer → Voix des personnages ; le compteur d’analyse de l’en-tête ouvre la fiche quand une analyse tourne.
+- **Les voix de ce livre** : depuis Gérer → Voix des personnages ; la pastille d’analyse de l’en-tête ouvre la fiche quand une analyse tourne.
 - Minuteur : arrêt après 5, 15, 30, 45 ou 60 minutes.
 - Thèmes clair, papier et nuit ; taille de texte, **interligne** (serré/normal/aéré), **marges** et **zone de suivi** ajustables dans Réglages → Lecture — ou depuis le lecteur avec le bouton Apparence, qui ouvre la même feuille.
 - **Plein écran de lecture** : les flèches diagonales masquent l’en-tête et laissent toute la hauteur au texte ; le même bouton rétablit l’en-tête.

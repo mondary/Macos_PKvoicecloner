@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.101] - 2026-10-26
+
+### Added
+- **PK Reader Android 2026.10.92** : recherche dans le livre, filtre des voix, édition du titre/auteur/année et affichage de l’année. Pastille d’analyse compacte dans l’en-tête.
+
 ## [2026.10.100] - 2026-10-26
 
 ### Changed

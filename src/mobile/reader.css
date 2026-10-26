@@ -182,3 +182,12 @@ input.progress-slider {
   .reader-nav-mini .play-button { width: 44px; height: 44px; }
   .player-chapter { max-width: 38%; }
 }
+
+/* Sur les très petits écrans, le compteur d'analyse et la recherche ne tiennent
+   pas ensemble dans l'en-tête : la recherche revient dès que l'analyse est finie. */
+@media (max-width: 365px) {
+  .reader-actions #reader-analysis:not(:empty) ~ [data-action='book-search'] { display: none; }
+}
+.reader-actions .player-analysis.compact { width: 36px; min-width: 36px; padding: 0; justify-content: center; }
+.reader-actions .player-analysis.compact .bubble-dot { width: 8px; height: 8px; }
+.reader-actions .player-analysis.compact { width: 36px; min-width: 36px; height: 36px; min-height: 36px; border-radius: 50%; }

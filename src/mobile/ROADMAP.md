@@ -1,6 +1,6 @@
 # PK Reader — feuille de route lecteur
 
-Retours des 21 au 26/10. État des sources au 2026.10.91.
+Retours des 21 au 26/10. État des sources au 2026.10.92.
 
 ## Fait
 
@@ -45,6 +45,7 @@ Retours des 21 au 26/10. État des sources au 2026.10.91.
 - Lecteur compact : barre unique (curseur, voix, minuteur, signet, vitesse, mise en page, plein écran), transport chapitre/page/phrase et compteurs page/pourcentage/temps — 2026.10.89.
 - Voix : menus de personnages raccourcis, attribution automatique en un geste, attribution après téléchargement, liste des voix installées en tête avec progression et accès depuis Gérer le livre — 2026.10.90.
 - Fiche des voix allégée (listes repliées, boutons play) et aperçu sonore corrigé — 2026.10.91.
+- Recherche dans le livre, filtre des voix, édition du titre/auteur/année et pastille d’analyse compacte — 2026.10.92.
 
 ## Reste
 

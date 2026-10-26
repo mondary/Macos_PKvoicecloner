@@ -7,7 +7,7 @@ export function readerHeaderView(book: Book, analysis: string) {
   const author = /^(inconnu|unknown|auteur inconnu|auteur non renseigné)$/i.test(book.author.trim()) ? '' : book.author;
   return `<header class="reader-header"><button class="icon-button" data-action="back" aria-label="Retour à la bibliothèque">${icon('arrow-left')}</button>
     <div class="reader-title"><span>${esc(book.title.replace(/\n/g, ' '))}</span>${author ? `<small>${esc(author)}</small>` : ''}</div>
-    <div class="reader-actions"><span id="reader-analysis" aria-live="polite">${analysis}</span><button class="icon-button" data-action="appearance" aria-label="Apparence et réglages de lecture" title="Apparence">${icon('sun-moon')}</button><button class="icon-button" data-action="book-settings" data-id="${esc(book.id)}" aria-label="Gérer le livre" title="Gérer le livre">${icon('settings')}</button></div></header>`;
+    <div class="reader-actions"><span id="reader-analysis" aria-live="polite">${analysis}</span><button class="icon-button" data-action="book-search" aria-label="Rechercher dans le livre" title="Rechercher">${icon('search')}</button><button class="icon-button" data-action="appearance" aria-label="Apparence et réglages de lecture" title="Apparence">${icon('sun-moon')}</button><button class="icon-button" data-action="book-settings" data-id="${esc(book.id)}" aria-label="Gérer le livre" title="Gérer le livre">${icon('settings')}</button></div></header>`;
 }
 
 /** Le transport du lecteur : chapitre, page et phrase sur une seule ligne.

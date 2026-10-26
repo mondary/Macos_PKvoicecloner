@@ -1,5 +1,16 @@
 # PK Reader Android
 
+## [2026.10.92] - 2026-10-26
+
+### Added
+- **Recherche dans le livre** : une loupe dans l’en-tête du lecteur retrouve un mot ou un personnage sans tenir compte des accents et de la casse, affiche le chapitre et l’extrait, et amène directement à la phrase choisie. Les extraits identiques ne sont pas répétés.
+- **Filtre des voix** : un champ de recherche dans la page Voix filtre l’onglet courant (voix de l’app, téléphone ou clones), en plus du tri installé d’abord.
+- **Modifier un livre** : titre, auteur et année de parution depuis Gérer → Modifier les informations. L’année s’affiche sur la fiche et dans la bibliothèque, et le tri par année en profite.
+
+### Changed
+- La pastille d’analyse dans l’en-tête du lecteur devient un simple point compact pour laisser respirer le titre ; le détail reste accessible au toucher.
+- La recherche dans le livre et le filtre des voix utilisent un contour discret au lieu du grand halo de focus.
+
 ## [2026.10.91] - 2026-10-26
 
 ### Changed

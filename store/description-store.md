@@ -23,6 +23,12 @@ pas autonomes et nécessitent encore le dépôt et son environnement Python.
 
 ## Assets
 
+### PK Reader Android — 2026.10.92
+
+**FR — Recherche et bibliothèque** : une loupe dans le lecteur retrouve un mot ou un personnage, affiche chapitre et extrait et amène à la phrase. La page Voix se filtre par nom. Titre, auteur et année se modifient depuis Gérer ; l’année apparaît sur la fiche. La pastille d’analyse devient un point discret dans l’en-tête.
+
+**EN — Search and library**: a magnifier in the reader finds a word or character, shows chapter and excerpt and jumps to the sentence. The Voices page filters by name. Title, author and year can be edited from Manage; the year appears on the book page. The analysis chip becomes a discreet dot in the header.
+
 ### PK Reader Android — 2026.10.91
 
 **FR — Fiche des voix allégée** : aide, détails et longue liste de personnages repliés, boutons play compacts, et aperçu sonore qui joue réellement (le garde-fou de chapitre ne bloque plus l’extrait).
@@ -79,9 +85,9 @@ pas autonomes et nécessitent encore le dépôt et son environnement Python.
 
 **EN — Streaming preparation and AI of your choice**: the chapter you are about to hear is analysed first and playback starts while the rest is analysed; discreet progress pill; API key or local AI (Ollama, LM Studio), or keyless local detection.
 
-**FR** — Importe un livre, valide une voix par personnage. Les locuteurs sont repérés **sur le téléphone** — avec votre propre fournisseur IA (adresse, modèle, clé chiffrée dans Android Keystore) ou, sans configuration, par indices de dialogue. L'IA identifie les personnages qui parlent, attribue chaque réplique puis relit les passages incertains : la qualité du studio sans Mac. Une majuscule suivie de deux-points ne crée pas un personnage ; les passages ambigus restent au narrateur. Le bilan indique les voix manquantes et propose leurs téléchargements Piper. **Mise à jour depuis l'app** : Réglages → Mises à jour télécharge l'APK et ouvre l'installateur, avec une clé de signature permanente. APK 2026.10.91 (release `pk-2026.10.91`).
+**FR** — Importe un livre, valide une voix par personnage. Les locuteurs sont repérés **sur le téléphone** — avec votre propre fournisseur IA (adresse, modèle, clé chiffrée dans Android Keystore) ou, sans configuration, par indices de dialogue. L'IA identifie les personnages qui parlent, attribue chaque réplique puis relit les passages incertains : la qualité du studio sans Mac. Une majuscule suivie de deux-points ne crée pas un personnage ; les passages ambigus restent au narrateur. Le bilan indique les voix manquantes et propose leurs téléchargements Piper. **Mise à jour depuis l'app** : Réglages → Mises à jour télécharge l'APK et ouvre l'installateur, avec une clé de signature permanente. APK 2026.10.92 (release `pk-2026.10.92`).
 
-**EN** — Import a book, confirm one voice per character. Speakers are identified **on the phone** — with your own AI provider (URL, model, key encrypted in Android Keystore) or, without configuration, from dialogue cues. The AI identifies speaking characters, assigns every line and then reviews uncertain passages: studio quality without a Mac. A capital letter followed by a colon does not create a character; ambiguous passages stay with the narrator. A summary lists missing voices and offers Piper downloads. **In-app updates**: Settings → Updates downloads the APK and opens the installer, with a permanent signing key. APK 2026.10.91 (release `pk-2026.10.91`).
+**EN** — Import a book, confirm one voice per character. Speakers are identified **on the phone** — with your own AI provider (URL, model, key encrypted in Android Keystore) or, without configuration, from dialogue cues. The AI identifies speaking characters, assigns every line and then reviews uncertain passages: studio quality without a Mac. A capital letter followed by a colon does not create a character; ambiguous passages stay with the narrator. A summary lists missing voices and offers Piper downloads. **In-app updates**: Settings → Updates downloads the APK and opens the installer, with a permanent signing key. APK 2026.10.92 (release `pk-2026.10.92`).
 
 Capture mobile : `store/screenshots/android-reader/casting.png` — véritable interface web (rendue par le code de production), texte fictif, repérage local. Les voix système de l’aperçu navigateur ne représentent pas le catalogue d’un téléphone Android.
 
@@ -91,6 +97,7 @@ Capture mobile : `store/screenshots/android-reader/casting.png` — véritable i
 | `store/website/assets/card-1200x630.png` | carte Open Graph du site |
 | `store/website/screenshots/voix-reference@2x.png` | capture : bibliothèque de voix |
 | `store/screenshots/android-reader/notifications.png` | capture : panneau de notifications |
+| `store/screenshots/android-reader/book-search.png` | capture : recherche dans le livre |
 | `store/screenshots/android-reader/library-3-columns.png` | capture : bibliothèque en 3 colonnes |
 | `store/website/screenshots/generation-resultat@2x.png` | capture : génération + lecteur |
 | `store/website/gifs/demo-large-1200.gif` | GIF boucle d'interface (large), utilisé par le site |

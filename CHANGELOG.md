@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.93] - 2026-10-26
+
+### Changed
+- **PK Reader Android 2026.10.85** : barre « en cours » agrandie, pourcentage et temps restant dans le mini-lecteur (minuteur déplacé dans le lecteur déplié), navigation compacte imbriquée chapitre > page > phrase.
+
 ## [2026.10.92] - 2026-10-26
 
 ### Changed

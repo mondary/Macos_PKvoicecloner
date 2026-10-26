@@ -23,14 +23,12 @@ export function readerNavigationView(book: Book, layout: 'pages' | 'scroll') {
       <span class="page-count" id="page-footer" aria-live="off">${layout === 'pages' ? '…' : 'Défilement'}</span>
       <button class="reader-nav-button" data-action="page-next" aria-label="Page suivante"><span>Page</span>${icon('chevron-right')}</button></div>
     </div>
-    <div class="reader-nav-mini" role="group" aria-label="Navigation du livre">
+    <div class="reader-nav-mini" role="group" aria-label="Navigation du livre : chapitre, page, phrase">
       <button type="button" data-action="chapter-step" data-id="-1" ${chapitrePrecedent ? 'disabled' : ''} aria-label="Chapitre précédent">${icon('skip-back')}</button>
-      <button type="button" data-action="chapter-step" data-id="1" ${chapitreSuivant ? 'disabled' : ''} aria-label="Chapitre suivant">${icon('skip-forward')}</button>
-      <span class="nav-mini-sep" aria-hidden="true"></span>
       <button type="button" data-action="page-prev" aria-label="Page précédente">${icon('chevron-left')}</button>
-      <button type="button" data-action="page-next" aria-label="Page suivante">${icon('chevron-right')}</button>
-      <span class="nav-mini-sep" aria-hidden="true"></span>
       <button type="button" data-action="previous" aria-label="Revenir d’une phrase">${icon('rotate-ccw')}</button>
       <button type="button" data-action="next" aria-label="Avancer d’une phrase">${icon('rotate-cw')}</button>
+      <button type="button" data-action="page-next" aria-label="Page suivante">${icon('chevron-right')}</button>
+      <button type="button" data-action="chapter-step" data-id="1" ${chapitreSuivant ? 'disabled' : ''} aria-label="Chapitre suivant">${icon('skip-forward')}</button>
     </div>`;
 }

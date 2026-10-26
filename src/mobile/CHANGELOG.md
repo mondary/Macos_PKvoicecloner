@@ -1,5 +1,12 @@
 # PK Reader Android
 
+## [2026.10.85] - 2026-10-26
+
+### Changed
+- **Barre « EN COURS » plus lisible** en défilement continu : texte plus grand (3 lignes), libellé accentué, barre élargie et plus haute.
+- **Mini-lecteur** : le minuteur laisse place au **pourcentage du livre et au temps restant** (`42 % · 3 h 12 min`) ; le minuteur reste dans le lecteur déplié.
+- **Navigation imbriquée** : dans la ligne compacte, les flèches sont ordonnées du plus grand au plus petit de chaque côté — chapitre, page, phrase au centre, puis phrase, page, chapitre.
+
 ## [2026.10.84] - 2026-10-26
 
 ### Changed

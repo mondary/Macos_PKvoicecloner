@@ -90,8 +90,8 @@ La capture `store/screenshots/android-reader/casting.png` (390×844) montre la
 
 Le harnais rend `<dialog open>` en non-modal : la règle
 `dialog[open]{position:fixed;inset:0;...}` de la page de capture reproduit le
-positionnement modal réel (feuille ancrée en bas). Le premier
-« Voir un passage attribué » est ouvert pour montrer la preuve de parole.
+positionnement modal réel (feuille ancrée en bas). La fiche est courte : aide, analyse
+et liste des rôles repliées ; l’attribution automatique et les boutons play restent visibles.
 
 ## Capture « Réglages » (onglets)
 

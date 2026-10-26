@@ -175,8 +175,8 @@ function tournerPage(direction: -1 | 1) {
 
 function navigation() {
   return `<nav class="navigation" aria-label="Navigation principale"><a class="brand" href="#library" aria-label="PK Reader, bibliothèque"><span class="brand-mark">${icon('audio-lines')}</span><span>pk<span class="brand-light">reader</span><small>LE PLAISIR D’ÉCOUTER</small></span></a><div class="nav-items">${[
-    ['library','library-big','Bibliothèque'],['voices','audio-lines','Voix'],['settings','sliders-horizontal','Réglages'],
-  ].map(([id, ic, label]) => `<button class="nav-item ${screen===id || (id==='library' && screen==='book')?'selected':''}" data-action="nav" data-id="${id}" ${screen===id || (id==='library' && screen==='book')?'aria-current="page"':''}>${icon(ic)}<span>${label}</span></button>`).join('')}</div><div class="nav-footer">Vos livres restent<br>entre vos mains.${icon('shield-check')}</div></nav>`;
+    ['library','library-big','Bibliothèque'],['settings','sliders-horizontal','Réglages'],
+  ].map(([id, ic, label]) => `<button class="nav-item ${screen===id || (id==='library' && screen==='book') || (id==='settings' && screen==='voices') ?'selected':''}" data-action="nav" data-id="${id}" ${screen===id || (id==='library' && screen==='book') || (id==='settings' && screen==='voices') ?'aria-current="page"':''}>${icon(ic)}<span>${label}</span></button>`).join('')}</div><div class="nav-footer">Vos livres restent<br>entre vos mains.${icon('shield-check')}</div></nav>`;
 }
 function miniPlayer() {
   const book = active(); if (!book || screen === 'reader') return '';
@@ -471,9 +471,16 @@ async function seekTo(index: number) {
 
 /* -------------------------------------------------------------------- voix */
 
-function voiceCard(v: Voice, index: number) {
+function voiceCard(v: Voice) {
   const selected = settings.voice === v.id;
-  return `<article class="voice-card ${selected?'chosen':''}"><div class="voice-card-main"><span class="voice-avatar avatar-${index%4}">${icon(v.kind==='clone'?'mic':'audio-lines')}</span><div><h3>${esc(v.name)} ${selected?icon('circle-check'):''}</h3><p>${esc(v.detail ?? `${v.language} · ${v.network?'connexion requise':'sur cet appareil'}`)}</p></div></div><div class="voice-card-bottom"><span class="voice-status">${icon(v.installed?'check':'download')}${v.installed?(v.network?'En ligne':'Disponible'): `${v.size} Mo · hors ligne après installation`}</span><div>${v.installed?`<button class="text-button" data-action="preview" data-id="${esc(v.id)}" aria-label="Écouter ${esc(v.name)}">${icon('play')}</button><button class="small-button ${selected?'selected':''}" data-action="select-voice" data-id="${esc(v.id)}">${selected?'Choisie':'Choisir'}</button>${v.kind==='neural'?`<button class="text-button" data-action="remove-model" data-id="${esc(v.id)}" aria-label="Supprimer ${esc(v.name)}">${icon('trash-2')}</button>`:''}`:`<button class="small-button" data-action="install" data-id="${esc(v.id)}">${icon('download')} Télécharger</button>`}</div></div></article>`;
+  const meta = v.installed ? (v.network ? 'en ligne' : 'sur l’appareil') : `${v.size ?? '?'} Mo`;
+  return `<article class="voice-row ${selected ? 'chosen' : ''}">
+    <span class="voice-row-icon">${icon(v.kind === 'clone' ? 'mic' : v.installed ? 'check' : 'download')}</span>
+    <span class="voice-row-copy"><strong>${esc(v.name)}${selected ? ' · choisie' : ''}</strong><small>${esc(v.detail ?? v.language)} · ${esc(meta)}</small></span>
+    <span class="voice-row-actions">${v.installed
+      ? `<button class="text-button" data-action="preview" data-id="${esc(v.id)}" aria-label="Écouter ${esc(v.name)}">${icon('play')}</button><button class="small-button ${selected ? 'selected' : ''}" data-action="select-voice" data-id="${esc(v.id)}">${selected ? 'Choisie' : 'Choisir'}</button>${v.kind === 'neural' ? `<button class="text-button" data-action="remove-model" data-id="${esc(v.id)}" aria-label="Supprimer ${esc(v.name)}">${icon('trash-2')}</button>` : ''}`
+      : `<button class="small-button" data-action="install" data-id="${esc(v.id)}">Télécharger</button>`}</span>
+  </article>`;
 }
 function voiceOption(v: Voice) {
   const selected = settings.voice === v.id;
@@ -494,7 +501,7 @@ function quickVoiceBody() {
 function voicesView() {
   const list = voiceTab === 'neural' ? models : voiceTab === 'clone' ? clones : voixTelephone();
   const masquees = voiceTab === 'system' ? autresLangues() : 0;
-  return `<header class="page-heading"><div><p class="eyebrow">À CHAQUE HISTOIRE, SA VOIX</p><h1>À l’écoute<span>.</span></h1></div><span class="heading-icon">${icon('audio-lines')}</span></header><section class="voice-intro"><span class="voice-orbit">${icon('audio-lines')}</span><div><h2>Le ton juste.<br>Pour tous vos livres.</h2><p>Une voix familière, un nouveau timbre.<br>Choisissez celle que vous aimez entendre.</p></div></section><div class="segmented voice-tabs" role="group" aria-label="Types de voix">${[['neural','À télécharger'],['system','Mon téléphone'],['clone','Mes clones']].map(([id,label])=>`<button data-action="voice-tab" data-id="${id}" class="${voiceTab===id?'active':''}" aria-pressed="${voiceTab===id}">${label}</button>`).join('')}</div><div class="voice-list">${list.map(voiceCard).join('')}</div><p id="download-status" role="status"></p>${voiceTab==='clone'&&!clones.length?`<div class="empty-card">${icon('mic')}<h2>Votre propre voix, dans vos livres.</h2><p>Connectez PK Voice Studio sur votre Mac pour retrouver vos voix clonées et générer les passages à écouter.</p><button class="primary" data-action="nav" data-id="settings">Connecter mon studio ${icon('arrow-right')}</button></div>`:''}${voiceTab==='system'?`${masquees?`<button class="setting-row" data-action="voice-langues"><span>${icon('languages')} ${settings.voiceLangues ? 'Masquer' : 'Afficher'} ${masquees} voix dans d’autres langues</span>${icon('chevron-right')}</button>`:''}<button class="setting-row" data-action="voice-settings"><span>${icon('settings-2')} Installer ou régler les voix Android</span>${icon('arrow-up-right')}</button>`:''}<div class="privacy-note">${icon('wifi-off')}<p>${voiceTab==='neural'?'Un téléchargement, puis la liberté.':'Vous gardez le choix.'}<br><span>${voiceTab==='neural'?'Les voix Piper lisent directement sur votre téléphone.':'Les voix clonées sont générées par votre studio, puis mises en cache.'}</span></p></div>${!native?'<p class="web-note">Aperçu web : les voix du navigateur sont utilisables ici. Les modèles Piper et les voix du studio fonctionnent dans l’app Android.</p>':''}`;
+  return `<header class="voice-page-head">${iconButton('arrow-left','Retour aux réglages','back-settings')}<div><p class="eyebrow">RÉGLAGES</p><h1>Voix</h1></div></header><div class="segmented voice-tabs" role="group" aria-label="Types de voix">${[['neural','À télécharger'],['system','Mon téléphone'],['clone','Mes clones']].map(([id,label])=>`<button data-action="voice-tab" data-id="${id}" class="${voiceTab===id?'active':''}" aria-pressed="${voiceTab===id}">${label}</button>`).join('')}</div><div class="voice-list">${list.map(voiceCard).join('')}</div><p id="download-status" role="status"></p>${voiceTab==='clone'&&!clones.length?`<div class="empty-card">${icon('mic')}<h2>Votre propre voix, dans vos livres.</h2><p>Connectez PK Voice Studio sur votre Mac pour retrouver vos voix clonées et générer les passages à écouter.</p><button class="primary" data-action="nav" data-id="settings">Connecter mon studio ${icon('arrow-right')}</button></div>`:''}${voiceTab==='system'?`${masquees?`<button class="setting-row" data-action="voice-langues"><span>${icon('languages')} ${settings.voiceLangues ? 'Masquer' : 'Afficher'} ${masquees} voix dans d’autres langues</span>${icon('chevron-right')}</button>`:''}<button class="setting-row" data-action="voice-settings"><span>${icon('settings-2')} Installer ou régler les voix Android</span>${icon('arrow-up-right')}</button>`:''}<div class="privacy-note">${icon('wifi-off')}<p>${voiceTab==='neural'?'Un téléchargement, puis la liberté.':'Vous gardez le choix.'}<br><span>${voiceTab==='neural'?'Les voix Piper lisent directement sur votre téléphone.':'Les voix clonées sont générées par votre studio, puis mises en cache.'}</span></p></div>${!native?'<p class="web-note">Aperçu web : les voix du navigateur sont utilisables ici. Les modèles Piper et les voix du studio fonctionnent dans l’app Android.</p>':''}`;
 }
 
 /* ------------------------------------------------------------------ réglages */
@@ -591,10 +598,14 @@ watchCasting(id => {
   const book = books.find(b => b.id === id);
   if (!book) return;
   if (chapterReview?.book.id === id && !chapterReview.ready && chapterAnalysisReady(book, settings)) {
+    // L'analyse vient de finir : on garde les voix déjà choisies dans la feuille.
+    const choisies = Object.fromEntries([...sheet.querySelectorAll<HTMLSelectElement>('[data-role-id]')]
+      .map(select => [select.dataset.roleId!, select.value]));
     chapterReview.ready = true;
-    chapterReview.choices = proposeChapterVoices(book, [...allVoices(), ...clones]);
+    chapterReview.choices = proposeChapterVoices(book, [...allVoices(), ...clones])
+      .map(choice => ({ ...choice, voice: choisies[choice.role.id] ?? choice.voice }));
     drawChapterReview();
-  } else if (chapterReview?.book.id === id && !chapterReview.ready) drawChapterReview();
+  }
   if (!castingBusy(book)) {
     // Distribution affinée pendant l'écoute : la file audio est rechargée au
     // prochain changement de chapitre pour ne pas couper le passage en cours.
@@ -684,10 +695,10 @@ async function requestChapterPlayback(book: Book) {
     const ready = chapterAnalysisReady(book, settings);
     const choices = proposeChapterVoices(book, [...allVoices(), ...clones]);
     const installed = (id: string) => id === 'system:default' || [...allVoices(), ...clones].some(v => v.id === id && v.installed);
-    if (ready && choices.every(c => c.confirmed && installed(c.voice))) {
+    if (choices.every(c => c.confirmed && installed(c.voice))) {
       await audio.load(book, settings); await audio.play(); return;
     }
-    chapterReview = { book, start: chapterAt(book).start, choices: ready ? choices : [], ready, working: false };
+    chapterReview = { book, start: chapterAt(book).start, choices, ready, working: false };
     await audio.pause();
     drawChapterReview();
   } finally { chapterPlaybackRequest = false; }
@@ -695,7 +706,7 @@ async function requestChapterPlayback(book: Book) {
 
 async function confirmChapterReview() {
   const review = chapterReview;
-  if (!review || !review.ready || review.working) return;
+  if (!review || review.working || !review.choices.length) return;
   if (chapterAt(review.book).start !== review.start) {
     chapterReview = undefined; await requestChapterPlayback(review.book); return;
   }
@@ -926,6 +937,7 @@ async function handle(action: string, el: HTMLElement) {
   switch (action) {
     case 'nav': screen = id as typeof screen; sheet.close(); follow = true; guard(); render(); window.scrollTo(0, 0); break;
     case 'back': screen = 'library'; follow = true; render(); window.scrollTo(0, 0); break;
+    case 'back-settings': screen = 'settings'; settingsTab = 'voix'; render(); window.scrollTo(0, 0); break;
     case 'open': await openBook(id); break;
     case 'listen': await openBook(id, true); break;
     case 'toggle': if (audio.state.playing || audio.state.loading) await audio.pause(); else if (book) { if (audio.state.bookId !== book.id) await audio.load(book, settings); await requestChapterPlayback(book); } break;

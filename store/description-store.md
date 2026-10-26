@@ -23,6 +23,16 @@ pas autonomes et nécessitent encore le dépôt et son environnement Python.
 
 ## Assets
 
+### PK Reader Android — 2026.10.87
+
+**FR — Deux entrées, des voix au bon endroit** : Bibliothèque et Réglages seulement. Les voix s’ouvrent depuis Réglages → Voix & analyse, en une ligne compacte par voix, avec un retour explicite vers les réglages.
+
+**EN — Two entries, voices in the right place**: Library and Settings only. Voices open from Settings → Voices & analysis, one compact row per voice, with an explicit back to settings.
+
+**FR — Choisir pendant l’analyse** : la fiche des personnages reste modifiable pendant le repérage et enregistre les voix au passage. Le bilan du chapitre s’ouvre même sans analyse terminée : on valide, on écoute tout de suite, et l’analyse affine la distribution ensuite. Seule une voix non confirmée arrête la lecture.
+
+**EN — Choose while analysing**: the character sheet stays editable during detection and saves voices as you pick them. The chapter summary opens even before analysis finishes: confirm, start listening immediately, and analysis refines the casting afterwards. Only an unconfirmed voice stops playback.
+
 ### PK Reader Android — 2026.10.86
 
 **FR — Place au contenu** : recherche visible et grandes couvertures, reprise compacte ; vrais paragraphes dans le lecteur, commandes autour de Lecture/Pause sur une ligne. Bleu et guide conservés, thèmes clair/papier/nuit disponibles.

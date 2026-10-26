@@ -211,6 +211,18 @@ try {
   await click('dialog [data-action="close"]');
   await click('[data-action="back"]');
   await click('[data-action="nav"][data-id="settings"]');
+  if (await evaluate('document.querySelectorAll(".nav-item").length') !== 2) throw new Error('Navigation principale : deux entrées attendues');
+  await click('[data-action="settings-tab"][data-id="voix"]');
+  await click('[data-action="nav"][data-id="voices"]');
+  await wait('document.querySelectorAll(".voice-row").length > 0');
+  const hauteurVoix = await evaluate('document.querySelector(".voice-row").getBoundingClientRect().height');
+  if (hauteurVoix > 64) throw new Error(`Ligne de voix trop haute : ${hauteurVoix}px`);
+  // Capture propre : les pastilles flottantes et le mini-lecteur ne font pas
+  // partie de la liste de voix et masqueraient les dernières lignes.
+  await evaluate(`document.querySelectorAll("#analysis-activities > *, .mini-player").forEach(el => el.remove())`);
+  await shot('voices');
+  await click('[data-action="back-settings"]');
+  await wait('!!document.querySelector(".settings-tabs")');
   await click('[data-action="settings-tab"][data-id="apropos"]');
   await evaluate(`document.querySelector('#analysis-activities').innerHTML = window.qaDownloads`);
   const y = await evaluate('document.querySelector(".download-bubble").getBoundingClientRect().bottom');

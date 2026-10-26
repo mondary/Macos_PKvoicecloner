@@ -83,12 +83,14 @@ describe('parcours personnages → voix', () => {
     cast.analysis = { state: 'local', completed: [] };
     const renders: string[] = [];
     await openCasting(book, available, { ...defaults }, (title, body) => { renders.push(body); show(title, body); }, () => {});
-    await vi.waitFor(() => expect(document.querySelector<HTMLFieldSetElement>('.casting-controls')?.disabled).toBe(false));
+    // Le formulaire reste utilisable pendant l'analyse : on attend le bilan, pas
+    // la fin du repérage, pour vérifier que la feuille est déjà interactive.
+    await vi.waitFor(() => expect(document.querySelector('.casting-summary')?.textContent).toContain('Les passages incertains restent au narrateur'));
+    expect(document.querySelector<HTMLFieldSetElement>('.casting-controls')?.disabled).toBe(false);
     expect(renders.every(body => !body.includes('<legend>Exemple</legend>'))).toBe(true);
     expect(book.casting!.assignments['0']).toBeUndefined();
     expect(mocks.save).toHaveBeenCalledWith(book);
     expect(document.querySelector('.casting-evidence')?.textContent).toContain('— Bonjour, dit Pierre.');
-    expect(document.querySelector('.casting-summary')?.textContent).toContain('Les passages incertains restent au narrateur');
     expect(document.querySelector('#sheet img')).toBeNull();
     document.querySelector<HTMLDialogElement>('#sheet')!.close();
   });

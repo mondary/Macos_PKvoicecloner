@@ -7,7 +7,7 @@ couvertures dessinées pour la démonstration (aucun livre de l’utilisateur). 
 vérifie la recherche, le groupement réel des phrases dans leurs paragraphes,
 l’activation d’une phrase au clavier, le suivi après bascule en défilement, puis
 « Revenir » après un déplacement manuel. Captures supplémentaires :
-`library-redesign`, `reader-scroll`, `reader-return`, variantes sombre et bureau.
+`library-redesign`, `reader-scroll`, `reader-return`, `chapter-voice-review`, `voices`, variantes sombre et bureau.
 Le rendu de lecture est celui de `reading-text.ts`, également utilisé pour les
 mesures de pagination. Le script attend la disparition des toasts avant capture.
 

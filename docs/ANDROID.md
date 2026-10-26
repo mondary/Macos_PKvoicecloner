@@ -35,7 +35,12 @@ La clé est **chiffrée dans Android Keystore** et n'est jamais réaffichée dan
 
 Le repérage local reste le repli hors ligne : incises, étiquettes corroborées et alternance des répliques, avec les passages ambigus laissés au narrateur. La génération des voix clonées reste sur le Mac (c'est le moteur de clonage) ; l'analyse, la distribution, la lecture Piper/Android et le karaoké sont autonomes sur le téléphone.
 
-## Présentation du lecteur et de la bibliothèque (2026.10.86)
+## Présentation du lecteur et de la bibliothèque (2026.10.87)
+
+Depuis **2026.10.87**, la barre principale ne compte plus que deux entrées : **Bibliothèque**
+et **Réglages**. La page des voix devient une sous-page de Réglages (Voix & analyse →
+Télécharger ou gérer les voix), avec un retour explicite et une ligne compacte par voix :
+nom, détail, taille et action au même endroit.
 
 La recherche de livres est toujours visible. Les couvertures gardent leurs proportions,
 les titres sont centrés, et la reprise prend une bande compacte plutôt qu’une grande
@@ -67,7 +72,7 @@ Après compilation, l’APK récupéré localement se trouve dans `releases/andr
 | Source | Installation | Réseau pendant la lecture |
 |---|---|---|
 | Voix Android | Moteur du téléphone ou autre moteur TTS installé | Selon la voix Android choisie |
-| Piper Siwis · Siwis légère (13 Mo) · Tom · Gilles · UPMC (Jessica/Pierre) · Tjiho 1, 2, 3 · Miro — dix voix françaises, et Lessac en anglais | Téléchargement dans l’onglet Voix, 13–23 Mo par modèle (UPMC : un téléchargement pour deux timbres) | Aucune après installation |
+| Piper Siwis · Siwis légère (13 Mo) · Tom · Gilles · UPMC (Jessica/Pierre) · Tjiho 1, 2, 3 · Miro — dix voix françaises, et Lessac en anglais | Réglages → Voix & analyse, 13–23 Mo par modèle (UPMC : un téléchargement pour deux timbres) | Aucune après installation |
 | Voix clonées PK Voice Studio | Connexion facultative au Mac | Mac requis pour les passages non encore générés ; passages préparés disponibles hors ligne |
 
 Les **voix du téléphone** se limitent par défaut au français (la voix active reste toujours visible) ; « Afficher les N voix dans d’autres langues » déplie le reste du système. La **vitesse est propre à chaque voix** : elle se règle dans la pastille du lecteur, à côté du nom, et chaque timbre retrouve la sienne.
@@ -81,7 +86,7 @@ Le clonage d’une nouvelle voix n’est pas exécuté sur le téléphone dans c
 1. Démarrer PK Voice Studio sur le Mac et choisir son moteur de génération.
 2. Depuis le dépôt, lancer `python3 src/server/mobile_gateway.py`.
 3. Sur le même réseau local de confiance, recopier l’adresse et le code dans **Réglages → Votre studio vocal** sur Android.
-4. Choisir une voix dans **Voix → Mes clones**.
+4. Choisir une voix dans **Réglages → Voix & analyse** (onglet Mes clones).
 
 La passerelle est indépendante du serveur principal et s’arrête avec Ctrl-C. Elle expose seulement l’état, les voix, l’attribution des personnages, la génération, le suivi des tâches et les audios générés. Le code est conservé dans `~/.config/pkvoicecloner/mobile-token` avec des droits limités au propriétaire. Les appels utilisent un en-tête Bearer ; la passerelle locale fonctionne en HTTP et doit rester sur votre réseau de confiance. Aucun port n’est à ouvrir sur votre routeur.
 
@@ -92,7 +97,7 @@ Chaque livre a un bouton **Gérer** visible sur sa fiche dans la bibliothèque, 
 - **Paragraphes** — 100 % quand la navigation par paragraphe est prête ; sinon **Reconstruire** (le texte n’est jamais modifié).
 - **Analyse des personnages** — nombre de chapitres terminés et de lots traités (`1/2 chapitres · 1/2 lots`), phase en cours pendant le travail, erreur affichée telle quelle. Sans clé ni IA locale, le repérage local est l’état final assumé (100 %). **Relancer** recalcule les attributions automatiques sans toucher aux corrections manuelles ni aux voix.
 - **Voix des personnages** — rôles avec un timbre adapté et nombre de voix à compléter ; **Choisir** ouvre la fiche des voix.
-- **Écoute · chapitre en cours** — 100 % quand le chapitre où vous en êtes a tous ses lots analysés ; **Préparer** lance la séquence (analyse prioritaire, voix, lecture immédiate, suite en arrière-plan).
+- **Écoute · chapitre en cours** — 100 % quand le chapitre où vous en êtes a tous ses lots analysés ; **Préparer** lance la séquence (analyse prioritaire, voix, lecture immédiate, suite en arrière-plan). La lecture n’attend pas cette analyse : seule une voix non confirmée arrête le service.
 
 **Tout relancer** enchaîne les quatre étapes : paragraphes reconstitués, analyse repartant de zéro, voix manquantes téléchargées, préparation et lecture. En dessous : **Effacer les audios préparés** et **Supprimer ce livre** (le fichier d’origine reste intact).
 
@@ -100,9 +105,9 @@ Chaque livre a un bouton **Gérer** visible sur sa fiche dans la bibliothèque, 
 
 ### Bilan automatique du chapitre avant l’écoute
 
-L’import démarre l’analyse. Au clic sur **Écouter**, le bilan du chapitre montre ses personnages, les voix proposées, celles déjà installées et celles à télécharger. Chaque ligne propose **« Écouter »** : un extrait du personnage dans ce chapitre, lu avec la voix sélectionnée dans la liste. Choisir une voix non installée déclenche son téléchargement immédiat ; l’aperçu attend la fin de l’installation. Modifiez, écoutez, puis **Validez et écoutez ce chapitre** ; seules les voix sélectionnées non installées sont alors téléchargées.
+L’import démarre l’analyse. Au clic sur **Écouter — même si l’analyse est encore en cours —**, le bilan du chapitre montre les personnages déjà repérés, les voix proposées, celles déjà installées et celles à télécharger. Chaque ligne propose **« Écouter »** : un extrait du personnage dans ce chapitre, lu avec la voix sélectionnée dans la liste. Choisir une voix non installée déclenche son téléchargement immédiat ; l’aperçu attend la fin de l’installation. Modifiez, écoutez, puis **Validez et écoutez ce chapitre** ; seules les voix sélectionnées non installées sont alors téléchargées.
 
-Une validation fixe l’association personnage → voix dans le livre. Au chapitre suivant, les personnages connus la conservent ; si le chapitre est analysé et toutes ses voix validées/installées, il continue sans confirmation. En cas de nouveau personnage ou d’analyse incomplète, le lecteur s’arrête avant de prononcer le chapitre et affiche le bilan. Le service Android respecte aussi cet arrêt écran verrouillé ; revenez dans l’app pour valider si nécessaire. Les choix restent mémorisés après fermeture de l’app. Le guide de découverte n’exige pas de validation.
+Une validation fixe l’association personnage → voix dans le livre. Au chapitre suivant, les personnages connus la conservent ; si le chapitre est analysé et toutes ses voix validées/installées, il continue sans confirmation. En cas de nouveau personnage sans voix confirmée, le lecteur s’arrête avant de prononcer le chapitre et affiche le bilan. Une analyse encore en cours ne bloque plus : la distribution provisoire est affinée en arrière-plan, et le chapitre suivant repart de la version à jour. Le service Android respecte aussi cet arrêt écran verrouillé ; revenez dans l’app pour valider si nécessaire. Les choix restent mémorisés après fermeture de l’app. Le guide de découverte n’exige pas de validation.
 
 Le parcours **Les voix de ce livre** s’ouvre après l’import, depuis **Gérer → Voix des personnages** ou depuis le compteur d’analyse près de **Gérer**. L’analyse des personnages peut tourner de deux façons, sans Mac dans les deux cas :
 

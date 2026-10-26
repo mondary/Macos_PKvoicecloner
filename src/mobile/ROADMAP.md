@@ -1,6 +1,6 @@
 # PK Reader — feuille de route lecteur
 
-Retours des 21 au 26/10. État des sources au 2026.10.86.
+Retours des 21 au 26/10. État des sources au 2026.10.87.
 
 ## Fait
 
@@ -40,6 +40,7 @@ Retours des 21 au 26/10. État des sources au 2026.10.86.
 - Sélection des voix compacte, étape Écoute clarifiée, confirmation d’effacement des audios — 2026.10.84.
 - Barre en cours agrandie, pourcentage/temps restant dans le mini-lecteur, navigation imbriquée — 2026.10.85.
 - Bibliothèque centrée sur les couvertures, vrais paragraphes et pagination fidèle, mini-lecteur imbriqué avec Lecture/Pause au centre — 2026.10.86.
+- Navigation à deux entrées (Bibliothèque, Réglages), voix compactes dans Réglages, choix des voix pendant l’analyse et écoute immédiate avec distribution provisoire — 2026.10.87.
 
 ## Reste
 

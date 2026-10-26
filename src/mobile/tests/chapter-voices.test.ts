@@ -52,14 +52,25 @@ describe('bilan des voix par chapitre', () => {
     expect(chapterReviewView(book, choices, voices, true)).toContain('à télécharger (21.3 Mo)');
   });
 
-  it('bloque un chapitre non analysé avec IA même si ses voix sont connues', () => {
+  it('laisse écouter un chapitre non analysé dès que ses voix sont validées', () => {
     const book = fixture(), settings = {...defaults,ia:{url:'https://example.com/v1',modele:'demo',revision:'r',enabled:true}};
     confirmChapterVoices(proposeChapterVoices(book, voices), {});
     expect(chapterAnalysisReady(book, settings)).toBe(true);
     expect(chapterAnalysisReady(book, settings, 2)).toBe(false);
-    expect(chapterStops(book, settings)).toEqual([2,4]);
+    // Le chapitre 2 n'est pas analysé mais ses deux voix sont validées ;
+    // seul le chapitre 3 bloque, car Pierre n'a pas encore de voix.
+    expect(chapterStops(book, settings)).toEqual([4]);
     book.casting!.analysis!.completed.push('2:4');
     expect(chapterStops(book, settings)).toEqual([4]);
+  });
+
+  it('reste utilisable pendant l’analyse pour choisir ses voix tout de suite', () => {
+    const book = fixture();
+    const provisional = proposeChapterVoices(book, voices);
+    const vue = chapterReviewView(book, provisional, voices, false);
+    expect(vue).not.toContain('disabled');
+    expect(vue).toContain('Écouter avec ces voix');
+    expect(vue).toContain('distribution provisoire');
     expect(chapterReviewView(book, [], voices, false)).toContain('disabled');
   });
 

@@ -1,5 +1,16 @@
 # PK Reader Android
 
+## [2026.10.87] - 2026-10-26
+
+### Changed
+- **Deux entrées, des voix dans les réglages** : la barre de navigation ne garde que Bibliothèque et Réglages. La page des voix devient une sous-page de Réglages → Voix & analyse, avec retour explicite ; une ligne compacte par voix remplace les grandes fiches (nom, détail, taille, action au même endroit).
+- **Choisir ses voix pendant l’analyse** : la fiche des personnages reste modifiable pendant le repérage ; chaque voix choisie est enregistrée au passage et conservée quand l’analyse ajoute ou renomme des rôles. Le bilan d’un chapitre s’ouvre même sans analyse terminée : les voix locales proposées peuvent être validées et l’écoute démarre avec une distribution provisoire, affinée automatiquement ensuite.
+- **La validation des voix est le seul arrêt** : le service Android ne bloque plus un chapitre parce que son analyse IA n’est pas terminée ; seuls les personnages sans voix confirmée interrompent la lecture.
+- **Dernière ligne atteignable** : quand le mini-lecteur flotte, le contenu réserve sa hauteur ; la liste des voix ne finit plus cachée derrière.
+
+### Fixed
+- La fiche des voix n’est plus figée pendant l’analyse ; valider conserve les voix choisies sans remplacer la distribution en cours.
+
 ## [2026.10.86] - 2026-10-26
 
 ### Changed

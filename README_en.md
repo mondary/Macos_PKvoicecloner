@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.94** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
+version **2026.10.95** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
 
 📱 **Android** — [download the APK](https://github.com/mondary/Macos_PKvoicecloner/releases/latest/download/PK-Reader-latest.apk) (stable link following the latest version) · 🍎 **macOS** — [DMG 2026.10.66](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/v2026.10.66)
 
@@ -24,25 +24,25 @@ The **PK Reader** Android app reads EPUB, text PDFs and TXT using Android voices
 
 **Manage the book** — four steps (Paragraphs, Analysis, Voices, Current-chapter listening) show their percentage and details, and can be relaunched separately; “Relaunch everything” chains paragraphs, full analysis, voices and playback.
 
-**Grouped controls** — chapter, page and sentence navigation sit near Play/Pause, with distinct labels. The analysis count stays beside “Manage”. Voice downloads remain visible in a fixed notification until the result is dismissed. About provides an explicit “Support on Ko-fi” button.
+**Grouped controls** — chapter, page and sentence navigation sit near Play/Pause, with distinct labels. The analysis count stays beside “Manage”. Voice downloads remain visible in a fixed notification until the result is dismissed. About provides an explicit “Support on Ko-fi” button. Navigation keeps only **Library** and **Settings**; the compact voice list opens from Settings → Voices & analysis.
 
-**Confirm a chapter, not the whole book** — before playback, a summary proposes voices for this chapter’s characters, distinguishing installed voices from downloads. Confirm or edit; those choices carry over to later chapters. If everything is already analysed and confirmed, playback continues without a dialog. Otherwise it waits for confirmation of new characters.
+**Confirm a chapter, not the whole book** — before playback, a summary proposes voices for this chapter’s characters, distinguishing installed voices from downloads. It opens **even during analysis**: choose, confirm, and playback starts right away with that provisional casting, which analysis then refines. Those choices carry over to later chapters; only new characters ask for confirmation again. If everything is already confirmed, playback continues without a dialog.
 
 **Choose by listening** — every proposal has a preview button playing an excerpt in the actually selected, named voice. While reading, the player collapses by default so **several paragraphs fit on a page**; a chevron expands all controls, and a button toggles paged / continuous scrolling without leaving the book.
 
 **Room for books** — visible search, large covers and a compact resume strip. Sentences flow into real paragraphs in the reader, with navigation arranged around Play/Pause on one line. The blue identity, discovery guide and voice choices are unchanged.
 
-[Android installation and guide (French)](docs/ANDROID.md) · [Current APK](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.86) (`pk-<version>` release, direct link) · [Android changelog](src/mobile/CHANGELOG.md)
+[Android installation and guide (French)](docs/ANDROID.md) · [Current APK](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.87) (`pk-<version>` release, direct link) · [Android changelog](src/mobile/CHANGELOG.md)
 
 > APKs live in `pk-<version>` releases (newest first on the releases page). The **Latest** badge follows the last published release, Android or macOS: it may point at the DMG without the APK disappearing — the direct link above stays valid.
 
-<img src="store/screenshots/android-reader/library.png" width="230" alt="PK Reader library web preview" /> <img src="store/screenshots/android-reader/reader.png" width="230" alt="PK Reader reading screen web preview" />
+<img src="store/screenshots/android-reader/library.png" width="230" alt="PK Reader library web preview" /> <img src="store/screenshots/android-reader/reader.png" width="230" alt="PK Reader reading screen web preview" /> <img src="store/screenshots/android-reader/voices.png" width="230" alt="Compact voice list in Settings: one row per voice, demonstration data" />
 
 <img src="store/screenshots/android-reader/casting.png" width="300" alt="Web preview of the characters sheet: proposed roles, an assigned passage and voices using demonstration data" />
 
 <img src="store/screenshots/android-reader/analysis-progress.png" width="230" alt="Analysis progress pill: step, batches and elapsed time, demonstration state" />
 
-<img src="store/screenshots/android-reader/chapter-voices.png" width="230" alt="Chapter voice summary with installed and downloadable proposals, demonstration data" />
+<img src="store/screenshots/android-reader/chapter-voices.png" width="230" alt="Chapter voice summary, usable during analysis: demonstration data" />
 
 ### macOS · PK Voice Studio
 

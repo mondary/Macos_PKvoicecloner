@@ -36,9 +36,11 @@ export function proposeChapterVoices(book: Book, available: Voice[], start = cha
 
 /** Les chapitres inconnus/incomplets s'arrêtent avant la première phrase, même
  *  quand c'est le service Android qui avance sans l'interface au premier plan. */
-export function chapterStops(book: Book, settings: Settings): number[] {
+export function chapterStops(book: Book, _settings: Settings): number[] {
   if (book.sample || !book.casting?.enabled) return [];
-  return book.chapters.filter(c => !chapterAnalysisReady(book, settings, c.start) ||
+  // Seule la validation des voix arrête la lecture. Une analyse en cours ne
+  // bloque plus : on peut écouter une distribution provisoire, affinée ensuite.
+  return book.chapters.filter(c =>
     chapterCharacters(book, c.start).some(role => !role.voice || role.automaticVoice !== false)).map(c => c.start);
 }
 
@@ -61,13 +63,13 @@ export function chapterReviewView(book: Book, choices: ChapterVoiceChoice[], ava
   const pool = [...voixLocales(available), ...available.filter(v => v.kind === 'clone')]
     .filter(v => v.id === 'system:default' || v.language.split(/[-_]/)[0] === book.language.split(/[-_]/)[0]);
   return `<div class="chapter-review"><p class="sheet-description"><strong>${esc(chapter.title)}</strong><br>${ready ? `${choices.length} rôle${choices.length > 1 ? 's' : ''} · ${installed}/${choices.length} voix installées, ${choices.length - installed} à télécharger.` : `Analyse en cours : ${done}/${lots.length} lots de ce chapitre. Le reste du livre continue en arrière-plan.`}</p>
-    <p class="chapter-review-status" role="status">${ready ? `Déjà validées : ${known} · Nouvelles : ${choices.length - known}. Vos choix sont conservés pour tout le livre.` : esc(book.casting?.analysis?.error ?? 'Le bilan des voix apparaît dès que ce chapitre est analysé. Vous pouvez fermer et revenir plus tard.')}</p>
-    <fieldset class="chapter-voice-choices" ${working || !ready ? 'disabled' : ''}><legend class="sr-only">Voix du chapitre</legend>
+    <p class="chapter-review-status" role="status">${ready ? `Déjà validées : ${known} · Nouvelles : ${choices.length - known}. Vos choix sont conservés pour tout le livre.` : esc(book.casting?.analysis?.error ?? 'Analyse en cours : distribution provisoire. Choisissez dès maintenant, elle s’affinera automatiquement.')}</p>
+    <fieldset class="chapter-voice-choices" ${working ? 'disabled' : ''}><legend class="sr-only">Voix du chapitre</legend>
     ${choices.map((choice, i) => `<div class="chapter-voice-choice"><div class="chapter-voice-head"><strong>${esc(choice.role.name)}</strong><small>${choice.confirmed ? 'Mémorisée' : 'Nouvelle proposition'}</small></div>
       <div class="chapter-voice-row"><select id="chapter-voice-${i}" data-download-voice data-role-id="${esc(choice.role.id)}" aria-label="Voix de ${esc(choice.role.name)}">
       ${!pool.some(v => v.id === choice.voice) ? `<option value="${esc(choice.voice)}">${esc(choice.voice)} · indisponible</option>` : ''}
       ${pool.map(v => `<option value="${esc(v.id)}" ${v.id === choice.voice ? 'selected' : ''}>${esc(v.name)} · ${v.installed ? 'installée' : `à télécharger${v.size ? ` (${v.size} Mo)` : ''}`}</option>`).join('')}</select>
       <button type="button" class="small-button" data-action="chapter-voice-preview" data-id="${esc(choice.role.id)}" aria-label="Écouter un extrait avec la voix choisie pour ${esc(choice.role.name)}">${icon('play')} Écouter</button></div></div>`).join('')}
-    </fieldset><button class="primary" data-action="chapter-voices-confirm" ${!ready || working ? 'disabled' : ''}>${working ? 'Installation des voix…' : 'Valider et écouter ce chapitre'}</button>
-    <p class="update-note">Les voix à télécharger sont installées après validation. Au prochain chapitre, seuls les nouveaux personnages demandent une confirmation.</p></div>`;
+    </fieldset><button class="primary" data-action="chapter-voices-confirm" ${working || !choices.length ? 'disabled' : ''}>${working ? 'Installation des voix…' : ready ? 'Valider et écouter ce chapitre' : 'Écouter avec ces voix'}</button>
+    <p class="update-note">Les voix à télécharger sont installées après validation. ${ready ? 'Au prochain chapitre, seuls les nouveaux personnages demandent une confirmation.' : 'L’analyse complète du chapitre continue en arrière-plan et affinera la distribution.'}</p></div>`;
 }

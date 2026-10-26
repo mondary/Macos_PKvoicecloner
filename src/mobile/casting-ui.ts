@@ -26,6 +26,8 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
   let first = 0, preview = false, busy = false, closed = false, advanced = false;
   let status = '', invalid = false;
   const working = () => busy || castingBusy(book);
+  // Pendant l'analyse, on peut déjà choisir : seule une opération en cours bloque.
+  const bloque = () => busy;
   const message = (text: string, error = false) => {
     status = text; invalid = error;
     const el = sheet.querySelector<HTMLElement>('#casting-status');
@@ -46,6 +48,25 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
       role.rate = Number(row.querySelector<HTMLInputElement>('[name="rate"]')!.value);
     });
   };
+  /** Pendant l'analyse, la distribution vivante continue d'être modifiée par
+   *  les lots : on y applique les voix choisies au lieu de remplacer l'objet. */
+  const fusionnerVoix = () => {
+    const vivante = ensureCasting(book);
+    const parId = new Map(vivante.characters.map(c => [c.id, c]));
+    for (const role of draft.characters) {
+      const cible = parId.get(role.id);
+      if (!cible) continue;
+      cible.name = role.name; cible.voice = role.voice; cible.pitch = role.pitch;
+      cible.rate = role.rate; cible.automaticVoice = role.automaticVoice;
+    }
+    for (const [index, manuel] of Object.entries(draft.manualAssignments ?? {})) {
+      if (!manuel) continue;
+      const locuteur = draft.assignments[index];
+      if (!locuteur) continue;
+      vivante.assignments[index] = locuteur;
+      (vivante.manualAssignments ??= {})[index] = true;
+    }
+  };
   const save = async () => {
     // Nettoie les rôles hérités d'anciennes analyses : un nom seulement cité
     // dans le récit n'a pas de réplique, donc pas de voix à conserver.
@@ -54,6 +75,12 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
       c.id === 'narrator' || utilises.has(c.id) || !roleAuto(c));
     const names = draft.characters.map(c => c.name.trim().toLocaleLowerCase());
     if (names.some(n => !n) || new Set(names).size !== names.length) throw new Error('Donnez un nom différent à chaque personnage.');
+    if (castingBusy(book)) {
+      fusionnerVoix();
+      await library.save(book);
+      message('Voix enregistrées ; l’analyse continue en arrière-plan.');
+      return;
+    }
     const previous = book.casting;
     book.casting = structuredClone(draft);
     try { await library.save(book); } catch (error) { book.casting = previous; throw error; }
@@ -95,7 +122,7 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
       <p class="sheet-description">Le téléphone repère les locuteurs à partir des indices de dialogue. Vérifiez les noms proposés et leurs passages associés, puis choisissez leurs voix. Une majuscule ou un mot suivi de deux-points ne suffit pas à identifier un personnage. Pour tout recalculer : menu du livre (⋯) → Relancer l’analyse des personnages.</p>
       <section class="casting-summary" aria-label="Analyse du livre"><strong>${roles.length} rôle${roles.length > 1 ? 's' : ''} proposé${roles.length > 1 ? 's' : ''}, narrateur compris</strong><p role="status">${esc(analysisText)}</p>
         ${missing.length ? `<button type="button" class="casting-preview" data-cast="needs">${missing.length} voix à compléter · voir les propositions ↓</button>` : ''}</section>
-      <fieldset class="casting-controls" ${working() ? 'disabled' : ''} aria-busy="${working()}">
+      <fieldset class="casting-controls" ${busy ? 'disabled' : ''} aria-busy="${working()}">
       <div class="casting-roles">${roles.map(({ role, i }) => `<fieldset data-character="${i}" class="casting-role"><legend class="sr-only">${esc(role.name)}</legend>
         <div class="casting-role-head"><strong>${esc(role.name)}</strong><small>${genderLabel(role.gender)} · ${counts.get(role.id) || 0} phrases${role.automaticVoice ? missing.includes(role) ? ' · provisoire' : ' · proposée' : ''}</small></div>
         <div class="casting-role-main">
@@ -122,7 +149,7 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
     if (focusId) document.getElementById(focusId)?.focus({ preventScroll: true });
   };
   const act = async (button: HTMLButtonElement) => {
-    if (working()) return;
+    if (bloque()) return;
     collect(); advanced = sheet.querySelector<HTMLDetailsElement>('#casting-advanced')?.open ?? false;
     const role = draft.characters[Number(button.dataset.id)];
     switch (button.dataset.cast) {
@@ -211,14 +238,17 @@ export async function openCasting(book: Book, available: Voice[], settings: Sett
   };
   const onChange = (event: Event) => {
     const el = event.target as HTMLSelectElement;
-    if (working()) return;
+    if (bloque()) return;
     collect();
     if (el.dataset.segment) {
       draft.assignments[el.dataset.segment] = el.value;
       (draft.manualAssignments ??= {})[el.dataset.segment] = true;
     }
     if (el.id === 'cast-chapter') { chapter = Number(el.value); first = 0; advanced = true; draw(); }
-    if (el.name === 'voice') draw();
+    if (el.name === 'voice') {
+      if (castingBusy(book)) { fusionnerVoix(); void library.save(book).catch(error => message(String(error), true)); }
+      draw();
+    }
   };
   const unwatch = watchCasting(id => {
     if (id !== book.id || closed) return;

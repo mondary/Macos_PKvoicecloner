@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.95] - 2026-10-26
+
+### Changed
+- **PK Reader Android 2026.10.87** : navigation réduite à Bibliothèque et Réglages, liste des voix compacte dans Réglages ; choix des voix possible pendant l’analyse, écoute immédiate avec une distribution provisoire affinée ensuite. Seule une voix non confirmée arrête la lecture.
+
 ## [2026.10.94] - 2026-10-26
 
 ### Changed

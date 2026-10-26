@@ -44,7 +44,7 @@ class OfflineReadingTest {
             val pageText=AtomicReference("")
             eventually(30000){
                 scenario.onActivity { it.bridge.webView.evaluateJavascript("document.body.innerText") { value->pageText.set(value) } }
-                pageText.get().contains("Mes livres")
+                pageText.get().contains("Bibliothèque")
             }
             scenario.onActivity { it.startForegroundService(Intent(it,ReadingService::class.java).setAction("load")) }
             eventually{ReadingService.savedState(context).optString("bookId")=="integration"}

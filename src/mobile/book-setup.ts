@@ -1,4 +1,4 @@
-import { besoinsVoix, proposerVoix, speechProfile } from './casting';
+import { attribuerVoixAutomatiquement, besoinsVoix, speechProfile } from './casting';
 import { prepareCasting } from './casting-jobs';
 import { chapterAt } from './books';
 import { audio, native, Reader } from './engine';
@@ -31,7 +31,7 @@ const installer = async (voice: Voice, statut: (texte: string) => void) => {
 /** Télécharge les voix manquantes proposées puis réassocie les timbres. Les
  *  téléchargements sont indépendants du service audio : ils peuvent continuer
  *  pendant l'écoute. Retourne le nombre de timbres installés. */
-async function telechargerVoixManquantes(book: Book, available: Voice[], settings: Settings,
+async function telechargerVoixManquantes(book: Book, available: Voice[],
   statut: (texte: string) => void): Promise<number> {
   const plan = besoinsVoix(book.casting!, available, book.language);
   if (!plan.downloads.length) return 0;
@@ -40,7 +40,7 @@ async function telechargerVoixManquantes(book: Book, available: Voice[], setting
     await installer(item.voice, statut);
   }
   const catalogue = await Reader.models();
-  proposerVoix(book.casting!, catalogue.voices, settings.voice, book.language);
+  attribuerVoixAutomatiquement(book.casting!, catalogue.voices, book.language);
   await library.save(book);
   return plan.downloads.length;
 }
@@ -71,7 +71,7 @@ export async function preparerLivreAudio(book: Book, available: Voice[], setting
   // 2. Télécharger les voix manquantes proposées, puis réassocier les timbres.
   // Avec une lecture interactive, le bilan du chapitre doit être validé avant
   // tout téléchargement : seules les voix effectivement choisies sont installées.
-  if (!demarrerLecture && await telechargerVoixManquantes(book, available, settings, statut)) {
+  if (!demarrerLecture && await telechargerVoixManquantes(book, available, statut)) {
     statut('Voix du chapitre installées.');
   }
   // 3. Lecture immédiate : le reste de l'analyse continue en arrière-plan et

@@ -33,25 +33,138 @@ function resume(item: CastingActivity, maintenant = Date.now()): ResumeActivity 
     texte: p?.phase ? `${phases[p.phase]} · ${compte} blocs` : `Analyse · ${compte} blocs`,
     detail: `${item.title} · ${item.source} · ${formaterDuree(ecoule)} écoulées${restant}`,
     pct: p?.total ? Math.round(p.done / p.total * 100) : 0,
-  };}
+  };
+}
 
-/** Pastille flottante : une notification discrète, pas une carte. Le détail
- *  (source, chapitre, lots) vit dans la fiche des voix, pas ici. */
-export function activityView(items: CastingActivity[]): string {
-  return items.slice(0, 3).map(item => {
-    const etat = resume(item);
-    const terminal = item.state === 'done' || item.state === 'error';
-    return `<div class="analysis-bubble ${item.state}" data-activity-id="${esc(item.id)}">
-      <button type="button" class="bubble-main" data-action="casting" data-id="${esc(item.id)}"
-        aria-label="${esc(etat.texte)} — ${esc(etat.detail)}. Ouvrir les voix du livre.">
-        <span class="bubble-dot" aria-hidden="true"></span>
-        <span class="bubble-text">${esc(etat.texte)}</span>
-        ${item.state === 'running' && etat.pct > 0 ? `<span class="bubble-bar" style="width:${etat.pct}%"></span>` : ''}
-      </button>
-      ${terminal ? `<button type="button" class="bubble-close" data-action="activity-dismiss" data-id="${esc(item.id)}"
-        aria-label="Fermer le message ${esc(etat.texte)}">${icon('x')}</button>` : ''}
-    </div>`;
-  }).join('');
+/** Une ligne du centre de notifications : analyse des personnages ou
+ *  téléchargement d'une voix. Le panneau et la pastille partagent ce modèle. */
+export interface TaskNotification {
+  key: string;
+  kind: 'analysis' | 'download';
+  id: string;
+  title: string;
+  state: 'queued' | 'running' | 'done' | 'error';
+  detail: string;
+  pct?: number;
+  error?: string;
+}
+
+function analyseNotification(item: CastingActivity, maintenant = Date.now()): TaskNotification {
+  const p = item.progress;
+  const commun = { key: `analysis:${item.id}`, kind: 'analysis' as const, id: item.id, title: item.title };
+  if (item.state === 'error') {
+    return { ...commun, state: 'error', detail: item.source, pct: p?.total ? Math.round(p.done / p.total * 100) : 0, error: item.error ?? 'Analyse interrompue.' };
+  }
+  if (item.state === 'done') {
+    const n = item.characters ?? 0;
+    return { ...commun, state: 'done', detail: `${item.source} · ${n} personnage${n > 1 ? 's' : ''} proposé${n > 1 ? 's' : ''}`, pct: 100 };
+  }
+  if (item.state === 'queued') return { ...commun, state: 'queued', detail: `${item.source} · en attente`, pct: 0 };
+  const ecoule = Math.max(0, maintenant - item.debut);
+  const phase = p?.phase ? phases[p.phase] : 'Analyse';
+  const compte = p ? `${p.done}/${p.total} blocs` : 'préparation';
+  const restant = p && p.done >= 3 ? ` · ≈ ${formaterDuree(ecoule / p.done * (p.total - p.done))}` : '';
+  return { ...commun, state: 'running', detail: `${item.source} · ${phase} · ${compte}${restant}`, pct: p?.total ? Math.round(p.done / p.total * 100) : 0 };
+}
+
+function telechargementNotification(item: VoiceDownload): TaskNotification {
+  const commun = { key: `download:${item.id}`, kind: 'download' as const, id: item.id, title: item.name };
+  if (item.state === 'error') {
+    return { ...commun, state: 'error', detail: 'Téléchargement interrompu.', pct: item.progress, error: item.error ?? 'Téléchargement interrompu.' };
+  }
+  if (item.state === 'done') return { ...commun, state: 'done', detail: 'Voix installée sur cet appareil', pct: 100 };
+  return {
+    ...commun, state: 'running', pct: item.progress,
+    detail: item.progress >= 100 ? 'Installation en cours…' : `${Math.round(item.progress)} % téléchargé`,
+  };
+}
+
+/** Fusionne les deux files en une seule liste lisible, erreurs d'abord. */
+export function collectNotifications(activities: CastingActivity[], downloads: VoiceDownload[]): TaskNotification[] {
+  const rang = { error: 0, queued: 1, running: 1, done: 2 } as const;
+  return [...activities.map(item => analyseNotification(item)), ...downloads.map(telechargementNotification)]
+    .sort((a, b) => rang[a.state] - rang[b.state]);
+}
+
+export function notificationCounts(items: TaskNotification[]) {
+  return {
+    actives: items.filter(item => item.state === 'running' || item.state === 'queued').length,
+    erreurs: items.filter(item => item.state === 'error').length,
+    terminees: items.filter(item => item.state === 'done').length,
+    total: items.length,
+  };
+}
+
+const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+
+function resumeCompte(items: TaskNotification[]) {
+  const { actives, erreurs, terminees } = notificationCounts(items);
+  return [actives ? `${pluriel(actives, 'tâche')} en cours` : '', erreurs ? `${pluriel(erreurs, 'erreur')}` : '', terminees ? `${terminees} terminée${terminees > 1 ? 's' : ''}` : '']
+    .filter(Boolean).join(' · ');
+}
+
+/** Pastille flottante : juste une cloche et le nombre de tâches à suivre.
+ *  Le détail vit dans le panneau ; rien ne s'empile en bas de l'écran. */
+export function notificationBell(items: TaskNotification[], open = false): string {
+  if (!items.length) return '';
+  const { actives, erreurs, terminees } = notificationCounts(items);
+  const urgence = actives + erreurs;
+  const badge = erreurs ? (urgence > 1 ? String(urgence) : '!')
+    : actives ? String(actives)
+      : terminees ? icon('check') : '';
+  const classes = [erreurs ? 'alert' : '', actives ? 'running' : '', !actives && !erreurs && terminees ? 'done' : ''].filter(Boolean).join(' ');
+  const etat = [actives ? `${pluriel(actives, 'tâche')} en cours` : '', erreurs ? pluriel(erreurs, 'erreur') : '', terminees && !actives && !erreurs ? `${terminees} terminée${terminees > 1 ? 's' : ''}` : '']
+    .filter(Boolean).join(', ');
+  return `<button type="button" class="notification-bell ${classes}" data-action="notifications"
+    aria-label="Notifications${etat ? ` : ${etat}` : ''}. Ouvrir le panneau." aria-haspopup="dialog"
+    aria-controls="notifications" aria-expanded="${open}" title="Notifications">${icon(erreurs ? 'bell-ring' : 'bell')}
+    ${badge ? `<span class="notification-badge ${erreurs ? 'alert' : ''} ${!actives && !erreurs ? 'done' : ''}" aria-hidden="true">${badge}</span>` : ''}</button>`;
+}
+
+/** Texte annoncé aux lecteurs d'écran : les compteurs changent d'état, pas à
+ *  chaque pourcentage, pour ne pas répéter la progression en boucle. */
+export function notificationSummary(items: TaskNotification[]): string {
+  if (!items.length) return 'Aucune notification.';
+  const { actives, erreurs, terminees } = notificationCounts(items);
+  const parties = [actives ? `${pluriel(actives, 'tâche')} en cours` : '', erreurs ? pluriel(erreurs, 'erreur') : '', terminees ? `${terminees} terminée${terminees > 1 ? 's' : ''}` : '']
+    .filter(Boolean);
+  return parties.join(', ') + '.';
+}
+
+function itemNotification(item: TaskNotification): string {
+  const libelle = item.state === 'error' ? 'Erreur' : item.state === 'done' ? 'Terminée' : item.state === 'queued' ? 'En attente' : 'En cours';
+  const ouvrir = item.kind === 'analysis'
+    ? `<button type="button" class="notification-link" data-action="notification-casting" data-id="${esc(item.id)}" data-notif="${esc(item.key)}">Voir le livre</button>`
+    : `<button type="button" class="notification-link" data-action="notification-voices" data-notif="${esc(item.key)}">Voir les voix</button>`;
+  const retirer = item.state === 'done' || item.state === 'error'
+    ? `<button type="button" class="notification-link notification-remove" data-action="${item.kind === 'analysis' ? 'activity-dismiss' : 'download-dismiss'}" data-id="${esc(item.id)}" data-notif="${esc(item.key)}">Retirer</button>`
+    : '';
+  return `<article class="notification-item ${item.state}">
+    <span class="notification-kind" aria-hidden="true">${icon(item.kind === 'analysis' ? 'sparkles' : 'download')}</span>
+    <div class="notification-copy">
+      <div class="notification-title"><strong>${esc(item.title)}</strong><span class="notification-state">${libelle}</span></div>
+      <p class="notification-detail">${esc(item.detail)}</p>
+      ${item.pct !== undefined && item.state === 'running' ? `<div class="notification-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(item.pct)}" aria-label="Progression de ${esc(item.title)}"><span style="width:${Math.max(0, Math.min(100, item.pct))}%"></span></div>` : ''}
+      ${item.error ? `<p class="notification-error">${esc(item.error)}</p>` : ''}
+      <div class="notification-actions">${ouvrir}${retirer}</div>
+    </div>
+  </article>`;
+}
+
+/** Contenu du panneau latéral, groupé par urgence puis par état. */
+export function notificationDrawer(items: TaskNotification[]): string {
+  if (!items.length) {
+    return `<div class="notifications-empty">${icon('bell')}<p>Aucune notification.</p><p>Les analyses et les téléchargements de voix apparaîtront ici, sans encombrer l'écran.</p></div>`;
+  }
+  const groupes: [string, TaskNotification[]][] = [
+    ['À vérifier', items.filter(item => item.state === 'error')],
+    ['En cours', items.filter(item => item.state === 'running' || item.state === 'queued')],
+    ['Terminées', items.filter(item => item.state === 'done')],
+  ];
+  const resume = resumeCompte(items);
+  return `<p class="notifications-summary">${esc(resume)}</p>
+    ${groupes.filter(([, liste]) => liste.length).map(([titre, liste]) =>
+      `<section class="notifications-group"><h3>${titre}<span>${liste.length}</span></h3>${liste.map(itemNotification).join('')}</section>`).join('')}`;
 }
 
 /** Puce du lecteur : juste un point qui pulse et le décompte des lots. */
@@ -65,34 +178,4 @@ export function analysisChip(items: CastingActivity[], bookId: string): string {
   return `<button type="button" class="player-analysis ${item.state}" data-action="casting" data-id="${esc(bookId)}"
     aria-label="${esc(etat.texte)} — ${esc(etat.detail)}. Ouvrir les voix du livre.">
     <span class="bubble-dot" aria-hidden="true"></span>${esc(court)}</button>`;
-}
-
-/** Une seule pastille pendant les téléchargements, puis un bilan bref par voix.
- *  Empiler une bulle par voix rendait le bas de l'écran illisible. */
-export function downloadActivityView(items: VoiceDownload[]): string {
-  const enCours = items.filter(item => item.state === 'running');
-  const finis = items.filter(item => item.state !== 'running');
-  const individuelle = (item: VoiceDownload) => {
-    const label = item.state === 'done' ? `${item.name} · installée`
-      : item.state === 'error' ? `${item.name} · échec`
-      : item.progress >= 100 ? `${item.name} · installation…` : `${item.name} · ${Math.round(item.progress)} %`;
-    return `<div class="analysis-bubble download-bubble ${item.state}">
-      <button type="button" class="bubble-main" data-action="nav" data-id="voices"
-        aria-label="${esc(label)}${item.error ? ` : ${esc(item.error)}` : ''}. Ouvrir les voix.">
-        <span class="bubble-dot" aria-hidden="true"></span><span class="bubble-text">${esc(label)}</span>
-        ${item.state === 'running' ? `<span class="bubble-bar" style="width:${item.progress}%"></span>` : ''}
-      </button>
-      ${item.state !== 'running' ? `<button type="button" class="bubble-close" data-action="download-dismiss" data-id="${esc(item.id)}" aria-label="Fermer le suivi de ${esc(item.name)}">${icon('x')}</button>` : ''}
-    </div>${item.error ? `<p class="download-error">${esc(item.error)}</p>` : ''}`;
-  };
-  const groupe = enCours.length >= 2 ? (() => {
-    const pct = Math.round(enCours.reduce((n, item) => n + item.progress, 0) / enCours.length);
-    return `<div class="analysis-bubble download-bubble running">
-      <button type="button" class="bubble-main" data-action="nav" data-id="voices"
-        aria-label="${enCours.length} téléchargements en cours, ${pct} % en moyenne. Ouvrir les voix.">
-        <span class="bubble-dot" aria-hidden="true"></span><span class="bubble-text">${enCours.length} téléchargements · ${pct} %</span>
-        <span class="bubble-bar" style="width:${pct}%"></span>
-      </button></div>`;
-  })() : enCours.map(individuelle).join('');
-  return groupe + finis.map(individuelle).join('');
 }

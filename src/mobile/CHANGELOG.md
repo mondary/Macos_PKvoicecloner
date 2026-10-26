@@ -1,5 +1,15 @@
 # PK Reader Android
 
+## [2026.10.88] - 2026-10-26
+
+### Changed
+- **Notifications discrètes** : les tuiles empilées en bas de l’écran laissent place à une cloche unique avec pastille (nombre de tâches en cours, erreur en rouge). Un toucher ouvre un panneau latéral groupé « À vérifier / En cours / Terminées » : analyses et téléchargements y montrent leur avancement, une action vers le livre ou les voix, et « Retirer » pour les résultats. Les tâches terminées s’effacent seules ; les erreurs restent. Le panneau se met à jour sans voler le focus et garde sa position de défilement.
+- **Colonnes de la bibliothèque** : choix 1, 2 ou 3 colonnes sur téléphone depuis l’en-tête « Vos livres » ; le réglage est conservé et la grille se met à jour sans recharger la page ni perdre le focus.
+- **Tri de la bibliothèque** : dernier ajout (défaut), dernier ouvert, titre A–Z ou année. L’année vient des métadonnées EPUB (`dc:date`), avec l’année d’ajout en repli pour les PDF, TXT et textes collés. Le tri se fait sur place, sans recharger la bibliothèque.
+
+### Fixed
+- La liste des voix et le contenu de la bibliothèque réservent la hauteur du mini-lecteur : la dernière ligne reste atteignable.
+
 ## [2026.10.87] - 2026-10-26
 
 ### Changed

@@ -25,6 +25,7 @@
 
 ## Skills récemment appliquées
 
+- `baseline-ui` / `fixing-accessibility` / `design-taste-frontend` / `app-presence-sync` / `-pk-COMMIT` — PK Reader 2026.10.88 : centre de notifications (cloche, pastille, panneau latéral avec focus et défilement conservés), colonnes de bibliothèque 1–3 et tri par ajout/ouverture/titre/année. Tests du tri, du panneau et capture statique du drawer.
 - `design-taste-frontend` / `baseline-ui` / `fixing-accessibility` / `app-presence-sync` / `-pk-COMMIT` — PK Reader 2026.10.87 : navigation réduite à deux entrées, voix compactes dans Réglages, formulaire des personnages utilisable pendant l’analyse et écoute immédiate avec distribution provisoire. QA navigateur étendue (deux entrées, hauteur des lignes de voix), tests du bilan de chapitre mis à jour.
 - `redesign-existing-projects` / `design-taste-frontend` / `fixing-accessibility` / `app-presence-sync` / `-pk-COMMIT` — PK Reader 2026.10.86 : refonte ciblée à partir des références utilisateur, bleu et guide conservés ; vrais paragraphes, mesures de pagination identiques au rendu, bibliothèque orientée couvertures et commandes de lecture imbriquées. Captures fictives et tests de conservation du texte.
 - `fixing-accessibility` / `app-presence-sync` / `-pk-COMMIT` — PK Reader 2026.10.83 : téléchargement automatique de la voix choisie, aperçu qui attend l’installation, bulles de téléchargement regroupées et auto-effacées, clarification blocs/personnages et auto-attribution privilégiant les voix installées et légères.

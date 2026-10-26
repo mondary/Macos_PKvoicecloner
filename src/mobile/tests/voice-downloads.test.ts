@@ -3,14 +3,14 @@ import { describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ models: vi.fn(), installModel: vi.fn(async () => {}) }));
 vi.mock('../engine', () => ({ native: true, Reader: mocks }));
 import { DownloadActivityStore, installVoice, voiceDownloads, dismissVoiceDownload, monitorVoiceDownloads, watchVoiceDownloads } from '../voice-downloads';
-import { downloadActivityView } from '../activity-view';
+import { collectNotifications, notificationBell, notificationDrawer } from '../activity-view';
 import type { Voice } from '../types';
 const miro: Voice = { id: 'neural:miro', name: 'Miro', installed: false, language: 'fr-FR', kind: 'neural' };
 const snapshot = (progress: number, installed = false, error?: string) => ({
   voices: [{ ...miro, installed }], downloads: { [miro.id]: { progress, error } },
 });
 
-describe('notifications fixes des téléchargements', () => {
+describe('centre de notifications des téléchargements', () => {
   it('conserve la tâche jusqu’à installation réelle puis fermeture explicite', () => {
     const store = new DownloadActivityStore();
     store.begin(miro.id, miro.name);
@@ -22,7 +22,9 @@ describe('notifications fixes des téléchargements', () => {
     expect(store.list()[0].state).toBe('running');
     store.sync(snapshot(100, true));
     expect(store.list()[0].state).toBe('done');
-    expect(downloadActivityView(store.list())).toContain('Miro · installée');
+    const centre = collectNotifications([], store.list());
+    expect(notificationDrawer(centre)).toContain('Voix installée sur cet appareil');
+    expect(notificationBell(centre)).toContain('notification-badge');
     store.dismiss(miro.id);
     store.sync(snapshot(100, true));
     expect(store.list()).toEqual([]);
@@ -36,13 +38,13 @@ describe('notifications fixes des téléchargements', () => {
     store.begin(miro.id, 'Miro <test>');
     store.begin('neural:tom', 'Tom');
     store.fail(miro.id, 'Réseau <coupé>');
-    const html = downloadActivityView(store.list());
+    const html = notificationDrawer(collectNotifications([], store.list()));
     document.body.innerHTML = html;
     expect(html).toContain('Réseau &lt;coupé&gt;');
-    expect(document.querySelectorAll('.download-bubble')).toHaveLength(2);
+    expect(document.querySelectorAll('.notification-item')).toHaveLength(2);
     expect(document.querySelectorAll('[data-action="download-dismiss"]')).toHaveLength(1);
-    const labels = [...document.querySelectorAll('[data-action="nav"]')].map(el => el.getAttribute('aria-label') ?? '');
-    expect(labels.some(label => label.includes('Miro <test>'))).toBe(true);
+    expect(document.body.textContent).toContain('Miro <test>');
+    expect(document.querySelectorAll('[data-action="notification-voices"]')).toHaveLength(2);
   });
 
   it('suit les progressions par une seule boucle, même en cas de demandes simultanées', async () => {

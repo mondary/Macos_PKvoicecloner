@@ -1,6 +1,6 @@
 # Media-kit — captures de PK Reader
 
-## Références lecteur/bibliothèque (2026.10.87)
+## Références lecteur/bibliothèque (2026.10.88)
 
 Même harnais `capture-reader-controls.mjs`, désormais avec trois livres et des
 couvertures dessinées pour la démonstration (aucun livre de l’utilisateur). Il
@@ -8,10 +8,29 @@ vérifie la recherche, le groupement réel des phrases dans leurs paragraphes,
 l’activation d’une phrase au clavier, le suivi après bascule en défilement, puis
 « Revenir » après un déplacement manuel. La navigation ne compte que deux
 entrées (Bibliothèque, Réglages) et la page des voix s’ouvre depuis Réglages :
-une ligne compacte par voix, hauteur contrôlée par le script. Captures supplémentaires :
-`library-redesign`, `reader-scroll`, `reader-return`, `chapter-voice-review`, `voices`, variantes sombre et bureau.
+une ligne compacte par voix, hauteur contrôlée par le script. Il vérifie aussi le
+choix de **1, 2 ou 3 colonnes** (grille recomposée sans rechargement) et le **tri**
+alpha puis dernier ajout. Captures supplémentaires :
+`library-redesign`, `library-3-columns`, `reader-scroll`, `reader-return`, `chapter-voice-review`, `voices`, variantes sombre et bureau.
 Le rendu de lecture est celui de `reading-text.ts`, également utilisé pour les
 mesures de pagination. Le script attend la disparition des toasts avant capture.
+
+## Centre de notifications (2026.10.88)
+
+`store/screenshots/android-reader/notifications.png` : capture statique du panneau
+latéral de production (`notificationDrawer` dans `src/mobile/activity-view.ts`),
+avec une analyse en cours, une erreur, un téléchargement à 64 % et une voix installée.
+
+```sh
+PK_NOTIFICATIONS_SHOT=1 pnpm exec vitest run src/mobile/tests/capture-notifications.test.ts
+iris --size 390x844 --scale 2 --wait 700 \
+  "file://$PWD/store/media-kit/notifications-preview.html" \
+  -o store/screenshots/android-reader/notifications.png
+```
+
+Le fond est la capture `library.png` (assombrie par le voile modal) ; régénérer la
+bibliothèque avant le panneau si son interface change. La cloche, la pastille et les
+groupes sont aussi couverts par `src/mobile/tests/notifications-view.test.ts`.
 
 ## Lecteur, téléchargements et bilan de chapitre (2026.10.80)
 
@@ -25,22 +44,21 @@ PK_QA_URL=http://127.0.0.1:5201/ PK_QA_OUT=/chemin/captures node store/media-kit
 Le script vérifie aussi le lecteur réduit par défaut, le redécoupage des pages entre mini-lecteur et commandes dépliées (moins de pages en mode réduit), la bascule pages/défilement depuis le lecteur et l’aperçu sonore avant validation. Il crée un livre fictif, vérifie chapitre/page/phrase et les titres de
 repli, puis valide un chapitre avec voix système, passe au suivant sans
 redemander et vérifie l’arrêt sur un nouveau personnage. La synthèse est
-neutralisée dans le profil de test. Les états Miro 64 % et 100 % et le compteur
-28/141 sont simulés via les composants de production, pas par un téléchargement
-réel. Le suivi est vérifié après scroll ; le bouton Ko-fi est vérifié sans ouvrir
-de page de paiement. Captures 390/320 px et bureau 1280 px, @2x.
+neutralisée dans le profil de test. Le compteur 28/141 du lecteur est simulé via
+le composant de production, pas par une analyse réelle ; le bouton Ko-fi est
+vérifié sans ouvrir de page de paiement. Captures 390/320 px et bureau 1280 px, @2x.
 
-Exports : `reader.png`, `chapter-voices.png`, `about-support.png` dans
-`store/screenshots/android-reader/`. Le test natif `CastingTest` vérifie que les
+Exports : `reader.png`, `chapter-voices.png`, `about-support.png`, `voices.png`,
+`notifications.png`, `library-3-columns.png` dans `store/screenshots/android-reader/`. Le test natif `CastingTest` vérifie que les
 limites de chapitre empêchent aussi un saut au milieu d’un chapitre non validé.
 
 ## Suivi des analyses (2026.10.78)
 
 `store/screenshots/android-reader/analysis-progress.png` : capture web à 390×844 @2x,
-vraie page Réglages et composant `activityView` de production. L’état IA est simulé
+vraie page Réglages et composant de suivi de l’époque (remplacé depuis par la cloche et le panneau du 2026.10.88). L’état IA est simulé
 (livre « Le voyage de Camille », attribution, 18 lots enregistrés sur 141) ; aucun appel
 payant ni donnée personnelle. Contrôle également à 1280×900, et erreur à 360×800.
-La pastille flottante est le composant de production ; les transitions file → traitement → succès/échec et reprise sont vérifiées par
+La pastille flottante était le composant de production à cette date ; les transitions file → traitement → succès/échec et reprise restent vérifiées par
 `pnpm exec vitest run src/mobile/tests/casting-jobs.test.ts`.
 
 ## Capture « Les voix de ce livre » (fiche personnages)

@@ -14,11 +14,11 @@ Le téléphone peut exécuter lui-même l'analyse des personnages avec un fourni
 
 1. **Réglages → Analyse IA du téléphone** : deux chemins. **Sans clé**, le repérage local (immédiat, plus approximatif) suffit. **Avec une clé** — ou une **IA locale** (Ollama, LM Studio, llama.cpp sur votre Mac ou votre réseau privé, clé facultative) — choisissez le fournisseur (GLM/Z.ai, BigModel, DeepSeek, OpenAI, Mistral, Groq, OpenRouter, OpenCode Zen/Go) ; l’adresse et le lien vers la page des clés se remplissent seuls. Collez la clé, appuyez sur **Charger les modèles**, choisissez le modèle dans la liste (ou saisissez son identifiant), puis **Tester et enregistrer**. Un appel de vérification est effectué avant d’enregistrer ; une configuration qui échoue n’écrase pas la précédente.
 2. **Ouvrir un livre** : la préparation enchaîne, par sous-lots de 60 phrases, une distribution **étayée** (chaque nouveau personnage doit citer une ligne où il parle réellement), une attribution indexée, puis une **relecture critique** — cette dernière uniquement quand une attribution n’est pas sûre, ce qui économise environ un tiers des appels. Les passages dont la confiance n’est pas haute restent au narrateur. Le casting envoyé est plafonné à 80 rôles (narrateur et rôles corrigés toujours inclus) pour ne pas gonfler les prompts des grands romans. Comptez de quelques minutes à plusieurs heures par livre selon le modèle ; une IA locale peut demander une nuit entière.
-3. **Progression et reprise** : une **pastille discrète** flotte en bas de l’écran ; dans le lecteur, le compteur (`28/141`) est placé près de **Gérer**, en haut. Un toucher ouvre les voix et le détail de l’analyse. Un bilan se ferme seul après quelques secondes ; une erreur reste jusqu’à fermeture. Chaque lot validé est sauvegardé ; une coupure reprend sans refaire le travail déjà fait. Gardez l’application ouverte pendant l’analyse.
+3. **Progression et reprise** : une **cloche discrète** en bas à droite porte une pastille avec le nombre de tâches en cours. Dans le lecteur, le compteur (`28/141`) reste près de **Gérer**, en haut. Un toucher sur la cloche ouvre le panneau des notifications ; le détail complet et les voix s’y trouvent. Un résultat se ferme seul après quelques secondes ; une erreur reste jusqu’à ce qu’on la retire. Chaque lot validé est sauvegardé ; une coupure reprend sans refaire le travail déjà fait. Gardez l’application ouverte pendant l’analyse.
 
 ### Téléchargements et commandes du lecteur
 
-- Les téléchargements de voix (manuels, depuis les personnages ou pendant la préparation) ont un **suivi fixe sur tous les écrans**. Faire défiler ou changer d’onglet ne le masque pas. « Miro · 100 % · Installée » et les erreurs restent jusqu’à fermeture explicite ; 100 % de transfert seul ne vaut pas installation terminée.
+- Les téléchargements de voix (manuels, depuis les personnages ou pendant la préparation) sont suivis dans la **cloche de notifications**, accessible sur tous les écrans. Le panneau latéral montre « Miro · 64 % » puis « Voix installée » ; une erreur y reste jusqu’à « Retirer ». 100 % de transfert seul ne vaut pas installation terminée. Faire défiler ou changer d’écran ne ferme ni ne masque le suivi.
 - En lecture, le lecteur se **réduit par défaut** (voix, vitesse, minuteur, lecture, fine ligne de progression) pour laisser plusieurs paragraphes par page. Le chevron du lecteur **déplie toutes les commandes** : **Chapitre** (précédent/suivant avec barre), **Page** (chevrons et compteur), **Phrase −1 / +1** (flèches circulaires). Déplier ou replier redécoupe les pages avec la hauteur réelle. Un bouton du lecteur bascule **pages à tourner / défilement continu** sans quitter le livre.
 - Le titre du chapitre ouvre **Chapitres et signets**, où l’on peut ajouter un signet. Le sélecteur de voix reste dans le lecteur ; les réglages de lecture et la préparation hors ligne sont dans **Gérer**. Les titres « Inconnu » deviennent « Chapitre 1 », « Chapitre 2 », y compris pour les livres déjà importés, sans invalider l’analyse.
 - **Réglages → À propos → Soutenir sur Ko-fi** ouvre `https://ko-fi.com/pouark` ; le bouton remplace le cœur sans texte.
@@ -35,12 +35,22 @@ La clé est **chiffrée dans Android Keystore** et n'est jamais réaffichée dan
 
 Le repérage local reste le repli hors ligne : incises, étiquettes corroborées et alternance des répliques, avec les passages ambigus laissés au narrateur. La génération des voix clonées reste sur le Mac (c'est le moteur de clonage) ; l'analyse, la distribution, la lecture Piper/Android et le karaoké sont autonomes sur le téléphone.
 
-## Présentation du lecteur et de la bibliothèque (2026.10.87)
+## Présentation du lecteur et de la bibliothèque (2026.10.88)
 
 Depuis **2026.10.87**, la barre principale ne compte plus que deux entrées : **Bibliothèque**
 et **Réglages**. La page des voix devient une sous-page de Réglages (Voix & analyse →
 Télécharger ou gérer les voix), avec un retour explicite et une ligne compacte par voix :
 nom, détail, taille et action au même endroit.
+
+La bibliothèque se règle depuis son en-tête : **1, 2 ou 3 colonnes** sur téléphone, et
+l’ordre **dernier ajout**, **dernier ouvert**, **titre A–Z** ou **année**. L’année vient
+des métadonnées de l’EPUB ; pour un PDF, un TXT ou un texte collé, l’année d’ajout sert
+de repli. Colonnes et tri sont mémorisés et s’appliquent sans recharger la page.
+
+Les analyses et les téléchargements n’empilent plus de tuiles : une **cloche** discrète
+avec pastille ouvre un **panneau latéral** groupé « À vérifier / En cours / Terminées ».
+Chaque ligne mène au livre ou aux voix ; les résultats terminés s’effacent seuls, les
+erreurs restent. Dans le lecteur, la puce d’analyse reste près de « Gérer ».
 
 La recherche de livres est toujours visible. Les couvertures gardent leurs proportions,
 les titres sont centrés, et la reprise prend une bande compacte plutôt qu’une grande

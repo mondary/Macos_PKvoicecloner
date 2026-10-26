@@ -220,6 +220,9 @@ export async function importBook(file: File): Promise<Book> {
     book.title = byName(opf, 'title')[0]?.textContent?.trim() || book.title;
     book.author = byName(opf, 'creator')[0]?.textContent?.trim() || book.author;
     book.language = byName(opf, 'language')[0]?.textContent?.trim() || 'fr';
+    const date = byName(opf, 'date')[0]?.textContent?.trim() ?? '';
+    const annee = Number(/(?:1[5-9]\d{2}|20\d{2})/.exec(date)?.[0]);
+    if (annee >= 1000 && annee <= new Date().getFullYear() + 1) book.year = annee;
     const manifest = new Map(byName(opf, 'item').map(item => [item.id, item]));
     const coverMeta = byName(opf, 'meta').find(e => e.getAttribute('name') === 'cover')?.getAttribute('content');
     const cover = [...manifest.values()].find(e => e.getAttribute('properties')?.split(' ').includes('cover-image')) || manifest.get(coverMeta ?? '');

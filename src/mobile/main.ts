@@ -15,22 +15,24 @@ import { readerHeaderView, readerNavigationView } from './reader-controls';
 import { chapterRuns, paginateReading, renderReadingText, type ReadingPage as Page } from './reading-text';
 import { chapterAnalysisReady, proposeChapterVoices, confirmChapterVoices, chapterReviewView, type ChapterVoiceChoice } from './chapter-voices';
 import { audio, native, Reader, Update, modelCatalog } from './engine';
-import type { Book, UpdateInfo, Voice } from './types';
+import type { Book, LibrarySort, UpdateInfo, Voice } from './types';
 import { openCasting } from './casting-ui';
 import { analyseLocalePerimee, besoinsVoix, characterAt, relancerAnalyse, speechProfile } from './casting';
 import { castingBusy, castingActivities, castingProgress, dismissCastingActivity, prepareCasting, watchCasting } from './casting-jobs';
-import { activityView, analysisChip, downloadActivityView } from './activity-view';
+import { analysisChip, collectNotifications, notificationBell, notificationDrawer, notificationSummary, type TaskNotification } from './activity-view';
 import { voiceDownloads, installVoice, monitorVoiceDownloads, watchVoiceDownloads, dismissVoiceDownload } from './voice-downloads';
 import { etapesLivre } from './book-progress';
 import { preparerLivreAudio } from './book-setup';
 import { lectureBody, settingsViewHTML, type SettingsTab } from './settings-view';
 import { adresseLocale, fournisseurParId, fournisseurParUrl, optionsModeles } from './ia-providers';
 import { decouperMots, motPourPlage, motPourProgression, rendreMots } from './karaoke';
+import { colonnesBibliotheque, trierLivres } from './library-order';
 
 /* ------------------------------------------------------------------ état */
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 const sheet = document.querySelector<HTMLDialogElement>('#sheet')!;
+const notifications = document.querySelector<HTMLDialogElement>('#notifications')!;
 const fileInput = document.querySelector<HTMLInputElement>('#file-input')!;
 const settings = readSettings();
 /** Version injectée au build depuis package.json : identique au nom de l'APK et au versionName Android. */
@@ -185,11 +187,24 @@ function miniPlayer() {
 
 /* -------------------------------------------------------------- bibliothèque */
 
+/** Réordonne les cartes déjà affichées : le sélecteur de tri ne perd ni sa
+ *  valeur ni le focus, et les livres ne clignotent pas. */
+function reordonnerBibliotheque() {
+  const grille = document.querySelector<HTMLElement>('.books-grid');
+  if (!grille) return;
+  const cartes = [...grille.querySelectorAll<HTMLElement>('.book-item')];
+  const parId = new Map(cartes.map(el => [el.querySelector<HTMLElement>('.book-open')?.dataset.id ?? '', el]));
+  const tuile = grille.querySelector<HTMLElement>('.import-tile');
+  trierLivres(books.filter(b => parId.has(b.id)), settings.librarySort ?? 'recent')
+    .forEach(b => { const el = parId.get(b.id); if (el) grille.insertBefore(el, tuile ?? null); });
+}
 function libraryView() {
   const real = books.filter(b => !b.sample);
   const enCours = real.filter(b => b.position > 0 && !b.completed).length;
   const resume = [...(real.length ? real : books)].sort((a, b) => b.opened - a.opened)[0];
-  const filtered = books.filter(b => (filter === 'all' || (filter === 'reading' && b.position > 0 && !b.completed) || (filter === 'finished' && b.completed)) && `${b.title} ${b.author}`.toLowerCase().includes(search.toLowerCase()));
+  const ordre = settings.librarySort ?? 'recent';
+  const colonnes = colonnesBibliotheque(settings.libraryColumns);
+  const filtered = trierLivres(books.filter(b => (filter === 'all' || (filter === 'reading' && b.position > 0 && !b.completed) || (filter === 'finished' && b.completed)) && `${b.title} ${b.author}`.toLowerCase().includes(search.toLowerCase())), ordre);
   return `<header class="page-heading library-heading"><div><h1>Bibliothèque<span>.</span></h1></div><button class="add-button" data-action="import" aria-label="Importer un livre">${icon('plus')}<span>Ajouter un livre</span></button></header>
   <div class="search-row expanded" id="search-row"><label class="sr-only" for="search">Rechercher dans la bibliothèque</label>${icon('search')}<input id="search" type="search" placeholder="Rechercher un livre, un auteur…" value="${esc(search)}" autocomplete="off" /></div>
   ${resume && !resume.sample && resume.opened && !search && filter === 'all' ? `<section class="library-resume" aria-label="Reprendre le livre en cours"><button class="resume-open" data-action="open" data-id="${resume.id}">${cover(resume, 'tiny')}<span><small>Reprendre la lecture</small><strong>${esc(resume.title.replace(/\n/g, ' '))}</strong><small>${percent(resume)} % · ${minutes(resume)} restantes</small></span></button><button class="primary" data-action="listen" data-id="${resume.id}">${icon('play')}<span>Écouter</span></button></section>` : ''}
@@ -200,9 +215,9 @@ function libraryView() {
       <div class="resume-figures">${ring(resume)}<span class="resume-time">${resume.sample?'Texte de démonstration':resume.completed?'Lu en entier':`${minutes(resume)} restantes`}</span></div>
       <button class="primary" data-action="listen" data-id="${resume.id}">${icon('play')} ${resume.completed?'Réécouter':resume.opened?'Reprendre l’écoute':'Écouter le guide'}</button></div>
     <button class="hero-book" data-action="open" data-id="${resume.id}" aria-label="Ouvrir ${esc(resume.title.replace(/\n/g,' '))}">${cover(resume,'hero-cover')}</button></section>` : ''}
-  <section class="library-section"><div class="section-heading"><h2>Vos livres <span class="count">${books.length}</span></h2></div>
-  <div class="library-tools"><div class="segmented" role="group" aria-label="Filtrer les livres">${[['all','Tous'],['reading','En cours'],['finished','Terminés']].map(([id,label]) => `<button data-action="filter" data-id="${id}" class="${filter===id?'active':''}" aria-pressed="${filter===id}">${label}</button>`).join('')}</div><span class="library-count">${real.length ? `${real.length} livre${real.length>1?'s':''}${enCours ? ` · ${enCours} en cours` : ''}` : 'Votre étagère vous attend'}</span></div>
-  <div class="books-grid">${filtered.map((b, i) => `<article class="book-item" style="--i:${Math.min(i, 12)}">${b.completed && !b.cover?`<span class="book-flag">Terminé</span>`:''}<button class="book-open" data-action="open" data-id="${b.id}">${cover(b)}<strong>${esc(b.title.replace(/\n/g,' '))}</strong><span>${esc(b.author)}</span></button><div class="book-bottom"><span>${b.completed?'Lu en entier':b.position>0?`${percent(b)} % · ${minutes(b)} restantes`:b.sample?'GUIDE DE DÉCOUVERTE':b.format}</span><button class="book-manage" data-action="book-settings" data-id="${b.id}" aria-label="Gérer ${esc(b.title.replace(/\n/g,' '))}">Gérer</button></div>${b.position>0 && !b.completed?`<div class="book-progress"><span style="width:${percent(b)}%"></span></div>`:''}</article>`).join('')}${filter==='all'&&!search?`<button class="import-tile" data-action="import"><span>${icon('plus')}</span><strong>La suite vous appartient.</strong><small>Importez votre prochain livre<br>EPUB, PDF ou texte</small></button>`:''}</div>
+  <section class="library-section"><div class="section-heading"><h2>Vos livres <span class="count">${books.length}</span></h2><div class="library-columns" role="group" aria-label="Colonnes de la bibliothèque">${[1,2,3].map(n => `<button data-action="library-columns" data-id="${n}" class="${colonnes===n?'active':''}" aria-pressed="${colonnes===n}" aria-label="${n} colonne${n>1?'s':''}" title="${n} colonne${n>1?'s':''}">${icon(n===1?'rectangle-vertical':n===2?'columns-2':'columns-3')}</button>`).join('')}</div></div>
+  <div class="library-tools"><div class="segmented" role="group" aria-label="Filtrer les livres">${[['all','Tous'],['reading','En cours'],['finished','Terminés']].map(([id,label]) => `<button data-action="filter" data-id="${id}" class="${filter===id?'active':''}" aria-pressed="${filter===id}">${label}</button>`).join('')}</div><div class="library-tools-end"><label class="library-sort">${icon('arrow-up-down')}<span class="sr-only">Trier les livres</span><select id="library-sort" aria-label="Trier les livres">${[['recent','Dernier ajout'],['opened','Dernier ouvert'],['alpha','Titre A–Z'],['year','Année']].map(([value,label]) => `<option value="${value}" ${ordre===value?'selected':''}>${label}</option>`).join('')}</select>${icon('chevron-down')}</label><span class="library-count">${real.length ? `${real.length} livre${real.length>1?'s':''}${enCours ? ` · ${enCours} en cours` : ''}` : 'Votre étagère vous attend'}</span></div></div>
+  <div class="books-grid" data-cols="${colonnes}" style="--library-cols:${colonnes}">${filtered.map((b, i) => `<article class="book-item" style="--i:${Math.min(i, 12)}">${b.completed && !b.cover?`<span class="book-flag">Terminé</span>`:''}<button class="book-open" data-action="open" data-id="${b.id}">${cover(b)}<strong>${esc(b.title.replace(/\n/g,' '))}</strong><span>${esc(b.author)}</span></button><div class="book-bottom"><span>${b.completed?'Lu en entier':b.position>0?`${percent(b)} % · ${minutes(b)} restantes`:b.sample?'GUIDE DE DÉCOUVERTE':b.format}</span><button class="book-manage" data-action="book-settings" data-id="${b.id}" aria-label="Gérer ${esc(b.title.replace(/\n/g,' '))}">Gérer</button></div>${b.position>0 && !b.completed?`<div class="book-progress"><span style="width:${percent(b)}%"></span></div>`:''}</article>`).join('')}${filter==='all'&&!search?`<button class="import-tile" data-action="import"><span>${icon('plus')}</span><strong>La suite vous appartient.</strong><small>Importez votre prochain livre<br>EPUB, PDF ou texte</small></button>`:''}</div>
   ${!filtered.length && (search || filter !== 'all') ? `<div class="empty-state">${icon('library-big')}<strong>${search ? 'Aucun livre ne correspond.' : 'Rien sur cette étagère.'}</strong><span>${search ? 'Essayez un autre titre ou le nom de l’auteur.' : 'Changez de filtre pour retrouver vos livres.'}</span></div>` : ''}</section>
   <div class="privacy-note">${icon('lock-keyhole')}<p>Votre bibliothèque, sur votre appareil.<br><span>Sans compte. Sans publicité. Juste vos livres.</span></p></div>
   <p class="build-line">PK Reader <b>${version}</b></p>`;
@@ -567,7 +582,7 @@ function render() {
   savePrefs();
   app.dataset.screen = screen;
   app.className = `app-shell ${screen==='reader'?'reader-mode':''} layout-${settings.layout} ${active()?'has-player':''}`;
-  app.innerHTML = `${navigation()}<main id="main" class="main-content ${screen==='reader'?'reader-content':''}"><div id="analysis-activities" role="region" aria-label="Tâches en cours" aria-live="polite" aria-relevant="additions text">${backgroundActivities()}</div>${screen==='library'?libraryView():screen==='reader'?readerView():screen==='voices'?voicesView():screen==='book'?bookView():settingsView()}</main>${miniPlayer()}`;
+  app.innerHTML = `${navigation()}<main id="main" class="main-content ${screen==='reader'?'reader-content':''}"><div id="notification-center">${backgroundActivities()}</div>${screen==='library'?libraryView():screen==='reader'?readerView():screen==='voices'?voicesView():screen==='book'?bookView():settingsView()}</main>${miniPlayer()}`;
   orchestrerFermeture();
   decorate();
   if (screen === 'reader') {
@@ -610,33 +625,69 @@ watchCasting(id => {
     // Distribution affinée pendant l'écoute : la file audio est rechargée au
     // prochain changement de chapitre pour ne pas couper le passage en cours.
     if (audio.state.bookId === id) rafraichissementAttente = id;
-    if (screen === 'library') { render(); return; }
+    if (screen === 'library') { render(); refreshActivities(); return; }
   }
   // La page « Gérer le livre » montre l'avancement des quatre étapes en direct.
-  if (screen === 'book' && currentId === id) { render(); return; }
+  if (screen === 'book' && currentId === id) { render(); refreshActivities(); return; }
   refreshActivities();
 });
-function refreshActivities() {
-  // Pastille flottante hors lecteur ; puce du lecteur sinon. La bulle ne
-  // décale plus la mise en page : aucun repagination nécessaire.
-  if (screen === 'reader') refreshReaderAnalysis();
-  const region = document.querySelector('#analysis-activities');
-  if (!region) return;
-  // Ne pas perdre le focus clavier à chaque phase IA.
-  const focused = region.contains(document.activeElement) ? document.activeElement as HTMLElement : null;
-  const action = focused?.dataset.action, id = focused?.dataset.id;
-  region.innerHTML = backgroundActivities();
-  decorate();
-  if (action) [...region.querySelectorAll<HTMLElement>('[data-action]')]
-    .find(el => el.dataset.action === action && el.dataset.id === id)?.focus({ preventScroll: true });
-  orchestrerFermeture();
+function notificationItems() {
+  // Dans le lecteur, l'analyse garde sa puce dédiée : la cloche ne montre que
+  // les téléchargements pour ne pas doublonner l'information.
+  return collectNotifications(screen === 'reader' ? [] : castingActivities(), voiceDownloads());
 }
 function backgroundActivities() {
-  return downloadActivityView(voiceDownloads()) + (screen === 'reader' ? '' : activityView(castingActivities()));
+  return notificationBell(notificationItems(), notifications.open);
 }
+function refreshNotificationDrawer(items = notificationItems()) {
+  const body = document.querySelector<HTMLElement>('#notifications-body');
+  if (!body || !notifications.open) return;
+  if (!items.length) { notifications.close(); return; }
+  // Le panneau se rafraîchit chaque seconde : conserver le focus et la lecture.
+  const focused = document.activeElement as HTMLElement | null;
+  const action = focused?.dataset.action, cle = focused?.dataset.notif;
+  const scroll = body.scrollTop;
+  body.innerHTML = notificationDrawer(items);
+  decorate();
+  body.scrollTop = scroll;
+  if (action) [...body.querySelectorAll<HTMLElement>('[data-action]')]
+    .find(el => el.dataset.action === action && el.dataset.notif === cle)?.focus({ preventScroll: true });
+}
+let derniereAnnonce = '';
+function annoncerNotifications(items: TaskNotification[]) {
+  const texte = notificationSummary(items);
+  if (texte === derniereAnnonce) return;
+  derniereAnnonce = texte;
+  const zone = document.querySelector<HTMLElement>('#notifications-status');
+  if (zone) zone.textContent = texte;
+}
+function refreshActivities() {
+  // Cloche discrète hors lecteur ; puce du lecteur sinon. Rien ne s'empile.
+  if (screen === 'reader') refreshReaderAnalysis();
+  const region = document.querySelector('#notification-center');
+  if (!region) return;
+  const items = notificationItems();
+  const focused = region.contains(document.activeElement);
+  region.innerHTML = notificationBell(items, notifications.open);
+  decorate();
+  if (focused) region.querySelector<HTMLElement>('[data-action="notifications"]')?.focus({ preventScroll: true });
+  refreshNotificationDrawer(items);
+  annoncerNotifications(items);
+  orchestrerFermeture();
+}
+function openNotifications() {
+  const items = notificationItems();
+  if (!items.length) return;
+  const body = document.querySelector<HTMLElement>('#notifications-body');
+  if (body) { body.innerHTML = notificationDrawer(items); decorate(); body.scrollTop = 0; }
+  if (!notifications.open) notifications.showModal();
+  document.querySelector<HTMLElement>('.notification-bell')?.setAttribute('aria-expanded', 'true');
+  notifications.querySelector<HTMLElement>('[data-action="notifications-close"]')?.focus({ preventScroll: true });
+}
+function fermerNotifications() { if (notifications.open) notifications.close(); }
 watchVoiceDownloads(updated => {
   if (updated) models = updated;
-  if (screen === 'voices') render(); else refreshActivities();
+  if (screen === 'voices') { render(); refreshActivities(); } else refreshActivities();
 });
 /** Un bilan « Analyse terminée » se ferme seul après quelques secondes ; une
  *  erreur reste jusqu'à ce qu'on la lise et la ferme. */
@@ -854,6 +905,10 @@ function updatePlayback() {
 }
 audio.onChange = updatePlayback;
 sheet.addEventListener('close', () => { chapterReview = undefined; });
+notifications.addEventListener('click', event => { if (event.target === notifications) notifications.close(); });
+notifications.addEventListener('close', () => {
+  document.querySelector<HTMLElement>('.notification-bell')?.setAttribute('aria-expanded', 'false');
+});
 
 /* -------------------------------------------------------------- mises à jour */
 
@@ -989,6 +1044,29 @@ async function handle(action: string, el: HTMLElement) {
       break;
     }
     case 'filter': filter = id; render(); break;
+    case 'library-columns': {
+      // Mise à jour sur place : le bouton garde le focus, sans re-rendre la page.
+      const colonnes = colonnesBibliotheque(id);
+      settings.libraryColumns = colonnes; savePrefs();
+      const grille = document.querySelector<HTMLElement>('.books-grid');
+      grille?.style.setProperty('--library-cols', String(colonnes));
+      grille?.setAttribute('data-cols', String(colonnes));
+      document.querySelectorAll<HTMLElement>('[data-action="library-columns"]').forEach(bouton => {
+        const actif = bouton.dataset.id === String(colonnes);
+        bouton.classList.toggle('active', actif);
+        bouton.setAttribute('aria-pressed', String(actif));
+      });
+      break;
+    }
+    case 'notifications': openNotifications(); break;
+    case 'notifications-close': fermerNotifications(); break;
+    case 'notification-casting': {
+      fermerNotifications();
+      const cible = books.find(b => b.id === id);
+      if (cible) await castingSheet(cible);
+      break;
+    }
+    case 'notification-voices': fermerNotifications(); screen = 'voices'; settingsTab = 'voix'; follow = true; render(); window.scrollTo(0, 0); break;
     case 'search': document.querySelector('#search-row')?.classList.add('expanded'); document.querySelector<HTMLInputElement>('#search')?.focus(); break;
     case 'close': sheet.close(); break;
     case 'import': modal('Une nouvelle histoire',`<p class="sheet-description">Choisissez un livre sur votre appareil. Il restera dans votre bibliothèque, prêt à lire et à écouter.</p><button class="import-choice" data-action="pick-file">${icon('file-up')}<span><strong>Importer des fichiers</strong><small>EPUB, PDF, TXT, Markdown</small></span>${icon('chevron-right')}</button><button class="import-choice" data-action="paste">${icon('clipboard-paste')}<span><strong>Ajouter un texte</strong><small>Un article, une note, quelques pages</small></span>${icon('chevron-right')}</button>`); break;
@@ -1156,6 +1234,13 @@ document.addEventListener('input', e => {
   }
 });
 document.addEventListener('change', e => { if ((e.target as HTMLElement).id === 'progress') void audio.seek(Number((e.target as HTMLInputElement).value)).catch(e => toast(String(e))); });
+document.addEventListener('change', event => {
+  const select = event.target as HTMLSelectElement;
+  if (select.id !== 'library-sort') return;
+  settings.librarySort = (select.value as LibrarySort) || 'recent';
+  savePrefs();
+  reordonnerBibliotheque();
+});
 document.addEventListener('keydown', e => {
   if (screen !== 'reader' || sheet.open) return;
   const sentence = e.target instanceof Element ? e.target.closest<HTMLElement>('.sentence') : null;

@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.95** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
+version **2026.10.96** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
 
 📱 **Android** — [download the APK](https://github.com/mondary/Macos_PKvoicecloner/releases/latest/download/PK-Reader-latest.apk) (stable link following the latest version) · 🍎 **macOS** — [DMG 2026.10.66](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/v2026.10.66)
 
@@ -20,19 +20,19 @@ The **PK Reader** Android app reads EPUB, text PDFs and TXT using Android voices
 
 **In-app updates (Android 2026.10.61)** — Settings → **Updates**: PK Reader checks GitHub releases, downloads the APK, verifies its digest and signature, then opens the Android installer. No more browser or Downloads folder. The signing key is now **permanent**: after one last reinstall for versions ≤ 2026.10.60, updates install over the app and keep the library.
 
-**Analysis progress** — a discreet pill at the bottom of the screen (a chip inside the reader) shows the current step and saved batches, with elapsed time and a remaining estimate. Tap it for details and voices; results fade on their own, errors stay until dismissed.
+**Discreet progress** — a bell at the bottom right with a badge (running tasks; red on error) replaces the tiles. Tap it to open a side panel grouped by state: analyses and downloads show their progress, a shortcut to the book or voices, and “Remove” for results. Finished tasks fade on their own; errors stay. In the reader, a chip beside “Manage” keeps analysis within reach without covering the text.
 
 **Manage the book** — four steps (Paragraphs, Analysis, Voices, Current-chapter listening) show their percentage and details, and can be relaunched separately; “Relaunch everything” chains paragraphs, full analysis, voices and playback.
 
-**Grouped controls** — chapter, page and sentence navigation sit near Play/Pause, with distinct labels. The analysis count stays beside “Manage”. Voice downloads remain visible in a fixed notification until the result is dismissed. About provides an explicit “Support on Ko-fi” button. Navigation keeps only **Library** and **Settings**; the compact voice list opens from Settings → Voices & analysis.
+**Grouped controls** — chapter, page and sentence navigation sit near Play/Pause, with distinct labels. The analysis count stays beside “Manage”. Analyses and downloads are tracked in the notification bell without cluttering the screen; About provides an explicit “Support on Ko-fi” button. Navigation keeps only **Library** and **Settings**; the compact voice list opens from Settings → Voices & analysis.
 
 **Confirm a chapter, not the whole book** — before playback, a summary proposes voices for this chapter’s characters, distinguishing installed voices from downloads. It opens **even during analysis**: choose, confirm, and playback starts right away with that provisional casting, which analysis then refines. Those choices carry over to later chapters; only new characters ask for confirmation again. If everything is already confirmed, playback continues without a dialog.
 
 **Choose by listening** — every proposal has a preview button playing an excerpt in the actually selected, named voice. While reading, the player collapses by default so **several paragraphs fit on a page**; a chevron expands all controls, and a button toggles paged / continuous scrolling without leaving the book.
 
-**Room for books** — visible search, large covers and a compact resume strip. Sentences flow into real paragraphs in the reader, with navigation arranged around Play/Pause on one line. The blue identity, discovery guide and voice choices are unchanged.
+**Room for books** — visible search, large covers and a compact resume strip. The library header sets **1, 2 or 3 columns** on phones and the display order: last added, last opened, title A–Z or year (EPUB publication year, falling back to the year added). Sentences flow into real paragraphs in the reader, with navigation arranged around Play/Pause on one line. The blue identity, discovery guide and voice choices are unchanged.
 
-[Android installation and guide (French)](docs/ANDROID.md) · [Current APK](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.87) (`pk-<version>` release, direct link) · [Android changelog](src/mobile/CHANGELOG.md)
+[Android installation and guide (French)](docs/ANDROID.md) · [Current APK](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.88) (`pk-<version>` release, direct link) · [Android changelog](src/mobile/CHANGELOG.md)
 
 > APKs live in `pk-<version>` releases (newest first on the releases page). The **Latest** badge follows the last published release, Android or macOS: it may point at the DMG without the APK disappearing — the direct link above stays valid.
 
@@ -43,6 +43,8 @@ The **PK Reader** Android app reads EPUB, text PDFs and TXT using Android voices
 <img src="store/screenshots/android-reader/analysis-progress.png" width="230" alt="Analysis progress pill: step, batches and elapsed time, demonstration state" />
 
 <img src="store/screenshots/android-reader/chapter-voices.png" width="230" alt="Chapter voice summary, usable during analysis: demonstration data" />
+
+<img src="store/screenshots/android-reader/notifications.png" width="230" alt="Notification panel: grouped analyses, downloads, errors and results, demonstration data" />
 
 ### macOS · PK Voice Studio
 

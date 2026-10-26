@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.96] - 2026-10-26
+
+### Changed
+- **PK Reader Android 2026.10.88** : centre de notifications discret (cloche + pastille + panneau latéral) à la place des tuiles, colonnes de bibliothèque réglables (1–3) et tri par dernier ajout, dernier ouvert, titre ou année (métadonnées EPUB, repli sur l’année d’ajout).
+
 ## [2026.10.95] - 2026-10-26
 
 ### Changed

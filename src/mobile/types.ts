@@ -13,8 +13,12 @@ export interface Casting {
     /** Révision du repérage local, pour réparer les anciennes attributions une fois. */
     localRevision?: number };
 }
+export type LibrarySort = 'recent' | 'opened' | 'alpha' | 'year';
+
 export interface Book {
   id: string; title: string; author: string; format: string; language: string;
+  /** Année de parution lue dans les métadonnées EPUB, si disponible. */
+  year?: number;
   cover?: string; color: number; segments: string[]; chapters: Chapter[];
   position: number; completed: boolean; added: number; opened: number;
   bookmarks: number[]; sample?: boolean; casting?: Casting;
@@ -48,6 +52,10 @@ export interface Settings {
   /** Fournisseur IA du téléphone : métadonnées publiques seulement. Le secret
    *  vit dans Android Keystore, jamais dans la WebView ni localStorage. */
   ia?: { url: string; modele: string; revision: string; enabled: boolean; hasKey?: boolean };
+  /** Colonnes de la bibliothèque sur téléphone (1 à 3). */
+  libraryColumns?: number;
+  /** Ordre d'affichage des livres. */
+  librarySort?: LibrarySort;
 }
 /** Réponse de la vérification de version : release GitHub `pk-…` la plus récente. */
 export interface UpdateInfo {
@@ -62,4 +70,4 @@ export interface Playback {
   /** Suivi de lecture : position et durée du passage (WAV), ou plage du mot lu (TTS). */
   position?: number; duree?: number; mot?: { debut: number; fin: number } | null;
 }
-export const defaults: Settings = { voice: 'system:default', rate: 1, theme: 'light', fontSize: 22, layout: 'pages', server: '', token: '', voiceLangues: false, voiceRates: {}, interligne: 1.7, marges: 0, bande: 0.28, surlignage: 'mots', focus: true };
+export const defaults: Settings = { voice: 'system:default', rate: 1, theme: 'light', fontSize: 22, layout: 'pages', server: '', token: '', voiceLangues: false, voiceRates: {}, interligne: 1.7, marges: 0, bande: 0.28, surlignage: 'mots', focus: true, libraryColumns: 2, librarySort: 'recent' };

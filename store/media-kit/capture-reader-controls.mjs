@@ -102,6 +102,18 @@ try {
   await evaluate(`document.documentElement.dataset.theme='dark'`); await shot('library-redesign-dark');
   await evaluate(`document.documentElement.dataset.theme='light'`);
   await viewport(1280,900); await shot('library-redesign-desktop'); await viewport(390);
+  // Nombre de colonnes : le choix 3 s'applique à la grille mobile.
+  await click('[data-action="library-columns"][data-id="3"]');
+  await wait(`getComputedStyle(document.querySelector('.library-section .books-grid')).gridTemplateColumns.split(' ').length === 3`);
+  if (await evaluate('document.querySelector(".library-columns button.active")?.dataset.id') !== '3') throw new Error('Colonnes : 3 attendues');
+  await shot('library-3-columns');
+  await click('[data-action="library-columns"][data-id="2"]');
+  await wait(`getComputedStyle(document.querySelector('.library-section .books-grid')).gridTemplateColumns.split(' ').length === 2`);
+  // Tri alphabétique puis retour au dernier ajout.
+  await evaluate(`(() => {const select=document.querySelector('#library-sort');select.value='alpha';select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await wait('document.querySelector(".books-grid .book-open strong")?.textContent === "La traversée"');
+  await evaluate(`(() => {const select=document.querySelector('#library-sort');select.value='recent';select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await wait('document.querySelector(".books-grid .book-open strong")?.textContent === "Le voyage de Camille"');
   await evaluate(`(() => {const search=document.querySelector('#search');search.value='traversée';search.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   await wait('document.querySelectorAll(".book-item").length === 1');
   await evaluate(`(() => {const search=document.querySelector('#search');search.value='';search.dispatchEvent(new Event('input',{bubbles:true}));})()`);
@@ -157,10 +169,8 @@ try {
   await click('[data-action="focus"]');
   await wait(`parseInt(getComputedStyle(document.documentElement).getPropertyValue("--player-h")) <= ${hauteurMini}`);
   await evaluate(`(async () => {
-    const {analysisChip, downloadActivityView} = await import('/activity-view.ts');
-    window.qaDownloads = downloadActivityView([{id:'neural:miro', name:'Miro', progress:64, state:'running'}]);
+    const {analysisChip} = await import('/activity-view.ts');
     document.querySelector('#reader-analysis').innerHTML = analysisChip([{id:'demo-controls',title:'Le voyage de Camille',state:'running',source:'IA de démonstration',debut:Date.now(),progress:{done:28,total:141,chapter:'Chapitre 2'}}],'demo-controls');
-    document.querySelector('#analysis-activities').innerHTML = window.qaDownloads;
   })()`);
   await shot('reader-controls');
   await evaluate(`document.documentElement.dataset.theme='dark'`); await shot('reader-controls-dark');
@@ -219,24 +229,18 @@ try {
   if (hauteurVoix > 64) throw new Error(`Ligne de voix trop haute : ${hauteurVoix}px`);
   // Capture propre : les pastilles flottantes et le mini-lecteur ne font pas
   // partie de la liste de voix et masqueraient les dernières lignes.
-  await evaluate(`document.querySelectorAll("#analysis-activities > *, .mini-player").forEach(el => el.remove())`);
+  await evaluate(`document.querySelectorAll("#notification-center > *, .mini-player").forEach(el => el.remove())`);
   await shot('voices');
   await click('[data-action="back-settings"]');
   await wait('!!document.querySelector(".settings-tabs")');
   await click('[data-action="settings-tab"][data-id="apropos"]');
-  await evaluate(`document.querySelector('#analysis-activities').innerHTML = window.qaDownloads`);
-  const y = await evaluate('document.querySelector(".download-bubble").getBoundingClientRect().bottom');
   await evaluate('document.querySelector(".about").scrollIntoView({block:"center"})');
   await delay(150);
-  const after = await evaluate('document.querySelector(".download-bubble").getBoundingClientRect().bottom');
-  if (Math.abs(after - y) > 1) throw new Error('Le téléchargement défile avec la page');
   const support = await evaluate('({href:document.querySelector(".support-kofi").href,text:document.querySelector(".support-kofi").textContent})');
   if (support.href !== 'https://ko-fi.com/pouark' || !support.text.includes('Soutenir sur Ko-fi')) throw new Error('Bouton Ko-fi incorrect');
   await shot('about-support-download');
-  await evaluate(`(async () => { const {downloadActivityView} = await import('/activity-view.ts'); document.querySelector('#analysis-activities').innerHTML = downloadActivityView([{id:'neural:miro',name:'Miro',state:'done',progress:100}]); })()`);
-  await shot('download-complete');
   if (errors.length) throw new Error(JSON.stringify(errors));
-  console.log('QA OK : chapitre/page/phrase, titres, accès réglages, téléchargement fixe après scroll, Ko-fi, mobile 320/390 + bureau. Captures :', out);
+  console.log('QA OK : chapitre/page/phrase, colonnes et tri de la bibliothèque, accès réglages, Ko-fi, mobile 320/390 + bureau. Captures :', out);
 } finally {
   socket?.close();
   const exited = new Promise(resolve => chrome.once('exit', resolve));

@@ -11,6 +11,16 @@
   <div id="app"></div>
   <div id="toast" role="status" aria-live="polite"></div>
   <dialog id="sheet"></dialog>
+  <dialog id="notifications" class="notifications-dialog" aria-labelledby="notifications-title">
+    <div class="notifications-panel">
+      <header class="notifications-head">
+        <div><p class="eyebrow">SUIVI</p><h2 id="notifications-title">Notifications</h2></div>
+        <button type="button" class="icon-button" data-action="notifications-close" aria-label="Fermer les notifications" title="Fermer les notifications"><i data-lucide="x" aria-hidden="true"></i></button>
+      </header>
+      <div id="notifications-body" class="notifications-body"></div>
+    </div>
+  </dialog>
+  <p id="notifications-status" class="sr-only" role="status" aria-live="polite"></p>
   <input type="file" id="file-input" accept=".epub,.pdf,.txt,.md" multiple hidden />
   <script type="module" src="/main.ts"></script>
 </body>

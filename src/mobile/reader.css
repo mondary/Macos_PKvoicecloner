@@ -13,7 +13,7 @@
 .reader-actions .header-action { min-height: 44px; }
 .reader-actions #reader-analysis:empty { display: none; }
 .reader-actions .player-analysis { min-height: 44px; }
-.reader-mode.has-player #analysis-activities { bottom: calc(var(--player-h, 320px) + 12px); }
+.app-shell.reader-mode.has-player #notification-center { bottom: calc(var(--player-h, 320px) + 12px); }
 .reader-navigation { margin-top: 8px; }
 .reader-nav-row { display: grid; grid-template-columns: 88px minmax(0, 1fr) 88px; align-items: center; gap: 4px; }
 .reader-nav-button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 40px; border-radius: 9px; font-size: 10px; color: var(--ink-soft); }

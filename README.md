@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.95** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
+version **2026.10.96** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
 
 📱 **Android** — [télécharger l’APK](https://github.com/mondary/Macos_PKvoicecloner/releases/latest/download/PK-Reader-latest.apk) (lien stable qui suit la dernière version) · 🍎 **macOS** — [DMG 2026.10.66](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/v2026.10.66)
 
@@ -20,19 +20,19 @@ L’application Android **PK Reader** lit vos EPUB, PDF texte et TXT avec les vo
 
 **Mise à jour depuis l'app (Android 2026.10.61)** — Réglages → **Mises à jour** : PK Reader vérifie les releases GitHub, télécharge l'APK, contrôle son empreinte et sa signature, puis ouvre l'installateur Android. Plus besoin de passer par le navigateur ni par le dossier Téléchargements. La clé de signature est désormais **permanente** : après une dernière réinstallation pour les versions ≤ 2026.10.60, les mises à jour s'installent par-dessus l'app et conservent la bibliothèque.
 
-**Suivi des analyses** — une pastille discrète en bas de l’écran (une puce dans le lecteur) affiche l’étape et les lots, avec le temps écoulé et une estimation restante. Le détail et les voix s’ouvrent d’un toucher ; un bilan s’efface seul, une erreur reste jusqu’à fermeture.
+**Suivi discret** — une cloche en bas à droite avec une pastille (nombre de tâches en cours, rouge en cas d’erreur) remplace les tuiles. Un toucher ouvre un panneau latéral groupé : analyses et téléchargements y montrent leur avancement, une action vers le livre ou les voix, et « Retirer » pour les résultats. Les tâches terminées s’effacent seules ; les erreurs restent. Dans le lecteur, une puce près de « Gérer » garde l’analyse à portée sans masquer le texte.
 
 **Gérer le livre** — quatre étapes (Paragraphes, Analyse, Voix, Écoute du chapitre) affichent leur pourcentage et leur détail, et se relancent séparément ; « Tout relancer » enchaîne paragraphes, analyse complète, voix et lecture.
 
-**Commandes regroupées** — chapitre, page et phrase se pilotent près de Lecture/Pause, avec des libellés distincts. Le compteur d’analyse reste près de « Gérer ». Les téléchargements de voix restent visibles dans une notification fixe, jusqu’à fermeture du résultat. « À propos » propose un bouton explicite « Soutenir sur Ko-fi ». La navigation ne garde que **Bibliothèque** et **Réglages** ; la liste des voix, compacte, s’ouvre depuis Réglages → Voix & analyse.
+**Commandes regroupées** — chapitre, page et phrase se pilotent près de Lecture/Pause, avec des libellés distincts. Le compteur d’analyse reste près de « Gérer ». Les analyses et téléchargements se suivent dans la cloche de notifications, sans encombrer l’écran ; « À propos » propose un bouton explicite « Soutenir sur Ko-fi ». La navigation ne garde que **Bibliothèque** et **Réglages** ; la liste des voix, compacte, s’ouvre depuis Réglages → Voix & analyse.
 
 **Valider un chapitre, pas tout le livre** — avant l’écoute, un bilan propose les voix des personnages de ce chapitre, en distinguant celles installées et celles à télécharger. Il s’ouvre **même pendant l’analyse** : choisissez, validez, et l’écoute démarre aussitôt avec cette distribution provisoire, que l’analyse affine ensuite. Ces choix sont conservés pour les chapitres suivants ; seuls les nouveaux personnages redemandent une confirmation. Si tout est déjà validé, la lecture continue sans dialogue.
 
 **Choisir en écoutant** — chaque proposition se pré-écoute d’un bouton (« Écouter ») sur un extrait du personnage, avec la voix réellement sélectionnée et nommée. En lecture, le lecteur se réduit par défaut pour laisser **plusieurs paragraphes par page** ; un chevron déplie toutes les commandes, et un bouton bascule pages à tourner / défilement continu sans quitter le livre.
 
-**Place aux livres** — recherche visible, grandes couvertures, reprise compacte. Dans le lecteur, les phrases s’enchaînent en vrais paragraphes ; la navigation entoure Lecture/Pause sur une seule ligne. Le bleu, le guide de découverte et les choix de voix restent inchangés.
+**Place aux livres** — recherche visible, grandes couvertures, reprise compacte. L’en-tête de la bibliothèque règle **1, 2 ou 3 colonnes** sur téléphone et l’ordre d’affichage : dernier ajout, dernier ouvert, titre A–Z ou année (année de parution de l’EPUB, sinon année d’ajout). Dans le lecteur, les phrases s’enchaînent en vrais paragraphes ; la navigation entoure Lecture/Pause sur une seule ligne. Le bleu, le guide de découverte et les choix de voix restent inchangés.
 
-[Installation et guide Android](docs/ANDROID.md) · [APK de la version courante](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.87) (release `pk-<version>`, lien direct) · [Changelog Android](src/mobile/CHANGELOG.md)
+[Installation et guide Android](docs/ANDROID.md) · [APK de la version courante](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.88) (release `pk-<version>`, lien direct) · [Changelog Android](src/mobile/CHANGELOG.md)
 
 > Les APK vivent dans les releases `pk-<version>` (la plus récente en tête de la page des releases). Le badge **Latest** suit la dernière livraison publiée, Android ou macOS : il peut pointer sur le DMG sans que l'APK disparaisse — le lien direct ci-dessus reste valable.
 
@@ -43,6 +43,8 @@ L’application Android **PK Reader** lit vos EPUB, PDF texte et TXT avec les vo
 <img src="store/screenshots/android-reader/analysis-progress.png" width="230" alt="Pastille de suivi d’analyse : étape, lots et temps écoulé, état de démonstration" />
 
 <img src="store/screenshots/android-reader/chapter-voices.png" width="230" alt="Bilan des voix du chapitre, utilisable pendant l’analyse : données de démonstration" />
+
+<img src="store/screenshots/android-reader/notifications.png" width="230" alt="Panneau de notifications : analyses, téléchargements, erreurs et résultats groupés, données de démonstration" />
 
 ### macOS · PK Voice Studio
 

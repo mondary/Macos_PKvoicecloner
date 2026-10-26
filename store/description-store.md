@@ -23,7 +23,11 @@ pas autonomes et nécessitent encore le dépôt et son environnement Python.
 
 ## Assets
 
-### PK Reader Android — 2026.10.85
+### PK Reader Android — 2026.10.86
+
+**FR — Place au contenu** : recherche visible et grandes couvertures, reprise compacte ; vrais paragraphes dans le lecteur, commandes autour de Lecture/Pause sur une ligne. Bleu et guide conservés, thèmes clair/papier/nuit disponibles.
+
+**EN — Content first**: visible search and large covers, compact resume strip; real paragraphs in the reader, controls around Play/Pause on one line. Blue identity and discovery guide retained, with light/paper/night themes.
 
 **FR — Lecture simplifiée** : commandes chapitre/page/phrase regroupées près du lecteur, compteur d’analyse près de Gérer, téléchargements de voix suivis par des notifications fixes jusqu’à fermeture du résultat. Bouton « Soutenir sur Ko-fi » explicite dans À propos.
 

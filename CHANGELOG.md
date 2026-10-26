@@ -1,6 +1,11 @@
 # Changelog
 Keep a Changelog — https://keepachangelog.com
 
+## [2026.10.94] - 2026-10-26
+
+### Changed
+- **PK Reader Android 2026.10.86** : bibliothèque centrée sur les couvertures et recherche visible, reprise compacte ; lecteur en vrais paragraphes, mise en page mesurée avec le rendu réel, commandes imbriquées autour de Lecture/Pause sur une ligne. Bleu et thèmes conservés, suivi rétabli après bascule pages/défilement.
+
 ## [2026.10.93] - 2026-10-26
 
 ### Changed

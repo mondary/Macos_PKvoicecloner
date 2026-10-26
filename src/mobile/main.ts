@@ -12,6 +12,7 @@ import { SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { library, readSettings, saveSettings } from './storage';
 import { importBook, welcomeBook, chapterAt, minutesLeft, reparerParagraphes, normaliserTitresChapitres } from './books';
 import { readerHeaderView, readerNavigationView } from './reader-controls';
+import { chapterRuns, paginateReading, renderReadingText, type ReadingPage as Page } from './reading-text';
 import { chapterAnalysisReady, proposeChapterVoices, confirmChapterVoices, chapterReviewView, type ChapterVoiceChoice } from './chapter-voices';
 import { audio, native, Reader, Update, modelCatalog } from './engine';
 import type { Book, UpdateInfo, Voice } from './types';
@@ -85,8 +86,6 @@ let playerObserver: ResizeObserver | undefined;
 /** Signature du dernier état « structurel » : la progression seule ne redessine pas la page. */
 let derniereLecture = '';
 
-type PageRun = { index: number; from: number; to: number };
-type Page = PageRun[];
 
 /* --------------------------------------------------------------- fabriques */
 
@@ -189,27 +188,23 @@ function miniPlayer() {
 function libraryView() {
   const real = books.filter(b => !b.sample);
   const enCours = real.filter(b => b.position > 0 && !b.completed).length;
-  const resume = [...books].sort((a, b) => b.opened - a.opened)[0];
+  const resume = [...(real.length ? real : books)].sort((a, b) => b.opened - a.opened)[0];
   const filtered = books.filter(b => (filter === 'all' || (filter === 'reading' && b.position > 0 && !b.completed) || (filter === 'finished' && b.completed)) && `${b.title} ${b.author}`.toLowerCase().includes(search.toLowerCase()));
-  return `<header class="page-heading"><div><p class="eyebrow">VOTRE BULLE DE LECTURE</p><h1>Mes livres<span>.</span></h1></div><button class="add-button" data-action="import" aria-label="Importer un livre">${icon('plus')}<span>Ajouter un livre</span></button></header>
-  ${resume && !search && filter === 'all' ? `<section class="resume-card">
+  return `<header class="page-heading library-heading"><div><h1>Bibliothèque<span>.</span></h1></div><button class="add-button" data-action="import" aria-label="Importer un livre">${icon('plus')}<span>Ajouter un livre</span></button></header>
+  <div class="search-row expanded" id="search-row"><label class="sr-only" for="search">Rechercher dans la bibliothèque</label>${icon('search')}<input id="search" type="search" placeholder="Rechercher un livre, un auteur…" value="${esc(search)}" autocomplete="off" /></div>
+  ${resume && !resume.sample && resume.opened && !search && filter === 'all' ? `<section class="library-resume" aria-label="Reprendre le livre en cours"><button class="resume-open" data-action="open" data-id="${resume.id}">${cover(resume, 'tiny')}<span><small>Reprendre la lecture</small><strong>${esc(resume.title.replace(/\n/g, ' '))}</strong><small>${percent(resume)} % · ${minutes(resume)} restantes</small></span></button><button class="primary" data-action="listen" data-id="${resume.id}">${icon('play')}<span>Écouter</span></button></section>` : ''}
+  ${resume?.sample && !search && filter === 'all' ? `<section class="resume-card">
     <div class="resume-copy"><span class="label-dot">${resume.opened?'REPRENDRE LE FIL':'VOTRE PREMIÈRE ÉCOUTE'}</span>
       <h2>${esc(resume.sample?'Vos livres.\nÀ voix haute.':resume.title).replace(/\n/g,'<br>')}</h2>
       <p class="resume-sub">${resume.sample?'Installez-vous. Vos histoires ont<br>tant de choses à vous raconter.':`${esc(resume.author)}<br>${esc(chapterAt(resume)?.title ?? '')}`}</p>
       <div class="resume-figures">${ring(resume)}<span class="resume-time">${resume.sample?'Texte de démonstration':resume.completed?'Lu en entier':`${minutes(resume)} restantes`}</span></div>
       <button class="primary" data-action="listen" data-id="${resume.id}">${icon('play')} ${resume.completed?'Réécouter':resume.opened?'Reprendre l’écoute':'Écouter le guide'}</button></div>
     <button class="hero-book" data-action="open" data-id="${resume.id}" aria-label="Ouvrir ${esc(resume.title.replace(/\n/g,' '))}">${cover(resume,'hero-cover')}</button></section>` : ''}
-  <section class="library-section"><div class="section-heading"><h2>Sur votre étagère <span class="count">${books.length}</span></h2>${iconButton('search','Rechercher un livre','search')}</div>
+  <section class="library-section"><div class="section-heading"><h2>Vos livres <span class="count">${books.length}</span></h2></div>
   <div class="library-tools"><div class="segmented" role="group" aria-label="Filtrer les livres">${[['all','Tous'],['reading','En cours'],['finished','Terminés']].map(([id,label]) => `<button data-action="filter" data-id="${id}" class="${filter===id?'active':''}" aria-pressed="${filter===id}">${label}</button>`).join('')}</div><span class="library-count">${real.length ? `${real.length} livre${real.length>1?'s':''}${enCours ? ` · ${enCours} en cours` : ''}` : 'Votre étagère vous attend'}</span></div>
-  <div class="search-row ${search?'expanded':''}" id="search-row"><label class="sr-only" for="search">Rechercher dans la bibliothèque</label>${icon('search')}<input id="search" type="search" placeholder="Un titre, un auteur…" value="${esc(search)}" autocomplete="off" /></div>
   <div class="books-grid">${filtered.map((b, i) => `<article class="book-item" style="--i:${Math.min(i, 12)}">${b.completed && !b.cover?`<span class="book-flag">Terminé</span>`:''}<button class="book-open" data-action="open" data-id="${b.id}">${cover(b)}<strong>${esc(b.title.replace(/\n/g,' '))}</strong><span>${esc(b.author)}</span></button><div class="book-bottom"><span>${b.completed?'Lu en entier':b.position>0?`${percent(b)} % · ${minutes(b)} restantes`:b.sample?'GUIDE DE DÉCOUVERTE':b.format}</span><button class="book-manage" data-action="book-settings" data-id="${b.id}" aria-label="Gérer ${esc(b.title.replace(/\n/g,' '))}">Gérer</button></div>${b.position>0 && !b.completed?`<div class="book-progress"><span style="width:${percent(b)}%"></span></div>`:''}</article>`).join('')}${filter==='all'&&!search?`<button class="import-tile" data-action="import"><span>${icon('plus')}</span><strong>La suite vous appartient.</strong><small>Importez votre prochain livre<br>EPUB, PDF ou texte</small></button>`:''}</div>
   ${!filtered.length && (search || filter !== 'all') ? `<div class="empty-state">${icon('library-big')}<strong>${search ? 'Aucun livre ne correspond.' : 'Rien sur cette étagère.'}</strong><span>${search ? 'Essayez un autre titre ou le nom de l’auteur.' : 'Changez de filtre pour retrouver vos livres.'}</span></div>` : ''}</section>
   <div class="privacy-note">${icon('lock-keyhole')}<p>Votre bibliothèque, sur votre appareil.<br><span>Sans compte. Sans publicité. Juste vos livres.</span></p></div>
-  ${real.some(b => b.casting) ? `<section class="settings-section"><h2>Les voix de vos livres</h2>${real.filter(b => b.casting).map(b => {
-    const missing = besoinsVoix(b.casting!, [...voices, ...models], b.language).missing.length;
-    const state = castingBusy(b) ? 'Préparation automatique en cours…' : analyseLocalePerimee(b) ? 'Repérage à actualiser à l’ouverture' : `${b.casting!.characters.length} rôles proposés · ${missing ? `${missing} voix à compléter` : 'voix proposées'}`;
-    return `<button class="setting-row casting-library-row" data-action="casting" data-id="${b.id}"><span><strong>${esc(b.title)}</strong><small>${esc(state)}</small></span>${icon('chevron-right')}</button>`;
-  }).join('')}</section>` : ''}
   <p class="build-line">PK Reader <b>${version}</b></p>`;
 }
 
@@ -220,52 +215,10 @@ function paginate(book: Book, chapter: { start: number; end: number }, width: nu
     const el = document.createElement('div'); el.className = 'reader-text page-measure'; el.setAttribute('aria-hidden', 'true'); document.body.appendChild(el); return el;
   })();
   host.style.width = `${width}px`;
-  host.innerHTML = '';
-  const pages: Page[] = [];
-  let current: Page = [];
-  let capacity = Math.max(48, capFirst);
-  const fits = () => host.scrollHeight <= capacity + 1;
-  const flush = () => { pages.push(current); current = []; capacity = Math.max(48, capOther); host.innerHTML = ''; };
-  const node = (text: string) => { const el = document.createElement('button'); el.type = 'button'; el.className = 'sentence'; el.textContent = text; return el; };
-  for (let index = chapter.start; index < chapter.end; index++) {
-    const text = book.segments[index];
-    let from = 0;
-    while (from < text.length) {
-      const candidate = node(text.slice(from));
-      host.appendChild(candidate);
-      if (fits()) { current.push({ index, from, to: text.length }); from = text.length; continue; }
-      candidate.remove();
-      if (current.length) { flush(); continue; }
-      const words = text.slice(from).split(' ');
-      let best = 0;
-      if (words.length > 1) {
-        let lo = 1, hi = words.length - 1;
-        while (lo <= hi) {
-          const mid = (lo + hi) >> 1;
-          const probe = node(words.slice(0, mid).join(' ')); host.appendChild(probe);
-          if (fits()) { best = mid; probe.remove(); lo = mid + 1; } else { probe.remove(); hi = mid - 1; }
-        }
-      }
-      if (best > 0) {
-        const consumed = words.slice(0, best).join(' ');
-        current.push({ index, from, to: from + consumed.length });
-        from += consumed.length + 1;
-      } else {
-        let lo = 1, hi = text.length - from, bestChar = 0;
-        while (lo <= hi) {
-          const mid = (lo + hi) >> 1;
-          const probe = node(text.slice(from, from + mid)); host.appendChild(probe);
-          if (fits()) { bestChar = mid; probe.remove(); lo = mid + 1; } else { probe.remove(); hi = mid - 1; }
-        }
-        const cut = Math.max(1, bestChar);
-        current.push({ index, from, to: from + cut });
-        from += cut;
-      }
-      flush();
-    }
-  }
-  if (current.length) pages.push(current);
-  if (!pages.length) pages.push([]);
+  const pages = paginateReading(book, chapter.start, chapter.end, capFirst, capOther, (runs, height) => {
+    host.innerHTML = renderReadingText(book, runs);
+    return host.scrollHeight <= height + 1;
+  });
   host.innerHTML = '';
   return pages;
 }
@@ -275,16 +228,9 @@ function readerHeader() {
   const book = current()!;
   return readerHeaderView(book, analysisChip(castingActivities(), book.id));
 }
-function sentenceButton(text: string, index: number, book: Book, debut = 0) {
-  const isCurrent = index === book.position;
-  const style = book.styles?.[index] ?? '';
-  const classes = ['sentence', isCurrent ? 'current-sentence' : '', book.bookmarks.includes(index) ? 'marked' : '',
-    style.includes('i') ? 'sentence-italique' : '', style.includes('q') ? 'sentence-citation' : ''].filter(Boolean).join(' ');
-  return `<button class="${classes}" data-action="sentence" data-index="${index}" data-debut="${debut}" ${isCurrent?'aria-current="true"':''}>${esc(text)}</button>`;
-}
 function readingScroll() {
   const book = current()!; const chapter = chapterAt(book);
-  return `<article class="reading-page"><div class="page-title"><p class="eyebrow">${book.sample?'PRENDRE LE TEMPS':esc(book.author.toUpperCase())}</p><h1>${esc(chapter.title)}</h1></div><div class="reader-text">${book.segments.slice(chapter.start,chapter.end).map((text,i)=>sentenceButton(text,chapter.start+i,book)).join('')}</div></article>`;
+  return `<article class="reading-page"><div class="page-title"><h1>${esc(chapter.title)}</h1></div><div class="reader-text">${renderReadingText(book, chapterRuns(book, chapter.start, chapter.end))}</div></article>`;
 }
 function readingPages() {
   return `<article class="reading-page paged"><div class="page-title"><p class="eyebrow" id="page-eyebrow"></p><h1 id="page-heading"></h1></div><div class="reader-text" id="page-text"></div></article>`;
@@ -297,7 +243,7 @@ function playerHTML() {
   const status = audio.state.error || (audio.state.preparing?`Préparation ${audio.state.prepared ?? 0} / ${audio.state.total ?? 0} passages`:audio.state.loading?`${speaker?`${speaker} · `:''}La voix prépare le prochain passage…`:isPlaying?`${speaker?`${esc(speaker)} · `:''}${esc(chapter.title)} — laissez l’histoire vous emporter.`:'Touchez une phrase pour choisir le départ.');
   return `<section class="player ${focus ? 'reduit' : ''}" aria-label="Lecteur audio"><div class="player-top"><button class="voice-chip" data-action="choose-voice">${icon('audio-lines')}<span>${esc(characterAt(book, book.position)?.name || voiceName())}</span>${icon('chevron-down')}</button><button class="speed-chip" data-action="speed" aria-label="Vitesse de ${esc(voiceName())}">${settings.rate.toLocaleString('fr')}<span>×</span></button><span class="mini-stats">${percent(book)} % · ${minutes(book)} min</span><button class="sleep-chip ${audio.state.sleepAt?'on':''}" data-action="sleep">${icon('moon')}${audio.state.sleepAt?`${Math.max(1,Math.ceil((audio.state.sleepAt-Date.now())/60000))} min`:'Minuteur'}</button><button class="icon-button" data-action="layout" aria-label="${settings.layout === 'pages' ? 'Passer en défilement continu' : 'Passer en lecture page à page'}">${icon(settings.layout === 'pages' ? 'align-justify' : 'book-open')}</button><button class="icon-button focus-button" data-action="focus" aria-label="${focus?'Afficher les commandes':'Réduire le lecteur'}">${icon(focus?'chevrons-up':'chevrons-down')}</button></div>
     <label class="sr-only" for="progress">Position dans le livre</label><input class="progress-slider" id="progress" type="range" min="0" max="${book.segments.length-1}" value="${Math.min(book.position,book.segments.length-1)}" style="--progress:${progress(book)}" /><div class="time-row"><span>${percent(book)} % du livre</span><span>${book.completed?'Lecture terminée':`${minutes(book)} restantes`}</span></div>
-    ${readerNavigationView(book, settings.layout)}
+    ${readerNavigationView(book, settings.layout, isPlaying, audio.state.loading)}
     <div class="transport"><button class="sentence-jump" data-action="previous" aria-label="Revenir d’une phrase">${icon('rotate-ccw')}<span>Phrase −1</span></button><button class="play-button ${audio.state.loading?'loading':''}" data-action="toggle" aria-label="${isPlaying?'Mettre en pause':'Lire à voix haute'}">${icon(audio.state.loading?'loader-circle':isPlaying?'pause':'play')}</button><button class="sentence-jump" data-action="next" aria-label="Avancer d’une phrase">${icon('rotate-cw')}<span>Phrase +1</span></button></div><p class="player-status" aria-live="polite">${esc(status)}</p><span class="player-mini-progress" style="width:${percent(book)}%" aria-hidden="true"></span></section>`;
 }
 function nowBar() {
@@ -387,7 +333,7 @@ function drawPage(direction?: 'next' | 'prev' | 'auto') {
     if (eyebrow) eyebrow.textContent = book.sample ? 'PRENDRE LE TEMPS' : book.author.toUpperCase();
     if (heading) heading.textContent = chapter.title;
   }
-  box.innerHTML = (pages[page] ?? []).map(run => sentenceButton(book.segments[run.index].slice(run.from, run.to), run.index, book, run.from)).join('');
+  box.innerHTML = renderReadingText(book, pages[page] ?? []);
   box.classList.remove('turn-next', 'turn-prev');
   if (direction === 'next' || direction === 'prev') { void box.offsetWidth; box.classList.add(direction === 'next' ? 'turn-next' : 'turn-prev'); }
   syncPageControls();
@@ -396,7 +342,13 @@ function drawPage(direction?: 'next' | 'prev' | 'auto') {
 function syncNowBar() {
   const bar = document.querySelector<HTMLElement>('#now-bar'); if (!bar) return;
   const book = active();
-  const visible = screen === 'reader' && !!book && currentId === book.id && !follow && !!book.segments[book.position];
+  const sentence = document.querySelector<HTMLElement>('.current-sentence');
+  const rect = sentence?.getBoundingClientRect();
+  const playerTop = document.querySelector('.player')?.getBoundingClientRect().top ?? innerHeight;
+  const headerBottom = document.querySelector('.reader-header')?.getBoundingClientRect().bottom ?? 0;
+  const outside = !rect || rect.bottom < headerBottom || rect.top > playerTop;
+  const visible = screen === 'reader' && !!book && currentId === book.id && !follow &&
+    (audio.state.playing || audio.state.loading) && outside && !!book.segments[book.position];
   bar.hidden = !visible;
   if (!book || !visible) return;
   const chapter = document.querySelector('#now-chapter'); const text = document.querySelector('#now-text');
@@ -606,6 +558,7 @@ function settingsView() {
 
 function render() {
   savePrefs();
+  app.dataset.screen = screen;
   app.className = `app-shell ${screen==='reader'?'reader-mode':''} layout-${settings.layout} ${active()?'has-player':''}`;
   app.innerHTML = `${navigation()}<main id="main" class="main-content ${screen==='reader'?'reader-content':''}"><div id="analysis-activities" role="region" aria-label="Tâches en cours" aria-live="polite" aria-relevant="additions text">${backgroundActivities()}</div>${screen==='library'?libraryView():screen==='reader'?readerView():screen==='voices'?voicesView():screen==='book'?bookView():settingsView()}</main>${miniPlayer()}`;
   orchestrerFermeture();
@@ -1050,7 +1003,7 @@ async function handle(action: string, el: HTMLElement) {
     case 'appearance': modal('Réglages de lecture', `<p class="sheet-description">Tout le confort de lecture, sans quitter votre page.</p>${lectureBody(settings)}`); break;
     case 'font': settings.fontSize = Number(id); sheet.close(); pagesKey = ''; render(); break;
     case 'theme': settings.theme = id as typeof settings.theme; sheet.close(); render(); break;
-    case 'layout': settings.layout = (id || (settings.layout === 'pages' ? 'scroll' : 'pages')) as 'pages' | 'scroll'; pagesKey = ''; sheet.close(); render(); toast(settings.layout === 'pages' ? 'Lecture page à page.' : 'Lecture en défilement continu.'); break;
+    case 'layout': settings.layout = (id || (settings.layout === 'pages' ? 'scroll' : 'pages')) as 'pages' | 'scroll'; pagesKey = ''; follow = true; guard(); sheet.close(); render(); jumpToCurrent(); toast(settings.layout === 'pages' ? 'Lecture page à page.' : 'Lecture en défilement continu.'); break;
     case 'chapters': if (book) modal('Chapitres et signets',`<button class="setting-row" data-action="bookmark"><span>${icon('bookmark')}${book.bookmarks.includes(book.position) ? 'Retirer le signet de ce passage' : 'Ajouter ce passage aux signets'}</span></button><div class="chapter-list">${book.chapters.map((c,i)=>`<button data-action="chapter" data-index="${c.start}" class="${chapterAt(book)===c?'active':''}"><span>${String(i+1).padStart(2,'0')}</span><strong>${esc(c.title)}</strong>${icon(chapterAt(book)===c?'audio-lines':'chevron-right')}</button>`).join('')}</div>${book.bookmarks.length?`<h3 class="bookmarks-heading">Vos signets</h3><div class="chapter-list">${book.bookmarks.map(i=>`<button data-action="chapter" data-index="${i}">${icon('bookmark')}<strong>${esc(book.segments[i]?.slice(0,90))}…</strong></button>`).join('')}</div>`:''}`); break;
     case 'chapter': follow = true; page = 0; await audio.seek(Number(el.dataset.index)); sheet.close(); render(); window.scrollTo(0, 0); break;
     case 'chapter-next': if (book) { const next = chapterAt(book).end; if (next < book.segments.length) { follow = true; page = 0; await audio.seek(next); render(); window.scrollTo(0, 0); } else { screen = 'library'; render(); } } break;
@@ -1193,6 +1146,11 @@ document.addEventListener('input', e => {
 document.addEventListener('change', e => { if ((e.target as HTMLElement).id === 'progress') void audio.seek(Number((e.target as HTMLInputElement).value)).catch(e => toast(String(e))); });
 document.addEventListener('keydown', e => {
   if (screen !== 'reader' || sheet.open) return;
+  const sentence = e.target instanceof Element ? e.target.closest<HTMLElement>('.sentence') : null;
+  if (sentence && (e.key === 'Enter' || e.key === ' ')) {
+    e.preventDefault(); void seekTo(Number(sentence.dataset.index)); return;
+  }
+  if (e.target instanceof Element && e.target.closest('input, select, textarea, .player')) return;
   if (e.key === 'PageDown' || e.key === 'PageUp') {
     e.preventDefault(); tournerPage(e.key === 'PageDown' ? 1 : -1); return;
   }
@@ -1206,10 +1164,13 @@ document.addEventListener('keydown', e => {
   }
   syncNowBar();
 });
-window.addEventListener('scroll', () => {
-  if (screen !== 'reader' || !follow || performance.now() < scrollGuard) return;
-  follow = false; syncNowBar();
-}, { passive: true });
+window.addEventListener('scroll', () => { if (screen === 'reader') syncNowBar(); }, { passive: true });
+const manualScroll = (event: Event) => {
+  if (screen !== 'reader' || settings.layout !== 'scroll' || (event.target instanceof Element && event.target.closest('.player, .now-bar, dialog'))) return;
+  follow = false;
+};
+window.addEventListener('wheel', manualScroll, { passive: true });
+window.addEventListener('touchmove', manualScroll, { passive: true });
 document.addEventListener('touchstart', e => {
   if (screen !== 'reader' || settings.layout !== 'pages') return;
   const touch = e.touches[0]; if (!touch) return;

@@ -1,5 +1,15 @@
 # PK Reader Android
 
+## [2026.10.86] - 2026-10-26
+
+### Changed
+- **Bibliothèque** : recherche toujours visible, couvertures mises en avant sur deux colonnes mobiles, titres centrés et reprise compacte. Le guide « Le goût des histoires » et le bleu sont conservés ; « Gérer » reste visible sur chaque livre, sans menu caché.
+- **Lecture en vrais paragraphes** : les phrases d’un même paragraphe s’enchaînent au lieu de former chacune un bloc. Nouvelle composition sans-serif, interligne « Livre », surlignage discret ; phrases toujours sélectionnables au toucher et avec Entrée/Espace. Texte, styles et indices audio conservés.
+- **Mini-lecteur sur une ligne** : chapitre, page, phrase, Lecture/Pause, phrase, page, chapitre. Curseur, pourcentage et temps restant visibles ; minuteur uniquement dans le lecteur agrandi.
+
+### Fixed
+- Pagination mesurée avec les vrais paragraphes, sans perdre d’espaces aux changements de page. Bascule pages/défilement repositionnée sur la phrase courante ; le défilement automatique ne désactive plus son propre suivi. « En cours / Revenir » apparaît seulement quand la lecture est active et hors champ après un déplacement manuel.
+
 ## [2026.10.85] - 2026-10-26
 
 ### Changed

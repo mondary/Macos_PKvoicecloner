@@ -2,7 +2,7 @@
 
 [🇫🇷 FR](README.md) · [🇬🇧 EN](README_en.md)
 
-version **2026.10.93** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
+version **2026.10.94** · macOS Apple Silicon · Apache-2.0 · [Changelog](CHANGELOG.md)
 
 📱 **Android** — [download the APK](https://github.com/mondary/Macos_PKvoicecloner/releases/latest/download/PK-Reader-latest.apk) (stable link following the latest version) · 🍎 **macOS** — [DMG 2026.10.66](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/v2026.10.66)
 
@@ -30,7 +30,9 @@ The **PK Reader** Android app reads EPUB, text PDFs and TXT using Android voices
 
 **Choose by listening** — every proposal has a preview button playing an excerpt in the actually selected, named voice. While reading, the player collapses by default so **several paragraphs fit on a page**; a chevron expands all controls, and a button toggles paged / continuous scrolling without leaving the book.
 
-[Android installation and guide (French)](docs/ANDROID.md) · [Current APK](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.85) (`pk-<version>` release, direct link) · [Android changelog](src/mobile/CHANGELOG.md)
+**Room for books** — visible search, large covers and a compact resume strip. Sentences flow into real paragraphs in the reader, with navigation arranged around Play/Pause on one line. The blue identity, discovery guide and voice choices are unchanged.
+
+[Android installation and guide (French)](docs/ANDROID.md) · [Current APK](https://github.com/mondary/Macos_PKvoicecloner/releases/tag/pk-2026.10.86) (`pk-<version>` release, direct link) · [Android changelog](src/mobile/CHANGELOG.md)
 
 > APKs live in `pk-<version>` releases (newest first on the releases page). The **Latest** badge follows the last published release, Android or macOS: it may point at the DMG without the APK disappearing — the direct link above stays valid.
 

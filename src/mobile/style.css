@@ -767,3 +767,33 @@ dialog header .icon-button { width: 38px; height: 38px; }
 .casting-role-options input[type='range'] { min-height: 28px; }
 .casting-evidence { margin: 6px 0 8px; padding: 8px 10px; background: var(--line-soft); border-radius: 8px; font-size: 11px; line-height: 1.6; color: var(--ink-soft); }
 @media (max-width: 720px) { .casting-roles { grid-template-columns: 1fr; } }
+
+/* Bibliothèque : les couvertures priment, la reprise reste un simple repère. */
+.library-heading { align-items: center; margin-bottom: 22px; }
+.library-heading h1 { font-family: 'DM Sans', system-ui, sans-serif; font-size: 30px; letter-spacing: -1px; font-weight: 600; margin: 0; }
+[data-screen='library'] .search-row { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 0 12px; margin-bottom: 22px; }
+[data-screen='library'] .search-row input { border: 0; background: transparent; padding-inline: 0; min-width: 0; }
+.library-resume { display: flex; align-items: center; gap: 12px; background: var(--accent-soft); padding: 14px; border-radius: 14px; }
+.resume-open { min-width: 0; flex: 1; display: flex; align-items: center; gap: 12px; padding: 0; text-align: left; }
+.resume-open > span { min-width: 0; display: grid; gap: 4px; }
+.resume-open strong { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.resume-open small { font-size: 11px; color: var(--ink-soft); }
+.library-resume .book-cover.tiny { height: 58px; width: 40px; flex: none; }
+.library-resume .primary { min-height: 44px; padding: 10px 14px; }
+.library-section { margin-top: 28px; }
+.library-section .books-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 28px 24px; }
+.library-section .book-open > strong { font-family: 'DM Sans', system-ui, sans-serif; font-size: 14px; font-weight: 500; text-align: center; margin-top: 12px; }
+.library-section .book-open > span { text-align: center; line-height: 1.6; }
+.library-section .book-cover { box-shadow: 0 6px 12px -10px rgba(23,33,58,.4); }
+.library-section .book-open .image-cover { box-shadow: none; }
+.library-section .image-cover img { filter: drop-shadow(0 5px 6px rgba(23,33,58,.12)); border-radius: 5px; }
+.library-section .book-open:hover .image-cover img { filter: drop-shadow(0 8px 8px rgba(23,33,58,.18)); }
+.library-section .book-bottom { margin-top: 3px; }
+.library-section .book-manage { min-height: 44px; }
+@media (max-width: 720px) {
+  .library-heading h1 { font-size: 27px; letter-spacing: -.8px; }
+  .library-section .books-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px 20px; }
+  .library-resume { padding: 12px; }
+  .library-resume .primary span { display: none; }
+  .library-resume .primary { width: 44px; padding: 0; }
+}

@@ -25,6 +25,7 @@
 
 ## Skills récemment appliquées
 
+- `redesign-existing-projects` / `design-taste-frontend` / `fixing-accessibility` / `app-presence-sync` / `-pk-COMMIT` — PK Reader 2026.10.86 : refonte ciblée à partir des références utilisateur, bleu et guide conservés ; vrais paragraphes, mesures de pagination identiques au rendu, bibliothèque orientée couvertures et commandes de lecture imbriquées. Captures fictives et tests de conservation du texte.
 - `fixing-accessibility` / `app-presence-sync` / `-pk-COMMIT` — PK Reader 2026.10.83 : téléchargement automatique de la voix choisie, aperçu qui attend l’installation, bulles de téléchargement regroupées et auto-effacées, clarification blocs/personnages et auto-attribution privilégiant les voix installées et légères.
 - `fixing-accessibility` / `app-presence-sync` / `-pk-COMMIT` — PK Reader 2026.10.82 : voix française Kokoro int8 intégrée au moteur sherpa-onnx existant (empreinte vérifiée, mémoire maîtrisée), aperçu sonore corrigé et navigation réduite sur une ligne.
 - `fixing-accessibility` / `app-presence-sync` / `-pk-COMMIT` — PK Reader 2026.10.81 : aperçu sonore par association dans le bilan de chapitre, mini-lecteur par défaut (plusieurs paragraphes par page), repagination liée à la hauteur du lecteur et bascule pages/défilement dans le lecteur. QA navigatrice étendue.

@@ -55,9 +55,13 @@ try {
   };
   const viewport = (width, height = 844) => send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 2, mobile: false });
   const shot = async name => {
+    await wait(`!document.querySelector('#toast')?.classList.contains('visible')`);
     await delay(250);
     const overflow = await evaluate('document.documentElement.scrollWidth > innerWidth');
-    if (overflow) throw new Error(`Débordement horizontal : ${name}`);
+    if (overflow) {
+      const offenders = await evaluate(`Array.from(document.querySelectorAll('body *')).filter(el => el.getBoundingClientRect().right > innerWidth + 1).slice(0,8).map(el=>[el.className,el.getBoundingClientRect().right])`);
+      throw new Error(`Débordement horizontal : ${name} ${JSON.stringify(offenders)}`);
+    }
     const result = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
     await writeFile(join(out, `${name}.png`), Buffer.from(result.data, 'base64'));
   };
@@ -65,7 +69,13 @@ try {
   await wait('!!document.querySelector(".book-open")');
   await evaluate(`(async () => {
     const { library } = await import('/storage.ts');
-    const segments = Array.from({length: 90}, (_, i) => 'Camille avançait le long du fleuve. Les fenêtres s’éclairaient une à une et le vent portait les voix du village. ' + (i + 1));
+    const sentences = ['Camille longeait le fleuve, attentive au murmure des arbres.',
+      'Plus loin, les maisons apparaissaient entre les branches.',
+      'Elle reconnut le chemin de son enfance et ralentit le pas.',
+      'Au village, les fenêtres s’éclairaient une à une.',
+      'Un air de piano venait de la place, porté par le vent du soir.',
+      'Elle sourit : le voyage lui semblait déjà moins long.'];
+    const segments = Array.from({length: 90}, (_, i) => sentences[i % sentences.length]);
     await library.save({id:'demo-controls',title:'Le voyage de Camille',author:'Camille Roy',format:'EPUB',language:'fr',color:2,
       segments, paragraphs: segments.map((_, i) => Math.floor(i / 3)),
       chapters:[{title:'Inconnu',start:0,end:30},{title:'Inconnu',start:30,end:60},{title:'Le retour',start:60,end:90}],
@@ -74,18 +84,42 @@ try {
       {id:'camille',name:'Camille',voice:'system:default',pitch:1,rate:1,gender:'femme',automaticVoice:true},
       {id:'pierre',name:'Pierre',voice:'system:default',pitch:1,rate:1,gender:'homme',automaticVoice:true}],
       assignments:{'1':'camille','31':'camille','61':'pierre'},analysis:{state:'local',completed:[],localRevision:2}}});
+    const cover = (title, bg, width, height) => {
+      const canvas = document.createElement('canvas'); canvas.width=width; canvas.height=height;
+      const ctx=canvas.getContext('2d'); ctx.fillStyle=bg; ctx.fillRect(0,0,width,height);
+      ctx.fillStyle='#f5f7fc'; ctx.font='32px Georgia'; ctx.fillText(title,24,90,width-48);
+      ctx.font='14px sans-serif';ctx.fillText('COLLECTION DES RIVAGES',24,height-36,width-48);
+      return canvas.toDataURL('image/webp');
+    };
+    const demo = (await library.all()).find(book=>book.id==='demo-controls');
+    demo.cover=cover('Le voyage de Camille','#314686',320,480); await library.save(demo);
+    await library.save({...demo,id:'demo-crossing',title:'La traversée',author:'Élise Marin',opened:0,position:0,cover:cover('La traversée','#397366',320,460)});
+    await library.save({...demo,id:'demo-hours',title:'Les heures claires',author:'Noé Rivière',opened:0,position:0,cover:cover('Les heures claires','#a95b44',320,500)});
   })()`);
   await send('Page.reload');
+  await wait('document.querySelectorAll(".book-item").length >= 4');
+  await shot('library-redesign');
+  await evaluate(`document.documentElement.dataset.theme='dark'`); await shot('library-redesign-dark');
+  await evaluate(`document.documentElement.dataset.theme='light'`);
+  await viewport(1280,900); await shot('library-redesign-desktop'); await viewport(390);
+  await evaluate(`(() => {const search=document.querySelector('#search');search.value='traversée';search.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+  await wait('document.querySelectorAll(".book-item").length === 1');
+  await evaluate(`(() => {const search=document.querySelector('#search');search.value='';search.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   await click('.book-open[data-id="demo-controls"]');
   await wait('!!document.querySelector(".reader-navigation") && document.querySelector("#page-footer")?.textContent.includes("/")');
+  await evaluate(`document.querySelector('.sentence[data-index="1"]').focus()`);
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
+  await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
+  await wait(`document.querySelector('#progress').value === '1'`);
+  await click('.reader-nav-mini [data-action="previous"]');
   if (!await evaluate('document.querySelector("#page-heading").textContent === "Chapitre 1"')) throw new Error('Titre inconnu non réparé');
   // Mini-lecteur par défaut : la page doit contenir plusieurs paragraphes.
   if (!await evaluate('!!document.querySelector(".player.reduit")')) throw new Error('Lecteur non réduit par défaut');
-  await wait('getComputedStyle(document.querySelector(".player-mini-progress")).display !== "none"');
+  await wait('getComputedStyle(document.querySelector(".progress-slider")).display !== "none"');
   // Mini-lecteur : chapitre, page et phrase restent accessibles sur une ligne.
   await wait('getComputedStyle(document.querySelector(".reader-nav-mini")).display !== "none"');
   const miniBoutons = await evaluate('document.querySelectorAll(".reader-nav-mini button").length');
-  if (miniBoutons !== 6) throw new Error(`Navigation réduite incomplète : ${miniBoutons} boutons`);
+  if (miniBoutons !== 7) throw new Error(`Navigation réduite incomplète : ${miniBoutons} boutons`);
   await click('.reader-nav-mini [data-action="next"]');
   await wait('document.querySelector("#progress").value === "1"');
   await click('.reader-nav-mini [data-action="previous"]');
@@ -114,6 +148,10 @@ try {
   // Bascule défilement continu ↔ pages, sans quitter le lecteur.
   await click('.player [data-action="layout"]');
   await wait('document.querySelector("#app").className.includes("layout-scroll") && !document.querySelector("#page-text")');
+  await click('[data-action="focus"]');
+  await shot('reader-scroll');
+  if (!await evaluate(`document.querySelector('.book-paragraph').querySelectorAll('.sentence').length === 3`)) throw new Error('Paragraphes non regroupés');
+  await click('[data-action="focus"]');
   await click('.player [data-action="layout"]');
   await wait('document.querySelector("#app").className.includes("layout-pages") && !!document.querySelector("#page-text")');
   await click('[data-action="focus"]');
@@ -125,6 +163,8 @@ try {
     document.querySelector('#analysis-activities').innerHTML = window.qaDownloads;
   })()`);
   await shot('reader-controls');
+  await evaluate(`document.documentElement.dataset.theme='dark'`); await shot('reader-controls-dark');
+  await evaluate(`document.documentElement.dataset.theme='light'`);
   await viewport(320, 740); await delay(500); await shot('reader-controls-small');
   await viewport(1280, 900); await delay(500); await shot('reader-controls-desktop');
   await viewport(390);
@@ -143,6 +183,21 @@ try {
   await evaluate(`document.querySelectorAll('[data-role-id]').forEach(select => { select.value = 'system:default'; }); speechSynthesis.speak = () => {};`);
   await click('[data-action="chapter-voices-confirm"]');
   await wait('!document.querySelector("dialog[open]")');
+  // Suivi réel du lecteur après bascule, synthèse seule neutralisée. Le test
+  // passe par les boutons, sans instance parallèle du module audio via HMR.
+  await click('.player [data-action="layout"]');
+  await wait(`document.querySelector('#app').classList.contains('layout-scroll')`);
+  await click('.sentence[data-index="12"]');
+  await delay(1000);
+  if (await evaluate(`!document.querySelector('#now-bar').hidden`)) throw new Error('Suivi perdu après bascule vers le défilement');
+  await evaluate(`window.dispatchEvent(new WheelEvent('wheel',{deltaY:120}));window.scrollTo(0,document.documentElement.scrollHeight);`);
+  await wait(`!document.querySelector('#now-bar').hidden`);
+  await shot('reader-return');
+  await click('#now-bar');
+  await wait(`document.querySelector('#now-bar').hidden`);
+  await click('.sentence[data-index="0"]');
+  await click('.player [data-action="layout"]');
+  await wait(`document.querySelector('#app').classList.contains('layout-pages')`);
   await click('[data-action="chapter-step"][data-id="1"]');
   await wait('document.querySelector(".reader-nav-location").textContent === "Chapitre 2"');
   if (await evaluate('!!document.querySelector("dialog[open]")')) throw new Error('Les voix connues sont redemandées');

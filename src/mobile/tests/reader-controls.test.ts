@@ -27,7 +27,8 @@ describe('lecteur regroupé', () => {
     // Mini-lecteur : chapitre, page et phrase tiennent sur une seule ligne.
     const mini = document.querySelector('.reader-nav-mini');
     expect(mini?.getAttribute('role')).toBe('group');
-    expect(mini?.querySelectorAll('button')).toHaveLength(6);
+    expect(mini?.querySelectorAll('button')).toHaveLength(7);
+    expect(mini?.querySelectorAll('button')[3].dataset.action).toBe('toggle');
     expect(mini?.querySelector('[data-action="next"] [data-lucide="rotate-cw"]')).not.toBeNull();
     expect(mini?.querySelector('[aria-label="Chapitre précédent"]')?.hasAttribute('disabled')).toBe(true);
   });

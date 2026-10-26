@@ -12,7 +12,7 @@ export function readerHeaderView(book: Book, analysis: string) {
 
 /** Un seul endroit pour naviguer, chaque niveau est nommé et a sa propre icône.
  *  En lecteur réduit, la même navigation tient sur une ligne d'icônes. */
-export function readerNavigationView(book: Book, layout: 'pages' | 'scroll') {
+export function readerNavigationView(book: Book, layout: 'pages' | 'scroll', playing = false, loading = false) {
   const chapter = chapterAt(book), index = book.chapters.indexOf(chapter);
   const chapitrePrecedent = index <= 0, chapitreSuivant = index >= book.chapters.length - 1;
   return `<div class="reader-navigation" aria-label="Navigation du livre">
@@ -27,6 +27,7 @@ export function readerNavigationView(book: Book, layout: 'pages' | 'scroll') {
       <button type="button" data-action="chapter-step" data-id="-1" ${chapitrePrecedent ? 'disabled' : ''} aria-label="Chapitre précédent">${icon('skip-back')}</button>
       <button type="button" data-action="page-prev" aria-label="Page précédente">${icon('chevron-left')}</button>
       <button type="button" data-action="previous" aria-label="Revenir d’une phrase">${icon('rotate-ccw')}</button>
+      <button type="button" class="play-button ${loading ? 'loading' : ''}" data-action="toggle" aria-label="${playing ? 'Mettre en pause' : 'Lire à voix haute'}">${icon(loading ? 'loader-circle' : playing ? 'pause' : 'play')}</button>
       <button type="button" data-action="next" aria-label="Avancer d’une phrase">${icon('rotate-cw')}</button>
       <button type="button" data-action="page-next" aria-label="Page suivante">${icon('chevron-right')}</button>
       <button type="button" data-action="chapter-step" data-id="1" ${chapitreSuivant ? 'disabled' : ''} aria-label="Chapitre suivant">${icon('skip-forward')}</button>

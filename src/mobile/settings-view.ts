@@ -16,7 +16,7 @@ export function lectureBody(settings: Settings): string {
   <div class="choice-grid" role="group" aria-label="Taille du texte">${[18,20,22,25,28,32].map(n =>
     `<button class="choice ${settings.fontSize===n?'active':''}" data-action="font" data-id="${n}" style="font-size:${n}px" aria-pressed="${settings.fontSize===n}">Aa</button>`).join('')}</div></div>
   <div class="settings-group"><h3>Interligne</h3>
-  <div class="choice-grid" role="group" aria-label="Interligne">${[[1.6,'Serré'],[1.95,'Normal'],[2.1,'Aéré']].map(([n,label]) =>
+  <div class="choice-grid pair" role="group" aria-label="Interligne">${[[1.6,'Serré'],[1.7,'Livre'],[1.95,'Normal'],[2.1,'Aéré']].map(([n,label]) =>
     `<button class="choice ${Math.abs((settings.interligne??1.95)-Number(n))<0.01?'active':''}" data-action="interligne" data-id="${n}" aria-pressed="${Math.abs((settings.interligne??1.95)-Number(n))<0.01}">${label}</button>`).join('')}</div></div>
   <div class="settings-group"><h3>Marges</h3>
   <div class="choice-grid" role="group" aria-label="Marges">${[[0,'Normales'],[16,'Confort'],[32,'Larges']].map(([n,label]) =>

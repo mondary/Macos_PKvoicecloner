@@ -35,6 +35,21 @@ La clé est **chiffrée dans Android Keystore** et n'est jamais réaffichée dan
 
 Le repérage local reste le repli hors ligne : incises, étiquettes corroborées et alternance des répliques, avec les passages ambigus laissés au narrateur. La génération des voix clonées reste sur le Mac (c'est le moteur de clonage) ; l'analyse, la distribution, la lecture Piper/Android et le karaoké sont autonomes sur le téléphone.
 
+## Présentation du lecteur et de la bibliothèque (2026.10.86)
+
+La recherche de livres est toujours visible. Les couvertures gardent leurs proportions,
+les titres sont centrés, et la reprise prend une bande compacte plutôt qu’une grande
+carte. Le livre de découverte garde sa présentation bleue.
+
+Dans le lecteur, plusieurs phrases composent un vrai paragraphe : le découpage audio
+n’impose plus les sauts de ligne. Les pages sont mesurées avec le même rendu que le
+texte affiché ; la taille du texte et l’interligne restent réglables (option « Livre »
+à 1,7). Le mini-lecteur regroupe chapitre/page/phrase autour du bouton Lecture/Pause.
+Le curseur, le pourcentage et le temps restant restent visibles ; le minuteur est dans
+le lecteur agrandi. La bascule pages/défilement garde la phrase courante en vue.
+Un déplacement manuel suspend le suivi ; « Revenir » le réactive si la phrase lue est
+hors champ. On peut toujours toucher une phrase ou l’activer avec Entrée/Espace.
+
 ## Mettre à jour
 
 Depuis **2026.10.61**, l’application se met à jour elle-même : **Réglages → Mises à jour → Vérifier les mises à jour**. Elle lit les releases `pk-…`, télécharge l’APK, vérifie son empreinte SHA-256 et sa signature, puis ouvre l’installateur Android. La progression s’affiche pendant le téléchargement.
